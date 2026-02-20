@@ -12,6 +12,7 @@ import { db } from "../../services/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
+import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
 
 const TIPOS = [
     { value: "TODOS", label: "Todos" },
@@ -20,6 +21,16 @@ const TIPOS = [
     { value: "FIM_INTERVALO", label: "Fim intervalo" },
     { value: "SAIDA", label: "Saída" },
 ];
+
+function formatarTipo(tipo) {
+    const map = {
+        ENTRADA: "Entrada",
+        INICIO_INTERVALO: "Início Intervalo",
+        FIM_INTERVALO: "Fim Intervalo",
+        SAIDA: "Saída",
+    };
+    return map[tipo] || tipo;
+}
 
 function formatarData(ts) {
     if (!ts) return "—";
@@ -143,10 +154,7 @@ export default function DashboardAdmin() {
         <LayoutAdmin>
             <Sidebar>
                 <Branding>
-                    <LogoIcon>
-                        <div />
-                        <div />
-                    </LogoIcon>
+                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
                     PontoFlow
                 </Branding>
 
@@ -219,13 +227,13 @@ export default function DashboardAdmin() {
                                                 <tr key={p.id} className={!p.dentroDoRaio ? "row-alerta" : ""}>
                                                     <td><input type="checkbox" /></td>
                                                     <td>{p.userName || "—"}</td>
-                                                    <td>{p.type}</td>
+                                                    <td>{formatarTipo(p.type)}</td>
                                                     <td>{formatarData(p.criadoEm)}</td>
                                                     <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
                                                     <td>
                                                         <LocalInfo>
                                                             <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />
-                                                            {p.dentroDoRaio ? "Na Escola" : "Fora do Raio"}
+                                                            {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
                                                             {!p.dentroDoRaio && <FiAlertTriangle className="icon-alerta" />}
                                                         </LocalInfo>
                                                     </td>
@@ -339,7 +347,7 @@ export default function DashboardAdmin() {
                                 <PainelConfig>
                                     <ConfigBox>
                                         <h4>Geofencing (Raio da Escola)</h4>
-                                        <p>Defina o raio de tolerância para batida de ponto na escola.</p>
+                                        <p>Defina o raio de tolerância para batida de ponto na Escola Municipal Senador Levindo Coelho.</p>
                                         <div className="input-row">
                                             <input
                                                 type="number"
@@ -419,6 +427,8 @@ export default function DashboardAdmin() {
                     aberto={modalAberto}
                     onFechar={() => setModalAberto(false)}
                 />
+
+                <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
             </ConteudoPrincipal>
         </LayoutAdmin>
     );
@@ -449,10 +459,7 @@ const Sidebar = styled.aside`
   padding: 24px;
 
   @media (max-width: 900px) {
-    width: 80px;
-    padding: 24px 12px;
-    span { display: none; }
-    h1 { font-size: 0; }
+    display: none;
   }
 `;
 
@@ -465,20 +472,11 @@ const Branding = styled.div`
   margin-bottom: 48px;
 `;
 
-const LogoIcon = styled.div`
+const Logo = styled.img`
   width: 32px;
   height: 32px;
-  background: #2f81f7;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  div:first-child {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #fff;
-    transform: rotate(45deg);
-  }
+  object-fit: contain;
 `;
 
 const Nav = styled.nav`
@@ -518,12 +516,21 @@ const ConteudoPrincipal = styled.main`
   display: flex;
   flex-direction: column;
   gap: 24px;
+
+  @media (max-width: 900px) {
+    padding: 20px 16px 100px;
+  }
 `;
 
 const Topo = styled.header`
   display: flex;
   align-items: center;
   gap: 16px;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const BuscaWrapper = styled.div`
@@ -601,6 +608,10 @@ const BotaoExportar = styled.button`
 const ResumoCards = styled.div`
   display: flex;
   gap: 16px;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+  }
 `;
 
 const Card = styled.div`
@@ -628,7 +639,7 @@ const TabelaContainer = styled.div`
   background: #19191b;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
 `;
 
 const TabelaStyled = styled.table`
@@ -722,6 +733,10 @@ const PainelConfig = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 24px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ConfigBox = styled.div`

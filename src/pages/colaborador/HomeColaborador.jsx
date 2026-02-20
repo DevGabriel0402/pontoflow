@@ -26,7 +26,7 @@ export default function HomeColaborador() {
 
     const statusTexto = React.useMemo(() => {
         if (!checou) return "Validando localização...";
-        if (validacao.ok) return "Localização Validada: Na Escola";
+        if (validacao.ok) return "Localização Validada: Escola Municipal Senador Levindo Coelho";
         if (validacao.ok === false)
             return `Fora do raio permitido (${validacao.distance}m)`;
         return "Localização não verificada";
@@ -65,7 +65,7 @@ export default function HomeColaborador() {
         <Tela>
             <Topo>
                 <Marca>
-                    <Logo />
+                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
                     <span>PontoFlow</span>
                 </Marca>
 
@@ -172,11 +172,11 @@ const Marca = styled.div`
   font-weight: 900;
 `;
 
-const Logo = styled.div`
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: ${({ theme }) => theme.cores.azul};
+const Logo = styled.img`
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: contain;
 `;
 
 const AcoesTopo = styled.div`

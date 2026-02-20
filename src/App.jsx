@@ -11,6 +11,7 @@ import Historico from "./pages/colaborador/Historico";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
 
 import { useSync } from "./hooks/useSync";
+import CookieConsent from "./components/CookieConsent";
 
 export default function App() {
   console.log("App.jsx: Renderizando...");
@@ -50,6 +51,7 @@ export default function App() {
           }
         />
       </Routes>
+      <CookieConsent />
     </BrowserRouter>
   );
 }

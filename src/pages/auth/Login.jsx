@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContexto";
-import { FiLogIn } from "react-icons/fi";
+import { FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function Login() {
     const { login } = useAuth();
@@ -11,6 +11,7 @@ export default function Login() {
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState("");
+    const [mostrarSenha, setMostrarSenha] = useState(false);
     const [carregando, setCarregando] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -32,7 +33,7 @@ export default function Login() {
         <Tela>
             <Card>
                 <Topo>
-                    <Logo />
+                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
                     <h1>PontoFlow</h1>
                 </Topo>
 
@@ -43,7 +44,16 @@ export default function Login() {
                     <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
 
                     <label>Senha</label>
-                    <input value={senha} onChange={(e) => setSenha(e.target.value)} type="password" />
+                    <InputSenhaWrapper>
+                        <input
+                            value={senha}
+                            onChange={(e) => setSenha(e.target.value)}
+                            type={mostrarSenha ? "text" : "password"}
+                        />
+                        <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
+                            {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        </button>
+                    </InputSenhaWrapper>
 
                     <Botao disabled={carregando}>
                         <FiLogIn size={18} />
@@ -84,11 +94,11 @@ const Topo = styled.div`
   }
 `;
 
-const Logo = styled.div`
-  width: 26px;
-  height: 26px;
+const Logo = styled.img`
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  background: ${({ theme }) => theme.cores.azul};
+  object-fit: contain;
 `;
 
 const Sub = styled.p`
@@ -115,6 +125,36 @@ const Form = styled.form`
     background: ${({ theme }) => theme.cores.superficie};
     color: ${({ theme }) => theme.cores.texto};
     outline: none;
+  }
+`;
+
+const InputSenhaWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    width: 100%;
+    padding-right: 48px !important;
+  }
+
+  button {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: 0;
+    color: ${({ theme }) => theme.cores.texto2};
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
   }
 `;
 

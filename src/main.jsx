@@ -4,6 +4,10 @@ import App from "./App";
 import GlobalStyle from "./styles/GlobalStyle";
 import { TemaProviderApp } from "./contexts/TemaContexto";
 import { AuthProvider } from "./contexts/AuthContexto";
+import { registerSW } from 'virtual:pwa-register';
+
+// Registra o Service Worker do PWA
+registerSW({ immediate: true });
 
 console.log("main.jsx: Iniciando PontoFlow...");
 

@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale";
 import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon } from "react-icons/fi";
 import { startOfToday, startOfWeek, isAfter } from "date-fns";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
+import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
 
 const TIPOS = [
     { value: "TODOS", label: "Todos" },
@@ -69,6 +70,7 @@ export default function Historico() {
     const [aba, setAba] = React.useState("HOJE"); // HOJE, SEMANA
     const [dataInicio, setDataInicio] = React.useState("");
     const [dataFim, setDataFim] = React.useState("");
+    const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
 
     const filaOffline = React.useMemo(() => obterFila(), [pendentes]); // recarrega quando pendentes muda
 
@@ -106,14 +108,30 @@ export default function Historico() {
         <Tela>
             <Topo>
                 <Branding>
-                    <LogoIcon>
-                        <div />
-                        <div />
-                    </LogoIcon>
+                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
                     PontoFlow
                 </Branding>
-                <FiFilter size={20} />
+                <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
+                    <FiFilter size={20} />
+                    {(tipo !== "TODOS" || dataInicio || dataFim) && <BadgeNotificacao />}
+                </BotaoFiltro>
             </Topo>
+
+            <ModalFiltroHistorico
+                aberto={modalFiltroAberto}
+                aoFechar={() => setModalFiltroAberto(false)}
+                tipo={tipo}
+                setTipo={setTipo}
+                dataInicio={dataInicio}
+                setDataInicio={setDataInicio}
+                dataFim={dataFim}
+                setDataFim={setDataFim}
+                aoLimpar={() => {
+                    setTipo("TODOS");
+                    setDataInicio("");
+                    setDataFim("");
+                }}
+            />
 
             <Corpo>
                 <HeaderSecao>
@@ -156,7 +174,7 @@ export default function Historico() {
                                                 <TextoTipo>{formatarTipo(p.type)}</TextoTipo>
                                                 <TextoLocal>
                                                     <FiMapPin size={12} />
-                                                    {p.dentroDoRaio ? "Na Escola" : "Fora do Raio"}
+                                                    {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
                                                 </TextoLocal>
                                             </InfoCol>
 
@@ -218,22 +236,41 @@ const Branding = styled.div`
   font-size: 18px;
 `;
 
-const LogoIcon = styled.div`
-  width: 28px;
-  height: 28px;
-  background: #4facfe;
-  border-radius: 6px;
-  position: relative;
+const Logo = styled.img`
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+`;
+
+const BotaoFiltro = styled.button`
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  
-  div:first-child {
-    width: 14px;
-    height: 14px;
-    border: 2px solid #fff;
-    transform: rotate(45deg);
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
+`;
+
+const BadgeNotificacao = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #4facfe;
+  border-radius: 50%;
+  border: 2px solid #000;
 `;
 
 const Corpo = styled.div`
