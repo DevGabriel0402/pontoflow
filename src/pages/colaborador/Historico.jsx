@@ -13,21 +13,21 @@ import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
 
 const TIPOS = [
-    { value: "TODOS", label: "Todos" },
-    { value: "ENTRADA", label: "Entrada" },
-    { value: "INICIO_INTERVALO", label: "Início intervalo" },
-    { value: "FIM_INTERVALO", label: "Fim intervalo" },
-    { value: "SAIDA", label: "Saída" },
+  { value: "TODOS", label: "Todos" },
+  { value: "ENTRADA", label: "Entrada" },
+  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
+  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
+  { value: "SAIDA", label: "Saída" },
 ];
 
 function formatarTipo(tipo) {
-    const map = {
-        ENTRADA: "Entrada",
-        INICIO_INTERVALO: "Início Intervalo",
-        FIM_INTERVALO: "Fim Intervalo",
-        SAIDA: "Saída",
-    };
-    return map[tipo] || tipo;
+  const map = {
+    ENTRADA: "Entrada",
+    INICIO_INTERVALO: "Início Intervalo",
+    FIM_INTERVALO: "Fim Intervalo",
+    SAIDA: "Saída",
+  };
+  return map[tipo] || tipo;
 }
 
 /**
@@ -36,179 +36,179 @@ function formatarTipo(tipo) {
  * - senão criadoEm (Firestore Timestamp)
  */
 function getDataPreferida(p) {
-    if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
-    if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
-    if (p?.criadoEm) return new Date(p.criadoEm);
-    return null;
+  if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
+  if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
+  if (p?.criadoEm) return new Date(p.criadoEm);
+  return null;
 }
 
 function formatarDataPonto(p) {
-    const d = getDataPreferida(p);
-    if (!d) return "—";
-    return format(d, "HH:mm", { locale: ptBR });
+  const d = getDataPreferida(p);
+  if (!d) return "—";
+  return format(d, "HH:mm", { locale: ptBR });
 }
 
 function getIcone(tipo, dentroDoRaio) {
-    if (!dentroDoRaio) return <FiAlertTriangle />;
+  if (!dentroDoRaio) return <FiAlertTriangle />;
 
-    switch (tipo) {
-        case "ENTRADA": return <FiCheck />;
-        case "INICIO_INTERVALO": return <FiSun />;
-        case "FIM_INTERVALO": return <FiSun />;
-        case "SAIDA": return <FiCheck />;
-        default: return <FiCheck />;
-    }
+  switch (tipo) {
+    case "ENTRADA": return <FiCheck />;
+    case "INICIO_INTERVALO": return <FiSun />;
+    case "FIM_INTERVALO": return <FiSun />;
+    case "SAIDA": return <FiCheck />;
+    default: return <FiCheck />;
+  }
 }
 
 export default function Historico() {
-    const { usuario, isAdmin } = useAuth();
-    const { itens, carregando, erro } = useHistoricoPontos(usuario?.uid);
+  const { usuario, isAdmin } = useAuth();
+  const { itens, carregando, erro } = useHistoricoPontos(usuario?.uid);
 
-    const { pendentes, online, sincronizando, syncAgora } = useSync();
+  const { pendentes, online, sincronizando, syncAgora } = useSync();
 
-    const [tipo, setTipo] = React.useState("TODOS");
-    const [aba, setAba] = React.useState("HOJE"); // HOJE, SEMANA
-    const [dataInicio, setDataInicio] = React.useState("");
-    const [dataFim, setDataFim] = React.useState("");
-    const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
+  const [tipo, setTipo] = React.useState("TODOS");
+  const [aba, setAba] = React.useState("HOJE"); // HOJE, SEMANA
+  const [dataInicio, setDataInicio] = React.useState("");
+  const [dataFim, setDataFim] = React.useState("");
+  const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
 
-    const filaOffline = React.useMemo(() => obterFila(), [pendentes]); // recarrega quando pendentes muda
+  const filaOffline = React.useMemo(() => obterFila(), [pendentes]); // recarrega quando pendentes muda
 
-    const itensFiltrados = React.useMemo(() => {
-        let final = [...itens];
+  const itensFiltrados = React.useMemo(() => {
+    let final = [...itens];
 
-        if (aba === "HOJE") {
-            const hoje = startOfToday();
-            final = final.filter(p => isAfter(getDataPreferida(p), hoje));
-        } else if (aba === "SEMANA") {
-            const semana = startOfWeek(new Date(), { locale: ptBR });
-            final = final.filter(p => isAfter(getDataPreferida(p), semana));
-        }
+    if (aba === "HOJE") {
+      const hoje = startOfToday();
+      final = final.filter(p => isAfter(getDataPreferida(p), hoje));
+    } else if (aba === "SEMANA") {
+      const semana = startOfWeek(new Date(), { locale: ptBR });
+      final = final.filter(p => isAfter(getDataPreferida(p), semana));
+    }
 
-        if (tipo !== "TODOS") {
-            final = final.filter(p => p.type === tipo);
-        }
+    if (tipo !== "TODOS") {
+      final = final.filter(p => p.type === tipo);
+    }
 
-        if (dataInicio || dataFim) {
-            const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
-            const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
-            final = final.filter(p => {
-                const d = getDataPreferida(p);
-                if (!d) return true;
-                if (ini && d < ini) return false;
-                if (fim && d > fim) return false;
-                return true;
+    if (dataInicio || dataFim) {
+      const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
+      const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
+      final = final.filter(p => {
+        const d = getDataPreferida(p);
+        if (!d) return true;
+        if (ini && d < ini) return false;
+        if (fim && d > fim) return false;
+        return true;
+      });
+    }
+
+    return final;
+  }, [itens, tipo, dataInicio, dataFim, aba]);
+
+  return (
+    <Tela>
+      <Topo>
+        <Branding>
+          <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
+          PontoFlow
+        </Branding>
+        <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
+          <FiFilter size={20} />
+          {(tipo !== "TODOS" || dataInicio || dataFim) && <BadgeNotificacao />}
+        </BotaoFiltro>
+      </Topo>
+
+      <ModalFiltroHistorico
+        aberto={modalFiltroAberto}
+        aoFechar={() => setModalFiltroAberto(false)}
+        tipo={tipo}
+        setTipo={setTipo}
+        dataInicio={dataInicio}
+        setDataInicio={setDataInicio}
+        dataFim={dataFim}
+        setDataFim={setDataFim}
+        aoLimpar={() => {
+          setTipo("TODOS");
+          setDataInicio("");
+          setDataFim("");
+        }}
+      />
+
+      <Corpo>
+        <HeaderSecao>
+          <TituloPrincipal>Histórico de Pontos</TituloPrincipal>
+
+          <Tabs>
+            <Tab $ativo={aba === "HOJE"} onClick={() => setAba("HOJE")}>Hoje</Tab>
+            <Tab $ativo={aba === "SEMANA"} onClick={() => setAba("SEMANA")}>Semana</Tab>
+          </Tabs>
+        </HeaderSecao>
+
+        <ListaRefatorada>
+          {/* Exemplo de Layout conforme imagem */}
+          {itensFiltrados.length === 0 && !carregando && (
+            <Vazio>Nenhum registro encontrado</Vazio>
+          )}
+
+          {(() => {
+            let ultimaData = "";
+            return itensFiltrados.map((p) => {
+              const dataObj = getDataPreferida(p);
+              const dataKey = dataObj ? format(dataObj, "yyyy-MM-dd") : "";
+              const mostrarHeader = dataKey !== ultimaData && aba === "SEMANA";
+              if (mostrarHeader) ultimaData = dataKey;
+
+              return (
+                <React.Fragment key={p.id}>
+                  {mostrarHeader && (
+                    <DataSeparador>
+                      {format(dataObj, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                    </DataSeparador>
+                  )}
+                  <ItemFlow>
+                    <LinhaPrincipal>
+                      <IconCol $tipo={p.type} $raio={p.dentroDoRaio}>
+                        {getIcone(p.type, p.dentroDoRaio)}
+                      </IconCol>
+
+                      <InfoCol>
+                        <TextoTipo>{formatarTipo(p.type)}</TextoTipo>
+                        <TextoLocal>
+                          <FiMapPin size={12} />
+                          {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
+                        </TextoLocal>
+                      </InfoCol>
+
+                      <ValorCol>
+                        <HoraPonto>{formatarDataPonto(p)}</HoraPonto>
+                        {p.dentroDoRaio === false && (
+                          <BadgeStatus $cor="erro">
+                            <FiAlertCircle size={14} />
+                          </BadgeStatus>
+                        )}
+                        {p.origem === "offline_queue" && (
+                          <BadgeStatus $cor="alerta">
+                            <FiAlertTriangle size={14} />
+                          </BadgeStatus>
+                        )}
+                      </ValorCol>
+                    </LinhaPrincipal>
+                  </ItemFlow>
+                </React.Fragment>
+              );
             });
-        }
+          })()}
+        </ListaRefatorada>
 
-        return final;
-    }, [itens, tipo, dataInicio, dataFim, aba]);
+        {online && pendentes > 0 && (
+          <BotaoSincronizar Floating onClick={syncAgora} disabled={sincronizando}>
+            {sincronizando ? "Sincronizando..." : `Sincronizar ${pendentes} pontos`}
+          </BotaoSincronizar>
+        )}
+      </Corpo>
 
-    return (
-        <Tela>
-            <Topo>
-                <Branding>
-                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-                    PontoFlow
-                </Branding>
-                <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
-                    <FiFilter size={20} />
-                    {(tipo !== "TODOS" || dataInicio || dataFim) && <BadgeNotificacao />}
-                </BotaoFiltro>
-            </Topo>
-
-            <ModalFiltroHistorico
-                aberto={modalFiltroAberto}
-                aoFechar={() => setModalFiltroAberto(false)}
-                tipo={tipo}
-                setTipo={setTipo}
-                dataInicio={dataInicio}
-                setDataInicio={setDataInicio}
-                dataFim={dataFim}
-                setDataFim={setDataFim}
-                aoLimpar={() => {
-                    setTipo("TODOS");
-                    setDataInicio("");
-                    setDataFim("");
-                }}
-            />
-
-            <Corpo>
-                <HeaderSecao>
-                    <TituloPrincipal>Histórico de Pontos</TituloPrincipal>
-
-                    <Tabs>
-                        <Tab $ativo={aba === "HOJE"} onClick={() => setAba("HOJE")}>Hoje</Tab>
-                        <Tab $ativo={aba === "SEMANA"} onClick={() => setAba("SEMANA")}>Semana</Tab>
-                    </Tabs>
-                </HeaderSecao>
-
-                <ListaRefatorada>
-                    {/* Exemplo de Layout conforme imagem */}
-                    {itensFiltrados.length === 0 && !carregando && (
-                        <Vazio>Nenhum registro encontrado</Vazio>
-                    )}
-
-                    {(() => {
-                        let ultimaData = "";
-                        return itensFiltrados.map((p) => {
-                            const dataObj = getDataPreferida(p);
-                            const dataKey = dataObj ? format(dataObj, "yyyy-MM-dd") : "";
-                            const mostrarHeader = dataKey !== ultimaData && aba === "SEMANA";
-                            if (mostrarHeader) ultimaData = dataKey;
-
-                            return (
-                                <React.Fragment key={p.id}>
-                                    {mostrarHeader && (
-                                        <DataSeparador>
-                                            {format(dataObj, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                                        </DataSeparador>
-                                    )}
-                                    <ItemFlow>
-                                        <LinhaPrincipal>
-                                            <IconCol $tipo={p.type} $raio={p.dentroDoRaio}>
-                                                {getIcone(p.type, p.dentroDoRaio)}
-                                            </IconCol>
-
-                                            <InfoCol>
-                                                <TextoTipo>{formatarTipo(p.type)}</TextoTipo>
-                                                <TextoLocal>
-                                                    <FiMapPin size={12} />
-                                                    {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
-                                                </TextoLocal>
-                                            </InfoCol>
-
-                                            <ValorCol>
-                                                <HoraPonto>{formatarDataPonto(p)}</HoraPonto>
-                                                {p.dentroDoRaio === false && (
-                                                    <BadgeStatus $cor="erro">
-                                                        <FiAlertCircle size={14} />
-                                                    </BadgeStatus>
-                                                )}
-                                                {p.origem === "offline_queue" && (
-                                                    <BadgeStatus $cor="alerta">
-                                                        <FiAlertTriangle size={14} />
-                                                    </BadgeStatus>
-                                                )}
-                                            </ValorCol>
-                                        </LinhaPrincipal>
-                                    </ItemFlow>
-                                </React.Fragment>
-                            );
-                        });
-                    })()}
-                </ListaRefatorada>
-
-                {online && pendentes > 0 && (
-                    <BotaoSincronizar Floating onClick={syncAgora} disabled={sincronizando}>
-                        {sincronizando ? "Sincronizando..." : `Sincronizar ${pendentes} pontos`}
-                    </BotaoSincronizar>
-                )}
-            </Corpo>
-
-            <TabbarMobile mostrarAdmin={isAdmin} />
-        </Tela>
-    );
+      <TabbarMobile mostrarAdmin={isAdmin} />
+    </Tela>
+  );
 }
 
 /* ---------------- styled ---------------- */
@@ -346,10 +346,10 @@ const IconCol = styled.div`
   font-size: 18px;
   
   ${({ $tipo, $raio, theme }) => {
-        if (!$raio) return "background: #f39c12; color: #fff;"; // Fora do raio
-        if ($tipo === "ENTRADA" || $tipo === "SAIDA") return "background: #2ecc71; color: #fff;";
-        return "background: #f1c40f; color: #fff;"; // Intervalos
-    }}
+    if (!$raio) return "background: #f39c12; color: #fff;"; // Fora do raio
+    if ($tipo === "ENTRADA" || $tipo === "SAIDA") return "background: #2ecc71; color: #fff;";
+    return "background: #f1c40f; color: #fff;"; // Intervalos
+  }}
 `;
 
 const InfoCol = styled.div`

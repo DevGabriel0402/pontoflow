@@ -15,423 +15,423 @@ import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
 
 const TIPOS = [
-    { value: "TODOS", label: "Todos" },
-    { value: "ENTRADA", label: "Entrada" },
-    { value: "INICIO_INTERVALO", label: "Início intervalo" },
-    { value: "FIM_INTERVALO", label: "Fim intervalo" },
-    { value: "SAIDA", label: "Saída" },
+  { value: "TODOS", label: "Todos" },
+  { value: "ENTRADA", label: "Entrada" },
+  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
+  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
+  { value: "SAIDA", label: "Saída" },
 ];
 
 function formatarTipo(tipo) {
-    const map = {
-        ENTRADA: "Entrada",
-        INICIO_INTERVALO: "Início Intervalo",
-        FIM_INTERVALO: "Fim Intervalo",
-        SAIDA: "Saída",
-    };
-    return map[tipo] || tipo;
+  const map = {
+    ENTRADA: "Entrada",
+    INICIO_INTERVALO: "Início Intervalo",
+    FIM_INTERVALO: "Fim Intervalo",
+    SAIDA: "Saída",
+  };
+  return map[tipo] || tipo;
 }
 
 function formatarData(ts) {
-    if (!ts) return "—";
-    try {
-        const d = ts?.toDate ? ts.toDate() : new Date(ts);
-        if (isNaN(d.getTime())) return "Data Inválida";
-        return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
-    } catch (e) {
-        return "Erro Data";
-    }
+  if (!ts) return "—";
+  try {
+    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return "Data Inválida";
+    return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
+  } catch (e) {
+    return "Erro Data";
+  }
 }
 
 export default function DashboardAdmin() {
-    const { itens, carregando, erro } = useAdminPontos();
+  const { itens, carregando, erro } = useAdminPontos();
 
-    const [buscaNome, setBuscaNome] = React.useState("");
-    const [tipo, setTipo] = React.useState("TODOS");
-    const [dataInicio, setDataInicio] = React.useState("");
-    const [dataFim, setDataFim] = React.useState("");
-    const [mostrarToast, setMostrarToast] = React.useState(false);
-    const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
-    const [modalAberto, setModalAberto] = React.useState(false);
+  const [buscaNome, setBuscaNome] = React.useState("");
+  const [tipo, setTipo] = React.useState("TODOS");
+  const [dataInicio, setDataInicio] = React.useState("");
+  const [dataFim, setDataFim] = React.useState("");
+  const [mostrarToast, setMostrarToast] = React.useState(false);
+  const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
+  const [modalAberto, setModalAberto] = React.useState(false);
 
-    // Lista de funcionários para a aba específica
-    const { funcionarios, carregando: carregandoFuncs, erro: erroFuncs } = useAdminFuncionarios();
-    const [buscaFunc, setBuscaFunc] = React.useState("");
+  // Lista de funcionários para a aba específica
+  const { funcionarios, carregando: carregandoFuncs, erro: erroFuncs } = useAdminFuncionarios();
+  const [buscaFunc, setBuscaFunc] = React.useState("");
 
-    // Estados para Configurações (Geofencing)
-    const [configRaio, setConfigRaio] = React.useState(120);
-    const [configLat, setConfigLat] = React.useState(-19.9440459);
-    const [configLng, setConfigLng] = React.useState(-43.9147834);
-    const [salvandoConfig, setSalvandoConfig] = React.useState(false);
+  // Estados para Configurações (Geofencing)
+  const [configRaio, setConfigRaio] = React.useState(120);
+  const [configLat, setConfigLat] = React.useState(-19.9440459);
+  const [configLng, setConfigLng] = React.useState(-43.9147834);
+  const [salvandoConfig, setSalvandoConfig] = React.useState(false);
 
-    // Carregar config inicial do Firestore
-    React.useEffect(() => {
-        const carregar = async () => {
-            try {
-                const snap = await getDoc(doc(db, "settings", "geofencing"));
-                if (snap.exists()) {
-                    const data = snap.data();
-                    if (data.raio) setConfigRaio(data.raio);
-                    if (data.lat) setConfigLat(data.lat);
-                    if (data.lng) setConfigLng(data.lng);
-                }
-            } catch (e) {
-                console.error("Erro ao carregar settings:", e);
-            }
-        };
-        carregar();
-    }, []);
-
-    const handleSalvarConfig = async () => {
-        setSalvandoConfig(true);
-        try {
-            await setDoc(doc(db, "settings", "geofencing"), {
-                raio: Number(configRaio),
-                lat: Number(configLat),
-                lng: Number(configLng),
-                atualizadoEm: new Date(),
-            });
-            toast.success("Configurações salvas!");
-        } catch (e) {
-            toast.error("Erro ao salvar.");
-        } finally {
-            setSalvandoConfig(false);
+  // Carregar config inicial do Firestore
+  React.useEffect(() => {
+    const carregar = async () => {
+      try {
+        const snap = await getDoc(doc(db, "settings", "geofencing"));
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.raio) setConfigRaio(data.raio);
+          if (data.lat) setConfigLat(data.lat);
+          if (data.lng) setConfigLng(data.lng);
         }
+      } catch (e) {
+        console.error("Erro ao carregar settings:", e);
+      }
     };
+    carregar();
+  }, []);
 
-    React.useEffect(() => {
-        if (mostrarToast) {
-            const timer = setTimeout(() => {
-                setMostrarToast(false);
-            }, 3000); // 3 segundos
-            return () => clearTimeout(timer);
-        }
-    }, [mostrarToast]);
+  const handleSalvarConfig = async () => {
+    setSalvandoConfig(true);
+    try {
+      await setDoc(doc(db, "settings", "geofencing"), {
+        raio: Number(configRaio),
+        lat: Number(configLat),
+        lng: Number(configLng),
+        atualizadoEm: new Date(),
+      });
+      toast.success("Configurações salvas!");
+    } catch (e) {
+      toast.error("Erro ao salvar.");
+    } finally {
+      setSalvandoConfig(false);
+    }
+  };
 
-    const filtrados = React.useMemo(() => {
-        const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
-        const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
+  React.useEffect(() => {
+    if (mostrarToast) {
+      const timer = setTimeout(() => {
+        setMostrarToast(false);
+      }, 3000); // 3 segundos
+      return () => clearTimeout(timer);
+    }
+  }, [mostrarToast]);
 
-        return itens.filter((p) => {
-            const nome = (p.userName || "").toLowerCase();
-            const q = buscaNome.trim().toLowerCase();
+  const filtrados = React.useMemo(() => {
+    const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
+    const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
 
-            if (q && !nome.includes(q)) return false;
-            if (tipo !== "TODOS" && p.type !== tipo) return false;
+    return itens.filter((p) => {
+      const nome = (p.userName || "").toLowerCase();
+      const q = buscaNome.trim().toLowerCase();
 
-            const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
-            if (!d) return true;
+      if (q && !nome.includes(q)) return false;
+      if (tipo !== "TODOS" && p.type !== tipo) return false;
 
-            if (ini && d < ini) return false;
-            if (fim && d > fim) return false;
+      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      if (!d) return true;
 
-            return true;
-        });
-    }, [itens, buscaNome, tipo, dataInicio, dataFim]);
+      if (ini && d < ini) return false;
+      if (fim && d > fim) return false;
 
-    const countAtivos = React.useMemo(() => {
-        const ids = new Set(itens.map(p => p.userId));
-        return ids.size;
-    }, [itens]);
+      return true;
+    });
+  }, [itens, buscaNome, tipo, dataInicio, dataFim]);
 
-    const gerarPdf = () => {
-        const periodo =
-            dataInicio || dataFim
-                ? `${dataInicio || "…"} até ${dataFim || "…"}`
-                : "Todos os períodos";
+  const countAtivos = React.useMemo(() => {
+    const ids = new Set(itens.map(p => p.userId));
+    return ids.size;
+  }, [itens]);
 
-        exportarPontosPdf(filtrados, {
-            titulo: "Relatório de Pontos — PontoFlow",
-            empresa: "Minha Empresa",
-            periodo,
-            nomeArquivo: `relatorio_pontos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`,
-        });
+  const gerarPdf = () => {
+    const periodo =
+      dataInicio || dataFim
+        ? `${dataInicio || "…"} até ${dataFim || "…"}`
+        : "Todos os períodos";
 
-        setMostrarToast(true);
-    };
+    exportarPontosPdf(filtrados, {
+      titulo: "Relatório de Pontos — PontoFlow",
+      empresa: "Minha Empresa",
+      periodo,
+      nomeArquivo: `relatorio_pontos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`,
+    });
 
-    return (
-        <LayoutAdmin>
-            <Sidebar>
-                <Branding>
-                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-                    PontoFlow
-                </Branding>
+    setMostrarToast(true);
+  };
 
-                <Nav>
-                    <NavItem $ativo={abaAtiva === "DASHBOARD"} onClick={() => setAbaAtiva("DASHBOARD")}>
-                        <FiGrid /> <span>Dashboard</span>
-                    </NavItem>
-                    <NavItem $ativo={abaAtiva === "HISTORICO"} onClick={() => setAbaAtiva("HISTORICO")}>
-                        <FiClock /> <span>Histórico de Pontos</span>
-                    </NavItem>
-                    <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
-                        <FiUsers /> <span>Funcionários</span>
-                    </NavItem>
-                    <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
-                        <FiSettings /> <span>Configurações</span>
-                    </NavItem>
-                </Nav>
-            </Sidebar>
+  return (
+    <LayoutAdmin>
+      <Sidebar>
+        <Branding>
+          <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
+          PontoFlow
+        </Branding>
 
-            <ConteudoPrincipal>
-                {carregando && <AvisoInfo>Carregando dados...</AvisoInfo>}
-                {erro && <AvisoErro>{erro}</AvisoErro>}
+        <Nav>
+          <NavItem $ativo={abaAtiva === "DASHBOARD"} onClick={() => setAbaAtiva("DASHBOARD")}>
+            <FiGrid /> <span>Dashboard</span>
+          </NavItem>
+          <NavItem $ativo={abaAtiva === "HISTORICO"} onClick={() => setAbaAtiva("HISTORICO")}>
+            <FiClock /> <span>Histórico de Pontos</span>
+          </NavItem>
+          <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
+            <FiUsers /> <span>Funcionários</span>
+          </NavItem>
+          <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
+            <FiSettings /> <span>Configurações</span>
+          </NavItem>
+        </Nav>
+      </Sidebar>
 
-                {!carregando && !erro && (
-                    <>
-                        {abaAtiva === "HISTORICO" && (
-                            <>
-                                <Topo>
-                                    <BuscaWrapper>
-                                        <FiSearch />
-                                        <input
-                                            placeholder="Nome do Funcionário"
-                                            value={buscaNome}
-                                            onChange={(e) => setBuscaNome(e.target.value)}
-                                        />
-                                    </BuscaWrapper>
+      <ConteudoPrincipal>
+        {carregando && <AvisoInfo>Carregando dados...</AvisoInfo>}
+        {erro && <AvisoErro>{erro}</AvisoErro>}
 
-                                    <FiltroDataWrapper>
-                                        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-                                    </FiltroDataWrapper>
+        {!carregando && !erro && (
+          <>
+            {abaAtiva === "HISTORICO" && (
+              <>
+                <Topo>
+                  <BuscaWrapper>
+                    <FiSearch />
+                    <input
+                      placeholder="Nome do Funcionário"
+                      value={buscaNome}
+                      onChange={(e) => setBuscaNome(e.target.value)}
+                    />
+                  </BuscaWrapper>
 
-                                    <SeletorAcordeaoWrapper>
-                                        <SeletorAcordeao
-                                            opcoes={TIPOS}
-                                            value={tipo}
-                                            onChange={(val) => setTipo(val)}
-                                        />
-                                    </SeletorAcordeaoWrapper>
+                  <FiltroDataWrapper>
+                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+                  </FiltroDataWrapper>
 
-                                    <BotaoExportar onClick={gerarPdf} disabled={filtrados.length === 0}>
-                                        <FiFileText /> Exportar PDF
-                                    </BotaoExportar>
-                                </Topo>
+                  <SeletorAcordeaoWrapper>
+                    <SeletorAcordeao
+                      opcoes={TIPOS}
+                      value={tipo}
+                      onChange={(val) => setTipo(val)}
+                    />
+                  </SeletorAcordeaoWrapper>
 
-                                <TabelaContainer>
-                                    <TabelaStyled>
-                                        <thead>
-                                            <tr>
-                                                <th><FiCheckSquare /></th>
-                                                <th>Funcionário</th>
-                                                <th>Tipo</th>
-                                                <th>Data/Hora</th>
-                                                <th>Origem</th>
-                                                <th>Localização</th>
-                                                <th>Distância</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filtrados.map((p) => (
-                                                <tr key={p.id} className={!p.dentroDoRaio ? "row-alerta" : ""}>
-                                                    <td><input type="checkbox" /></td>
-                                                    <td>{p.userName || "—"}</td>
-                                                    <td>{formatarTipo(p.type)}</td>
-                                                    <td>{formatarData(p.criadoEm)}</td>
-                                                    <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
-                                                    <td>
-                                                        <LocalInfo>
-                                                            <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />
-                                                            {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
-                                                            {!p.dentroDoRaio && <FiAlertTriangle className="icon-alerta" />}
-                                                        </LocalInfo>
-                                                    </td>
-                                                    <td>{typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa}m` : "X"}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </TabelaStyled>
-                                </TabelaContainer>
-                            </>
-                        )}
+                  <BotaoExportar onClick={gerarPdf} disabled={filtrados.length === 0}>
+                    <FiFileText /> Exportar PDF
+                  </BotaoExportar>
+                </Topo>
 
-                        {abaAtiva === "DASHBOARD" && (
-                            <>
-                                <TituloSecao>Visão Geral</TituloSecao>
-                                <ResumoCards>
-                                    <Card>
-                                        <LabelCard>Funcionários Ativos</LabelCard>
-                                        <ValorCard>{funcionarios.filter(f => f.ativo).length}</ValorCard>
-                                    </Card>
-                                    <Card>
-                                        <LabelCard>Registros Totais</LabelCard>
-                                        <ValorCard>{itens.length}</ValorCard>
-                                    </Card>
-                                    <Card>
-                                        <LabelCard>Pontos com Alerta</LabelCard>
-                                        <ValorCard>{filtrados.filter(p => !p.dentroDoRaio).length}</ValorCard>
-                                    </Card>
-                                </ResumoCards>
-                            </>
-                        )}
+                <TabelaContainer>
+                  <TabelaStyled>
+                    <thead>
+                      <tr>
+                        <th><FiCheckSquare /></th>
+                        <th>Funcionário</th>
+                        <th>Tipo</th>
+                        <th>Data/Hora</th>
+                        <th>Origem</th>
+                        <th>Localização</th>
+                        <th>Distância</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrados.map((p) => (
+                        <tr key={p.id} className={!p.dentroDoRaio ? "row-alerta" : ""}>
+                          <td><input type="checkbox" /></td>
+                          <td>{p.userName || "—"}</td>
+                          <td>{formatarTipo(p.type)}</td>
+                          <td>{formatarData(p.criadoEm)}</td>
+                          <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
+                          <td>
+                            <LocalInfo>
+                              <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />
+                              {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
+                              {!p.dentroDoRaio && <FiAlertTriangle className="icon-alerta" />}
+                            </LocalInfo>
+                          </td>
+                          <td>{typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa}m` : "X"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </TabelaStyled>
+                </TabelaContainer>
+              </>
+            )}
 
-                        {abaAtiva === "FUNCIONARIOS" && (
-                            <>
-                                <Topo>
-                                    <BuscaWrapper>
-                                        <FiSearch />
-                                        <input
-                                            placeholder="Buscar funcionário pelo nome ou email"
-                                            value={buscaFunc}
-                                            onChange={(e) => setBuscaFunc(e.target.value)}
-                                        />
-                                    </BuscaWrapper>
+            {abaAtiva === "DASHBOARD" && (
+              <>
+                <TituloSecao>Visão Geral</TituloSecao>
+                <ResumoCards>
+                  <Card>
+                    <LabelCard>Funcionários Ativos</LabelCard>
+                    <ValorCard>{funcionarios.filter(f => f.ativo).length}</ValorCard>
+                  </Card>
+                  <Card>
+                    <LabelCard>Registros Totais</LabelCard>
+                    <ValorCard>{itens.length}</ValorCard>
+                  </Card>
+                  <Card>
+                    <LabelCard>Pontos com Alerta</LabelCard>
+                    <ValorCard>{filtrados.filter(p => !p.dentroDoRaio).length}</ValorCard>
+                  </Card>
+                </ResumoCards>
+              </>
+            )}
 
-                                    <Botao onClick={() => setModalAberto(true)}>
-                                        <FiUserPlus size={16} />
-                                        Novo Funcionário
-                                    </Botao>
-                                </Topo>
+            {abaAtiva === "FUNCIONARIOS" && (
+              <>
+                <Topo>
+                  <BuscaWrapper>
+                    <FiSearch />
+                    <input
+                      placeholder="Buscar funcionário pelo nome ou email"
+                      value={buscaFunc}
+                      onChange={(e) => setBuscaFunc(e.target.value)}
+                    />
+                  </BuscaWrapper>
 
-                                <TabelaContainer>
-                                    <TabelaStyled>
-                                        <thead>
-                                            <tr>
-                                                <th>Status</th>
-                                                <th>Nome</th>
-                                                <th>Email</th>
-                                                <th>Cargo</th>
-                                                <th>Criado em</th>
-                                                <th>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {funcionarios
-                                                .filter(f =>
-                                                    f.nome?.toLowerCase().includes(buscaFunc.toLowerCase()) ||
-                                                    f.email?.toLowerCase().includes(buscaFunc.toLowerCase())
-                                                )
-                                                .map((f) => (
-                                                    <tr key={f.id}>
-                                                        <td>
-                                                            <StatusBadge $ativo={f.ativo}>
-                                                                {f.ativo ? <FiUserCheck /> : <FiUserX />}
-                                                                {f.ativo ? "Ativo" : "Inativo"}
-                                                            </StatusBadge>
-                                                        </td>
-                                                        <td>{f.nome}</td>
-                                                        <td>{f.email}</td>
-                                                        <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
-                                                        <td>{formatarData(f.criadoEm)}</td>
-                                                        <td>
-                                                            <BotaoAcao onClick={async () => {
-                                                                try {
-                                                                    await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
-                                                                    toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'}!`);
-                                                                } catch (e) {
-                                                                    toast.error("Erro ao mudar status.");
-                                                                }
-                                                            }}>
-                                                                {f.ativo ? "Desativar" : "Ativar"}
-                                                            </BotaoAcao>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
-                                    </TabelaStyled>
-                                </TabelaContainer>
-                            </>
-                        )}
+                  <Botao onClick={() => setModalAberto(true)}>
+                    <FiUserPlus size={16} />
+                    Novo Funcionário
+                  </Botao>
+                </Topo>
 
-                        {abaAtiva === "CONFIG" && (
-                            <>
-                                <Topo>
-                                    <TituloSecao>Configurações do Sistema</TituloSecao>
-                                    <Botao onClick={() => setModalAberto(true)}>
-                                        <FiUserPlus size={16} />
-                                        Novo Funcionário
-                                    </Botao>
-                                </Topo>
+                <TabelaContainer>
+                  <TabelaStyled>
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Cargo</th>
+                        <th>Criado em</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {funcionarios
+                        .filter(f =>
+                          f.nome?.toLowerCase().includes(buscaFunc.toLowerCase()) ||
+                          f.email?.toLowerCase().includes(buscaFunc.toLowerCase())
+                        )
+                        .map((f) => (
+                          <tr key={f.id}>
+                            <td>
+                              <StatusBadge $ativo={f.ativo}>
+                                {f.ativo ? <FiUserCheck /> : <FiUserX />}
+                                {f.ativo ? "Ativo" : "Inativo"}
+                              </StatusBadge>
+                            </td>
+                            <td>{f.nome}</td>
+                            <td>{f.email}</td>
+                            <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
+                            <td>{formatarData(f.criadoEm)}</td>
+                            <td>
+                              <BotaoAcao onClick={async () => {
+                                try {
+                                  await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
+                                  toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'}!`);
+                                } catch (e) {
+                                  toast.error("Erro ao mudar status.");
+                                }
+                              }}>
+                                {f.ativo ? "Desativar" : "Ativar"}
+                              </BotaoAcao>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </TabelaStyled>
+                </TabelaContainer>
+              </>
+            )}
 
-                                <PainelConfig>
-                                    <ConfigBox>
-                                        <h4>Geofencing (Raio da Escola)</h4>
-                                        <p>Defina o raio de tolerância para batida de ponto na Escola Municipal Senador Levindo Coelho.</p>
-                                        <div className="input-row">
-                                            <input
-                                                type="number"
-                                                placeholder="Ex: 500"
-                                                value={configRaio}
-                                                onChange={(e) => setConfigRaio(e.target.value)}
-                                            />
-                                            <span>metros</span>
-                                        </div>
+            {abaAtiva === "CONFIG" && (
+              <>
+                <Topo>
+                  <TituloSecao>Configurações do Sistema</TituloSecao>
+                  <Botao onClick={() => setModalAberto(true)}>
+                    <FiUserPlus size={16} />
+                    Novo Funcionário
+                  </Botao>
+                </Topo>
 
-                                        <div style={{ marginTop: '24px' }}>
-                                            <h4>Localização da Sede</h4>
-                                            <p>Coordenadas centrais da escola ou arraste o marcador.</p>
-                                            <div className="input-row" style={{ marginBottom: '16px' }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Latitude"
-                                                    value={configLat}
-                                                    onChange={(e) => setConfigLat(e.target.value)}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Longitude"
-                                                    value={configLng}
-                                                    onChange={(e) => setConfigLng(e.target.value)}
-                                                />
-                                            </div>
-                                            <MapaConfig
-                                                lat={Number(configLat)}
-                                                lng={Number(configLng)}
-                                                raio={Number(configRaio)}
-                                                onMove={(pos) => {
-                                                    setConfigLat(pos.lat);
-                                                    setConfigLng(pos.lng);
-                                                }}
-                                            />
-                                            <BotaoGhost
-                                                onClick={() => {
-                                                    setConfigLat(-19.9440459);
-                                                    setConfigLng(-43.9147834);
-                                                    toast.success("Mapa resetado para a Sede");
-                                                }}
-                                                style={{ marginTop: '12px', width: '100%', justifyContent: 'center' }}
-                                            >
-                                                <FiMapPin size={16} />
-                                                Resetar para Sede (Rua Caraça, 910)
-                                            </BotaoGhost>
-                                        </div>
+                <PainelConfig>
+                  <ConfigBox>
+                    <h4>Geofencing (Raio da Escola)</h4>
+                    <p>Defina o raio de tolerância para batida de ponto na Escola Municipal Senador Levindo Coelho.</p>
+                    <div className="input-row">
+                      <input
+                        type="number"
+                        placeholder="Ex: 500"
+                        value={configRaio}
+                        onChange={(e) => setConfigRaio(e.target.value)}
+                      />
+                      <span>metros</span>
+                    </div>
 
-                                        <Botao
-                                            onClick={handleSalvarConfig}
-                                            disabled={salvandoConfig}
-                                            style={{ marginTop: '32px', width: '100%', justifyContent: 'center' }}
-                                        >
-                                            {salvandoConfig ? "Salvando..." : "Salvar Configurações"}
-                                        </Botao>
-                                    </ConfigBox>
+                    <div style={{ marginTop: '24px' }}>
+                      <h4>Localização da Sede</h4>
+                      <p>Coordenadas centrais da escola ou arraste o marcador.</p>
+                      <div className="input-row" style={{ marginBottom: '16px' }}>
+                        <input
+                          type="text"
+                          placeholder="Latitude"
+                          value={configLat}
+                          onChange={(e) => setConfigLat(e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Longitude"
+                          value={configLng}
+                          onChange={(e) => setConfigLng(e.target.value)}
+                        />
+                      </div>
+                      <MapaConfig
+                        lat={Number(configLat)}
+                        lng={Number(configLng)}
+                        raio={Number(configRaio)}
+                        onMove={(pos) => {
+                          setConfigLat(pos.lat);
+                          setConfigLng(pos.lng);
+                        }}
+                      />
+                      <BotaoGhost
+                        onClick={() => {
+                          setConfigLat(-19.9440459);
+                          setConfigLng(-43.9147834);
+                          toast.success("Mapa resetado para a Sede");
+                        }}
+                        style={{ marginTop: '12px', width: '100%', justifyContent: 'center' }}
+                      >
+                        <FiMapPin size={16} />
+                        Resetar para Sede (Rua Caraça, 910)
+                      </BotaoGhost>
+                    </div>
 
-                                    <ConfigBox>
-                                        <h4>Gestão de Acessos</h4>
-                                        <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
-                                        <BotaoGhost onClick={() => setModalAberto(true)}>
-                                            <FiUserPlus size={16} />
-                                            Cadastrar Novo Funcionário
-                                        </BotaoGhost>
-                                    </ConfigBox>
-                                </PainelConfig>
-                            </>
-                        )}
-                    </>
-                )}
+                    <Botao
+                      onClick={handleSalvarConfig}
+                      disabled={salvandoConfig}
+                      style={{ marginTop: '32px', width: '100%', justifyContent: 'center' }}
+                    >
+                      {salvandoConfig ? "Salvando..." : "Salvar Configurações"}
+                    </Botao>
+                  </ConfigBox>
 
-                {/* Toast com timeout */}
-                {mostrarToast && <ToastSucesso>Relatório PDF gerado com sucesso!</ToastSucesso>}
+                  <ConfigBox>
+                    <h4>Gestão de Acessos</h4>
+                    <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
+                    <BotaoGhost onClick={() => setModalAberto(true)}>
+                      <FiUserPlus size={16} />
+                      Cadastrar Novo Funcionário
+                    </BotaoGhost>
+                  </ConfigBox>
+                </PainelConfig>
+              </>
+            )}
+          </>
+        )}
 
-                <ModalNovoFuncionario
-                    aberto={modalAberto}
-                    onFechar={() => setModalAberto(false)}
-                />
+        {/* Toast com timeout */}
+        {mostrarToast && <ToastSucesso>Relatório PDF gerado com sucesso!</ToastSucesso>}
 
-                <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
-            </ConteudoPrincipal>
-        </LayoutAdmin>
-    );
+        <ModalNovoFuncionario
+          aberto={modalAberto}
+          onFechar={() => setModalAberto(false)}
+        />
+
+        <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
+      </ConteudoPrincipal>
+    </LayoutAdmin>
+  );
 }
 
 /* ---------------- styled ---------------- */
