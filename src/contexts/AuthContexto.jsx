@@ -42,10 +42,18 @@ export function AuthProvider({ children }) {
         await signOut(auth);
     };
 
+    const recarregarPerfil = async () => {
+        if (usuario) {
+            const ref = doc(db, "users", usuario.uid);
+            const snap = await getDoc(ref);
+            setPerfil(snap.exists() ? snap.data() : null);
+        }
+    };
+
     const isAdmin = perfil?.role === "admin";
 
     const value = React.useMemo(
-        () => ({ usuario, perfil, isAdmin, carregando, login, logout }),
+        () => ({ usuario, perfil, isAdmin, carregando, login, logout, recarregarPerfil }),
         [usuario, perfil, isAdmin, carregando]
     );
 

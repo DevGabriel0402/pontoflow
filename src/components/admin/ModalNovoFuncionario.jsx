@@ -5,118 +5,129 @@ import { FiUserPlus, FiX, FiCopy } from "react-icons/fi";
 import { criarFuncionarioFn } from "../../services/funcoes";
 
 export default function ModalNovoFuncionario({ aberto, onFechar }) {
-    const [nome, setNome] = useState("");
-    const [email, setEmail] = useState("");
-    const [carregando, setCarregando] = useState(false);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-    const [resultado, setResultado] = useState(null); // {email, senhaTemporaria, uid}
+  const [resultado, setResultado] = useState(null); // {email, senhaTemporaria, uid}
 
-    const resetar = () => {
-        setNome("");
-        setEmail("");
-        setResultado(null);
-    };
+  const resetar = () => {
+    setNome("");
+    setEmail("");
+    setDataNascimento("");
+    setResultado(null);
+  };
 
-    const fechar = () => {
-        resetar();
-        onFechar();
-    };
+  const fechar = () => {
+    resetar();
+    onFechar();
+  };
 
-    const copiar = async (texto) => {
-        try {
-            await navigator.clipboard.writeText(texto);
-            toast.success("Copiado!");
-        } catch {
-            toast.error("Não foi possível copiar.");
-        }
-    };
+  const copiar = async (texto) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast.success("Copiado!");
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
+  };
 
-    const handleCriar = async (e) => {
-        e.preventDefault();
-        setCarregando(true);
-        try {
-            const data = await criarFuncionarioFn({ nome: nome.trim(), email: email.trim() });
-            setResultado(data);
-            toast.success("Funcionário criado com sucesso!");
-        } catch (err) {
-            console.log(err);
-            toast.error(err?.message || "Falha ao criar funcionário.");
-        } finally {
-            setCarregando(false);
-        }
-    };
+  const handleCriar = async (e) => {
+    e.preventDefault();
+    setCarregando(true);
+    try {
+      const data = await criarFuncionarioFn({
+        nome: nome.trim(),
+        email: email.trim(),
+        dataNascimento
+      });
+      setResultado(data);
+      toast.success("Funcionário criado com sucesso!");
+    } catch (err) {
+      console.log(err);
+      toast.error(err?.message || "Falha ao criar funcionário.");
+    } finally {
+      setCarregando(false);
+    }
+  };
 
-    if (!aberto) return null;
+  if (!aberto) return null;
 
-    return (
-        <Overlay>
-            <Modal>
-                <Topo>
-                    <Titulo>
-                        <FiUserPlus size={18} />
-                        Novo Funcionário
-                    </Titulo>
-                    <Fechar onClick={fechar}>
-                        <FiX size={18} />
-                    </Fechar>
-                </Topo>
+  return (
+    <Overlay>
+      <Modal>
+        <Topo>
+          <Titulo>
+            <FiUserPlus size={18} />
+            Novo Funcionário
+          </Titulo>
+          <Fechar onClick={fechar}>
+            <FiX size={18} />
+          </Fechar>
+        </Topo>
 
-                {!resultado ? (
-                    <Form onSubmit={handleCriar}>
-                        <Campo>
-                            <label>Nome</label>
-                            <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" />
-                        </Campo>
+        {!resultado ? (
+          <Form onSubmit={handleCriar}>
+            <Campo>
+              <label>Nome</label>
+              <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: João Silva" />
+            </Campo>
 
-                        <Campo>
-                            <label>Email</label>
-                            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ex: joao@empresa.com" />
-                        </Campo>
+            <Campo>
+              <label>Email</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ex: joao@empresa.com" />
+            </Campo>
 
-                        <Rodape>
-                            <BtnGhost type="button" onClick={fechar}>Cancelar</BtnGhost>
-                            <BtnPrimary disabled={carregando || !nome.trim() || !email.trim()}>
-                                {carregando ? "Criando..." : "Criar"}
-                            </BtnPrimary>
-                        </Rodape>
-                    </Form>
-                ) : (
-                    <Resultado>
-                        <h4>Acesso criado</h4>
+            <Campo>
+              <label>Data de Nascimento</label>
+              <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+            </Campo>
 
-                        <Linha>
-                            <span>Email</span>
-                            <Codigo>
-                                {resultado.email}
-                                <IconBtn onClick={() => copiar(resultado.email)} title="Copiar email">
-                                    <FiCopy size={16} />
-                                </IconBtn>
-                            </Codigo>
-                        </Linha>
+            <Rodape>
+              <BtnGhost type="button" onClick={fechar}>Cancelar</BtnGhost>
+              <BtnPrimary disabled={carregando || !nome.trim() || !email.trim() || !dataNascimento}>
+                {carregando ? "Criando..." : "Criar"}
+              </BtnPrimary>
+            </Rodape>
+          </Form>
+        ) : (
+          <Resultado>
+            <h4>Acesso criado</h4>
 
-                        <Linha>
-                            <span>Senha temporária</span>
-                            <Codigo>
-                                {resultado.senhaTemporaria}
-                                <IconBtn onClick={() => copiar(resultado.senhaTemporaria)} title="Copiar senha">
-                                    <FiCopy size={16} />
-                                </IconBtn>
-                            </Codigo>
-                        </Linha>
+            <Linha>
+              <span>Email</span>
+              <Codigo>
+                {resultado.email}
+                <IconBtn onClick={() => copiar(resultado.email)} title="Copiar email">
+                  <FiCopy size={16} />
+                </IconBtn>
+              </Codigo>
+            </Linha>
 
-                        <Aviso>
-                            Recomendações: envie a senha por um canal seguro e peça para o funcionário trocar no primeiro acesso.
-                        </Aviso>
+            <Linha>
+              <span>Senha temporária</span>
+              <Codigo>
+                {resultado.senhaTemporaria}
+                <IconBtn onClick={() => copiar(resultado.senhaTemporaria)} title="Copiar senha">
+                  <FiCopy size={16} />
+                </IconBtn>
+              </Codigo>
+            </Linha>
 
-                        <Rodape>
-                            <BtnGhost type="button" onClick={resetar}>Cadastrar outro</BtnGhost>
-                            <BtnPrimary type="button" onClick={fechar}>Fechar</BtnPrimary>
-                        </Rodape>
-                    </Resultado>
-                )}
-            </Modal>
-        </Overlay>
-    );
+            <Aviso>
+              Recomendações: envie a senha por um canal seguro e peça para o funcionário trocar no primeiro acesso.
+            </Aviso>
+
+            <Rodape>
+              <BtnGhost type="button" onClick={resetar}>Cadastrar outro</BtnGhost>
+              <BtnPrimary type="button" onClick={fechar}>Fechar</BtnPrimary>
+            </Rodape>
+          </Resultado>
+        )}
+      </Modal>
+    </Overlay>
+  );
 }
 
 /* styles */

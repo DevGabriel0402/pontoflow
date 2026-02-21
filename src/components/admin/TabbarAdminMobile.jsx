@@ -31,16 +31,22 @@ export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
 
 const Barra = styled.nav`
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 70px;
-  background: #1c1c1e;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px;
+  width: calc(100% - 32px);
+  max-width: 600px;
+  height: 66px;
+  background: rgba(28, 28, 30, 0.65);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  padding: 8px 10px env(safe-area-inset-bottom);
+  padding: 0 10px;
   z-index: 999;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 
   @media (min-width: 901px) {
     display: none;

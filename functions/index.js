@@ -3,8 +3,23 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-function gerarSenhaTemporaria() {
-    return "PF@" + Math.random().toString(36).slice(2, 10) + "9!";
+/**
+ * Gera senha no padrão: PrimeiroNome + DDMM
+ * @param {string} nome 
+ * @param {string} dataNasc (formato YYYY-MM-DD)
+ */
+function gerarSenhaPadrao(nome, dataNasc) {
+    const primeiroNome = (nome || "Ponto").split(" ")[0];
+
+    let ddmm = "0101"; // fallback
+    if (dataNasc && dataNasc.includes("-")) {
+        const parts = dataNasc.split("-"); // [YYYY, MM, DD]
+        if (parts.length === 3) {
+            ddmm = parts[2] + parts[1]; // DD + MM
+        }
+    }
+
+    return primeiroNome + ddmm;
 }
 
 exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (request) => {
@@ -23,12 +38,12 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
         throw new HttpsError("permission-denied", "Apenas admin pode cadastrar.");
     }
 
-    const { nome, email } = request.data || {};
-    if (!nome || !email) {
-        throw new HttpsError("invalid-argument", "Nome e email são obrigatórios.");
+    const { nome, email, dataNascimento } = request.data || {};
+    if (!nome || !email || !dataNascimento) {
+        throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
 
-    const senhaTemp = gerarSenhaTemporaria();
+    const senhaTemp = gerarSenhaPadrao(nome.trim(), dataNascimento);
 
     try {
         // 3) Cria usuário no Firebase Auth
@@ -43,8 +58,10 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
             {
                 nome,
                 email,
+                dataNascimento,
                 role: "employee",
                 ativo: true,
+                primeiroAcesso: true,
                 criadoEm: admin.firestore.FieldValue.serverTimestamp(),
                 criadoPor: adminUid,
             },

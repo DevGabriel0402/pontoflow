@@ -10,6 +10,7 @@ import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
 import { startOfToday, isAfter, isWeekend } from "date-fns";
+import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -29,13 +30,14 @@ function getDataPonto(p) {
 }
 
 export default function HomeColaborador() {
-  const { usuario, perfil, isAdmin, logout } = useAuth();
+  const { usuario, perfil, isAdmin, logout, recarregarPerfil } = useAuth();
   const { hora, data } = useClock();
   const { pendentes, online, sincronizando, syncAgora } = useSync();
   const { itens: historico } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
 
   const [checou, setChecou] = React.useState(false);
+  const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
@@ -131,6 +133,10 @@ export default function HomeColaborador() {
             </BotaoTopo>
           )}
 
+          <BotaoTopo onClick={() => setModalTrocaSenhaAberto(true)} title="Trocar Senha">
+            Trocar Senha
+          </BotaoTopo>
+
           <BotaoTopo onClick={logout} title="Sair">
             Sair
           </BotaoTopo>
@@ -205,6 +211,16 @@ export default function HomeColaborador() {
       </Conteudo>
 
       <TabbarMobile mostrarAdmin={isAdmin} />
+
+      <ModalTrocaSenha
+        aberto={perfil?.primeiroAcesso === true || modalTrocaSenhaAberto}
+        obrigatorio={perfil?.primeiroAcesso === true}
+        onSucesso={() => {
+          recarregarPerfil();
+          setModalTrocaSenhaAberto(false);
+        }}
+        onFechar={() => setModalTrocaSenhaAberto(false)}
+      />
     </Tela>
   );
 }

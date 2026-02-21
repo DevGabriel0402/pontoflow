@@ -347,10 +347,6 @@ export default function DashboardAdmin() {
               <>
                 <Topo>
                   <TituloSecao>Configurações do Sistema</TituloSecao>
-                  <Botao onClick={() => setModalAberto(true)}>
-                    <FiUserPlus size={16} />
-                    Novo Funcionário
-                  </Botao>
                 </Topo>
 
                 <PainelConfig>
