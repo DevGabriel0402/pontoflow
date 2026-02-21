@@ -1,29 +1,32 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiClock, FiUsers, FiSettings } from "react-icons/fi";
+import { FiGrid, FiClock, FiUsers, FiSettings, FiArrowLeft } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
-    const abas = [
-        { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} /> },
-        { id: "HISTORICO", label: "Histórico", icon: <FiClock size={20} /> },
-        { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} /> },
-        { id: "CONFIG", label: "Config", icon: <FiSettings size={20} /> },
-    ];
+  const navigate = useNavigate();
+  const abas = [
+    { id: "VOLTAR", label: "Ponto", icon: <FiArrowLeft size={20} />, action: () => navigate("/") },
+    { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} /> },
+    { id: "HISTORICO", label: "Histórico", icon: <FiClock size={20} /> },
+    { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} /> },
+    { id: "CONFIG", label: "Config", icon: <FiSettings size={20} /> },
+  ];
 
-    return (
-        <Barra>
-            {abas.map((aba) => (
-                <Item
-                    key={aba.id}
-                    $ativo={abaAtiva === aba.id}
-                    onClick={() => setAbaAtiva(aba.id)}
-                >
-                    {aba.icon}
-                    <span>{aba.label}</span>
-                </Item>
-            ))}
-        </Barra>
-    );
+  return (
+    <Barra>
+      {abas.map((aba) => (
+        <Item
+          key={aba.id}
+          $ativo={abaAtiva === aba.id}
+          onClick={() => aba.action ? aba.action() : setAbaAtiva(aba.id)}
+        >
+          {aba.icon}
+          <span>{aba.label}</span>
+        </Item>
+      ))}
+    </Barra>
+  );
 }
 
 const Barra = styled.nav`
@@ -35,7 +38,7 @@ const Barra = styled.nav`
   background: #1c1c1e;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   padding: 8px 10px env(safe-area-inset-bottom);
   z-index: 999;
 

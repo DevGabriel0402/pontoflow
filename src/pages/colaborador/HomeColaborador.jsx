@@ -7,146 +7,206 @@ import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
 import { FiShield } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
+import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
+import { obterFila } from "../../services/offlineQueue";
+import { startOfToday, isAfter, isWeekend } from "date-fns";
 
 const TIPOS = {
-    ENTRADA: "ENTRADA",
-    INICIO_INTERVALO: "INICIO_INTERVALO",
-    FIM_INTERVALO: "FIM_INTERVALO",
-    SAIDA: "SAIDA",
+  ENTRADA: "ENTRADA",
+  INICIO_INTERVALO: "INICIO_INTERVALO",
+  FIM_INTERVALO: "FIM_INTERVALO",
+  SAIDA: "SAIDA",
 };
 
+/** 
+ * Helper para pegar a data do ponto 
+ */
+function getDataPonto(p) {
+  if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
+  if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
+  if (p?.criadoEm) return new Date(p.criadoEm);
+  return null;
+}
+
 export default function HomeColaborador() {
-    const { perfil, isAdmin, logout } = useAuth();
-    const { hora, data } = useClock();
-    const { pendentes, online, sincronizando, syncAgora } = useSync();
+  const { usuario, perfil, isAdmin, logout } = useAuth();
+  const { hora, data } = useClock();
+  const { pendentes, online, sincronizando, syncAgora } = useSync();
+  const { itens: historico } = useHistoricoPontos(usuario?.uid);
+  const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
 
-    const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
+  const [checou, setChecou] = React.useState(false);
 
-    const [checou, setChecou] = React.useState(false);
+  // ✅ Verifica se é final de semana
+  const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
 
-    const statusTexto = React.useMemo(() => {
-        if (!checou) return "Validando localização...";
-        if (validacao.ok) return "Localização Validada: Escola Municipal Senador Levindo Coelho";
-        if (validacao.ok === false)
-            return `Fora do raio permitido (${validacao.distance}m)`;
-        return "Localização não verificada";
-    }, [checou, validacao]);
+  // ✅ Verifica pontos batidos HOJE (incluindo fila offline)
+  const tiposFeitosHoje = React.useMemo(() => {
+    const hoje = startOfToday();
+    const fila = obterFila().filter(p => p.userId === usuario?.uid);
 
-    // ✅ validar local ao entrar na tela (e quando voltar pro app)
-    React.useEffect(() => {
-        const run = async () => {
-            try {
-                await validarLocal();
-            } catch (e) {
-                toast.error(e.message);
-            } finally {
-                setChecou(true);
-            }
-        };
+    // Mescla histórico do Firestore + Fila Offline
+    const todos = [...fila, ...historico];
 
-        run();
+    // Filtra apenas os de hoje e mapeia os tipos
+    const feitos = todos
+      .filter(p => {
+        const d = getDataPonto(p);
+        return d && isAfter(d, hoje);
+      })
+      .map(p => p.type);
 
-        const onVis = () => {
-            if (document.visibilityState === "visible") run();
-        };
-        document.addEventListener("visibilitychange", onVis);
-        return () => document.removeEventListener("visibilitychange", onVis);
-    }, [validarLocal]);
+    return new Set(feitos);
+  }, [historico, pendentes, usuario?.uid]);
 
-    const bloqueado = React.useMemo(() => {
-        // colaborador bloqueia fora do raio; admin não bloqueia
-        if (isAdmin) return false;
-        return checou && validacao.ok === false;
-    }, [isAdmin, checou, validacao.ok]);
+  const todosConcluidos = React.useMemo(() => {
+    return Object.values(TIPOS).every(t => tiposFeitosHoje.has(t));
+  }, [tiposFeitosHoje]);
 
-    const handle = (tipo) => registrarPonto(tipo);
+  const statusTexto = React.useMemo(() => {
+    if (!checou) return "Validando localização...";
+    if (validacao.ok) return "Localização Validada: Escola Municipal Senador Levindo Coelho";
+    if (validacao.ok === false)
+      return `Fora do raio permitido (${validacao.distance}m)`;
+    return "Localização não verificada";
+  }, [checou, validacao]);
 
-    return (
-        <Tela>
-            <Topo>
-                <Marca>
-                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-                    <span>PontoFlow</span>
-                </Marca>
+  // ✅ validar local ao entrar na tela (e quando voltar pro app)
+  React.useEffect(() => {
+    const run = async () => {
+      try {
+        await validarLocal();
+      } catch (e) {
+        toast.error(e.message);
+      } finally {
+        setChecou(true);
+      }
+    };
 
-                <AcoesTopo>
-                    {pendentes > 0 && (
-                        <BadgePendentes $ativo={true}>
-                            Pendentes: <strong>{pendentes}</strong>
-                        </BadgePendentes>
-                    )}
+    run();
 
-                    {online && pendentes > 0 && (
-                        <BotaoTopo onClick={syncAgora} disabled={sincronizando} title="Sincronizar agora">
-                            {sincronizando ? "Sync..." : "Sync"}
-                        </BotaoTopo>
-                    )}
+    const onVis = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [validarLocal]);
 
-                    <BotaoTopo onClick={logout} title="Sair">
-                        Sair
-                    </BotaoTopo>
-                </AcoesTopo>
-            </Topo>
+  const bloqueado = React.useMemo(() => {
+    // colaborador bloqueia fora do raio ou fim de semana; admin não bloqueia
+    if (isAdmin) return false;
+    return (checou && validacao.ok === false) || ehFimDeSemana;
+  }, [isAdmin, checou, validacao.ok, ehFimDeSemana]);
 
-            <Conteudo>
-                <SeloSeguranca>
-                    <FiShield size={16} />
-                    <span>Geofence Ativo</span>
-                </SeloSeguranca>
+  const handle = (tipo) => {
+    if (ehFimDeSemana && !isAdmin) {
+      toast.error("Registro de ponto não disponível no final de semana.");
+      return;
+    }
+    if (tiposFeitosHoje.has(tipo)) {
+      toast.error("Este ponto já foi registrado hoje!");
+      return;
+    }
+    registrarPonto(tipo);
+  };
 
-                <Relogio>{hora}</Relogio>
-                <Data>{data}</Data>
+  return (
+    <Tela>
+      <Topo>
+        <Marca>
+          <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
+          <span>PontoFlow</span>
+        </Marca>
 
-                <Status>
-                    <PontoStatus $ok={validacao.ok === true} $bad={validacao.ok === false} />
-                    <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
-                </Status>
+        <AcoesTopo>
+          {pendentes > 0 && (
+            <BadgePendentes $ativo={true}>
+              Pendentes: <strong>{pendentes}</strong>
+            </BadgePendentes>
+          )}
 
-                <Grid>
-                    <Botao
-                        $cor="sucesso"
-                        disabled={bloqueado || carregandoGeo}
-                        onClick={() => handle(TIPOS.ENTRADA)}
-                    >
-                        ENTRADA
-                    </Botao>
+          {online && pendentes > 0 && (
+            <BotaoTopo onClick={syncAgora} disabled={sincronizando} title="Sincronizar agora">
+              {sincronizando ? "Sync..." : "Sync"}
+            </BotaoTopo>
+          )}
 
-                    <Botao
-                        $cor="alerta"
-                        disabled={bloqueado || carregandoGeo}
-                        onClick={() => handle(TIPOS.INICIO_INTERVALO)}
-                    >
-                        INÍCIO INTERVALO
-                    </Botao>
+          <BotaoTopo onClick={logout} title="Sair">
+            Sair
+          </BotaoTopo>
+        </AcoesTopo>
+      </Topo>
 
-                    <Botao
-                        $cor="info"
-                        disabled={bloqueado || carregandoGeo}
-                        onClick={() => handle(TIPOS.FIM_INTERVALO)}
-                    >
-                        FIM INTERVALO
-                    </Botao>
+      <Conteudo>
+        <SeloSeguranca>
+          <FiShield size={16} />
+          <span>Geofence Ativo</span>
+        </SeloSeguranca>
 
-                    <Botao
-                        $cor="perigo"
-                        disabled={bloqueado || carregandoGeo}
-                        onClick={() => handle(TIPOS.SAIDA)}
-                    >
-                        SAÍDA
-                    </Botao>
-                </Grid>
+        <Relogio>{hora}</Relogio>
+        <Data>{data}</Data>
 
-                {bloqueado && (
-                    <Aviso>
-                        Você está fora do raio permitido. Aproxime-se do local de trabalho para
-                        liberar os botões.
-                    </Aviso>
-                )}
-            </Conteudo>
+        <Status>
+          <PontoStatus $ok={validacao.ok === true} $bad={validacao.ok === false} />
+          <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
+        </Status>
 
-            <TabbarMobile mostrarAdmin={isAdmin} />
-        </Tela>
-    );
+        <Grid>
+          <Botao
+            $cor="sucesso"
+            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.ENTRADA)}
+            onClick={() => handle(TIPOS.ENTRADA)}
+          >
+            {tiposFeitosHoje.has(TIPOS.ENTRADA) ? "REGISTRADO" : "ENTRADA"}
+          </Botao>
+
+          <Botao
+            $cor="alerta"
+            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.INICIO_INTERVALO)}
+            onClick={() => handle(TIPOS.INICIO_INTERVALO)}
+          >
+            {tiposFeitosHoje.has(TIPOS.INICIO_INTERVALO) ? "REGISTRADO" : "INÍCIO INTERVALO"}
+          </Botao>
+
+          <Botao
+            $cor="info"
+            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.FIM_INTERVALO)}
+            onClick={() => handle(TIPOS.FIM_INTERVALO)}
+          >
+            {tiposFeitosHoje.has(TIPOS.FIM_INTERVALO) ? "REGISTRADO" : "FIM INTERVALO"}
+          </Botao>
+
+          <Botao
+            $cor="perigo"
+            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.SAIDA)}
+            onClick={() => handle(TIPOS.SAIDA)}
+          >
+            {tiposFeitosHoje.has(TIPOS.SAIDA) ? "REGISTRADO" : "SAÍDA"}
+          </Botao>
+        </Grid>
+
+        {ehFimDeSemana && (
+          <MensagemAlerta>
+            🗓️ Estamos no final de semana. O registro de ponto não está disponível.
+            {isAdmin && <span style={{ display: 'block', fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>(Acesso liberado para Administrador)</span>}
+          </MensagemAlerta>
+        )}
+
+        {todosConcluidos ? (
+          <MensagemConcluido>
+            🎉 Você já completou todos os seus registros de hoje!
+          </MensagemConcluido>
+        ) : bloqueado && !ehFimDeSemana && (
+          <Aviso>
+            Você está fora do raio permitido. Aproxime-se do local de trabalho para
+            liberar os botões.
+          </Aviso>
+        )}
+      </Conteudo>
+
+      <TabbarMobile mostrarAdmin={isAdmin} />
+    </Tela>
+  );
 }
 
 /* ---------------- styled ---------------- */
@@ -261,7 +321,7 @@ const PontoStatus = styled.span`
   height: 10px;
   border-radius: 999px;
   background: ${({ theme, $ok, $bad }) =>
-        $ok ? theme.cores.sucesso : $bad ? theme.cores.perigo : theme.cores.alerta};
+    $ok ? theme.cores.sucesso : $bad ? theme.cores.perigo : theme.cores.alerta};
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
 `;
 
@@ -309,5 +369,40 @@ const Aviso = styled.div`
   background: ${({ theme }) => theme.cores.superficie2};
   color: ${({ theme }) => theme.cores.texto2};
   font-size: 13px;
+`;
+
+const MensagemConcluido = styled.div`
+  margin-top: 24px;
+  padding: 16px;
+  background: ${({ theme }) => theme.cores.sucesso + "15"};
+  border: 1px solid ${({ theme }) => theme.cores.sucesso + "40"};
+  border-radius: 12px;
+  color: ${({ theme }) => theme.cores.sucesso};
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  animation: fadeIn 0.4s ease-out;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const MensagemAlerta = styled.div`
+  margin-top: 24px;
+  padding: 16px;
+  background: ${({ theme }) => theme.cores.alerta + "15"};
+  border: 1px solid ${({ theme }) => theme.cores.alerta + "40"};
+  border-radius: 12px;
+  color: ${({ theme }) => theme.cores.alerta};
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  animation: fadeIn 0.4s ease-out;
 `;
 

@@ -67,42 +67,71 @@ export default function Historico() {
   const { pendentes, online, sincronizando, syncAgora } = useSync();
 
   const [tipo, setTipo] = React.useState("TODOS");
-  const [aba, setAba] = React.useState("HOJE"); // HOJE, SEMANA
+  const [aba, setAba] = React.useState("SEMANA"); // MUDADO: padrão para SEMANA
   const [dataInicio, setDataInicio] = React.useState("");
   const [dataFim, setDataFim] = React.useState("");
   const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
 
-  const filaOffline = React.useMemo(() => obterFila(), [pendentes]); // recarrega quando pendentes muda
+  const filaOffline = React.useMemo(() => obterFila(), [pendentes]);
 
   const itensFiltrados = React.useMemo(() => {
-    let final = [...itens];
+    // Mesclar itens do Firestore com itens da fila offline (que ainda não foram sincronizados)
+    const itensFirestore = [...itens];
 
-    if (aba === "HOJE") {
-      const hoje = startOfToday();
-      final = final.filter(p => isAfter(getDataPreferida(p), hoje));
-    } else if (aba === "SEMANA") {
-      const semana = startOfWeek(new Date(), { locale: ptBR });
-      final = final.filter(p => isAfter(getDataPreferida(p), semana));
-    }
+    // Converter itens offline para o formato da lista, se necessário
+    const itensPendentes = filaOffline
+      .filter(p => p.userId === usuario?.uid)
+      .map(p => ({
+        ...p,
+        id: p.localId || `offline-${p.criadoEmLocal}`,
+        statusOffline: true
+      }));
 
+    // Evitar duplicidade caso o item já tenha sido sincronizado mas ainda esteja na fila local
+    const idsFirestore = new Set(itensFirestore.map(i => i.localId).filter(Boolean));
+    const pendentesNaoSincronizados = itensPendentes.filter(p => !idsFirestore.has(p.localId));
+
+    let final = [...pendentesNaoSincronizados, ...itensFirestore];
+
+    // ✅ FILTRO DE TIPO (Sempre se aplica)
     if (tipo !== "TODOS") {
       final = final.filter(p => p.type === tipo);
     }
 
+    // ✅ FILTRO DE DATA/PERÍODO
     if (dataInicio || dataFim) {
+      // Se tiver data customizada, ignoramos o filtro de "aba" (Hoje/Semana)
       const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
       const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
       final = final.filter(p => {
         const d = getDataPreferida(p);
-        if (!d) return true;
+        if (!d) return false;
         if (ini && d < ini) return false;
         if (fim && d > fim) return false;
         return true;
       });
+    } else {
+      // Se não tiver data customizada, aplica o filtro da "aba" selecionada
+      if (aba === "HOJE") {
+        const hoje = startOfToday();
+        final = final.filter(p => {
+          const d = getDataPreferida(p);
+          return d && isAfter(d, hoje);
+        });
+      } else if (aba === "SEMANA") {
+        const semana = startOfWeek(new Date(), { locale: ptBR });
+        final = final.filter(p => {
+          const d = getDataPreferida(p);
+          return d && isAfter(d, semana);
+        });
+      }
     }
 
+    // Ordenar por data decrescente
+    final.sort((a, b) => getDataPreferida(b) - getDataPreferida(a));
+
     return final;
-  }, [itens, tipo, dataInicio, dataFim, aba]);
+  }, [itens, filaOffline, tipo, dataInicio, dataFim, aba, usuario?.uid]);
 
   return (
     <Tela>
@@ -138,18 +167,52 @@ export default function Historico() {
           <TituloPrincipal>Histórico de Pontos</TituloPrincipal>
 
           <Tabs>
-            <Tab $ativo={aba === "HOJE"} onClick={() => setAba("HOJE")}>Hoje</Tab>
-            <Tab $ativo={aba === "SEMANA"} onClick={() => setAba("SEMANA")}>Semana</Tab>
+            <Tab
+              $ativo={aba === "HOJE" && !dataInicio && !dataFim}
+              onClick={() => {
+                setAba("HOJE");
+                setDataInicio("");
+                setDataFim("");
+              }}
+            >
+              Hoje
+            </Tab>
+            <Tab
+              $ativo={aba === "SEMANA" && !dataInicio && !dataFim}
+              onClick={() => {
+                setAba("SEMANA");
+                setDataInicio("");
+                setDataFim("");
+              }}
+            >
+              Semana
+            </Tab>
+            {(dataInicio || dataFim) && (
+              <Tab $ativo={true} onClick={() => setModalFiltroAberto(true)}>
+                Período
+              </Tab>
+            )}
           </Tabs>
         </HeaderSecao>
 
         <ListaRefatorada>
-          {/* Exemplo de Layout conforme imagem */}
-          {itensFiltrados.length === 0 && !carregando && (
+          {carregando && (
+            <Vazio>Carregando histórico...</Vazio>
+          )}
+
+          {erro && (
+            <ErroContainer>
+              <FiAlertCircle size={32} color="#eb4d4b" />
+              <p>{erro}</p>
+              <BotaoRecarregar onClick={() => window.location.reload()}>Recarregar</BotaoRecarregar>
+            </ErroContainer>
+          )}
+
+          {!carregando && !erro && itensFiltrados.length === 0 && (
             <Vazio>Nenhum registro encontrado</Vazio>
           )}
 
-          {(() => {
+          {!carregando && !erro && (() => {
             let ultimaData = "";
             return itensFiltrados.map((p) => {
               const dataObj = getDataPreferida(p);
@@ -164,7 +227,7 @@ export default function Historico() {
                       {format(dataObj, "EEEE, dd 'de' MMMM", { locale: ptBR })}
                     </DataSeparador>
                   )}
-                  <ItemFlow>
+                  <ItemFlow $offline={p.statusOffline}>
                     <LinhaPrincipal>
                       <IconCol $tipo={p.type} $raio={p.dentroDoRaio}>
                         {getIcone(p.type, p.dentroDoRaio)}
@@ -180,13 +243,20 @@ export default function Historico() {
 
                       <ValorCol>
                         <HoraPonto>{formatarDataPonto(p)}</HoraPonto>
+
+                        {p.statusOffline && (
+                          <BadgeStatus $cor="alerta" title="Aguardando sincronização">
+                            <FiUploadCloud size={14} />
+                          </BadgeStatus>
+                        )}
+
                         {p.dentroDoRaio === false && (
-                          <BadgeStatus $cor="erro">
+                          <BadgeStatus $cor="erro" title="Fora do raio">
                             <FiAlertCircle size={14} />
                           </BadgeStatus>
                         )}
                         {p.origem === "offline_queue" && (
-                          <BadgeStatus $cor="alerta">
+                          <BadgeStatus $cor="alerta" title="Enviado offline">
                             <FiAlertTriangle size={14} />
                           </BadgeStatus>
                         )}
@@ -407,6 +477,32 @@ const BotaoSincronizar = styled.button`
   color: #fff;
   border: 0;
   border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+`;
+
+const ErroContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  gap: 16px;
+
+  p {
+    color: #eb4d4b;
+    font-size: 14px;
+  }
+`;
+
+const BotaoRecarregar = styled.button`
+  background: transparent;
+  border: 1px solid #2f81f7;
+  color: #2f81f7;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 `;

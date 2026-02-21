@@ -9,15 +9,19 @@ export function useHistoricoPontos(userId) {
     const [erro, setErro] = React.useState(null);
 
     React.useEffect(() => {
-        if (!userId) return;
+        if (!userId) {
+            setCarregando(false);
+            return;
+        }
 
         setCarregando(true);
         setErro(null);
 
         const q = query(
             collection(db, "pontos"),
-            where("userId", "==", userId),
-            orderBy("criadoEm", "desc")
+            where("userId", "==", userId)
+            // orderBy("criadoEm", "desc") -> Removido para evitar necessidade de índices compostos manuais.
+            // A ordenação já é feita em memória no componente Historico.jsx
         );
 
         const unsub = onSnapshot(
@@ -28,8 +32,9 @@ export function useHistoricoPontos(userId) {
                 setCarregando(false);
             },
             (e) => {
-                console.log(e);
-                setErro("Falha ao carregar histórico.");
+                console.error("[useHistoricoPontos] Erro no Firestore:", e);
+                // Exibir a mensagem técnica ajuda o usuário a identificar falta de índices ou permissão
+                setErro(`Erro ao carregar: ${e.message || "Verifique sua conexão"}`);
                 setCarregando(false);
             }
         );

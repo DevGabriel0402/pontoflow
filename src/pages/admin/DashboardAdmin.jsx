@@ -2,7 +2,8 @@ import React from "react";
 import styled from "styled-components";
 import { useAdminPontos } from "../../hooks/useAdminPontos";
 import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft } from "react-icons/fi";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -44,6 +45,7 @@ function formatarData(ts) {
 }
 
 export default function DashboardAdmin() {
+  const navigate = useNavigate();
   const { itens, carregando, erro } = useAdminPontos();
 
   const [buscaNome, setBuscaNome] = React.useState("");
@@ -170,6 +172,12 @@ export default function DashboardAdmin() {
           </NavItem>
           <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
             <FiSettings /> <span>Configurações</span>
+          </NavItem>
+
+          <NavSeparador />
+
+          <NavItem onClick={() => navigate("/")}>
+            <FiArrowLeft /> <span>Bater Ponto</span>
           </NavItem>
         </Nav>
       </Sidebar>
@@ -298,6 +306,7 @@ export default function DashboardAdmin() {
                     </thead>
                     <tbody>
                       {funcionarios
+                        .filter(f => f.role !== 'admin') // 👈 Remove administradores da lista
                         .filter(f =>
                           f.nome?.toLowerCase().includes(buscaFunc.toLowerCase()) ||
                           f.email?.toLowerCase().includes(buscaFunc.toLowerCase())
@@ -510,6 +519,12 @@ const NavItem = styled.div`
   }
 `;
 
+const NavSeparador = styled.div`
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 16px 0;
+`;
+
 const ConteudoPrincipal = styled.main`
   flex: 1;
   padding: 32px;
@@ -640,12 +655,21 @@ const TabelaContainer = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow-x: auto;
+  
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
 `;
 
 const TabelaStyled = styled.table`
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 800px;
 
   th, td {
     padding: 16px;
