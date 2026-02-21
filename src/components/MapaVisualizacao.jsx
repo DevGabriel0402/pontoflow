@@ -1,0 +1,107 @@
+import React, { useEffect, useRef } from "react";
+import styled from "styled-components";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+
+/**
+ * Componente de Visualização do Local do Ponto
+ * @param {number} lat - Latitude do registro
+ * @param {number} lng - Longitude do registro
+ * @param {boolean} dentroDoRaio - Para mudar a cor do marcador se necessário
+ */
+export default function MapaVisualizacao({ lat, lng, dentroDoRaio = true }) {
+    const mapContainer = useRef(null);
+    const map = useRef(null);
+    const marker = useRef(null);
+
+    useEffect(() => {
+        if (map.current) return;
+
+        const nLat = Number(lat);
+        const nLng = Number(lng);
+
+        if (isNaN(nLat) || isNaN(nLng)) return;
+
+        map.current = new maplibregl.Map({
+            container: mapContainer.current,
+            style: "https://tiles.openfreemap.org/styles/liberty",
+            center: [nLng, nLat],
+            zoom: 16,
+        });
+
+        map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+
+        map.current.on("load", () => {
+            // Container do marcador (MapLibre usa o transform aqui para posicionar)
+            const el = document.createElement('div');
+            el.className = 'marker-container';
+
+            // Elemento interno para o visual e animação
+            const dot = document.createElement('div');
+            dot.className = 'custom-marker';
+
+            dot.style.backgroundColor = '#2f81f7';
+            dot.style.width = '16px';
+            dot.style.height = '16px';
+            dot.style.borderRadius = '50%';
+            dot.style.border = `2px solid #fff`;
+            dot.style.boxShadow = '0 0 10px rgba(0,0,0,0.3)';
+
+            if (!dentroDoRaio) {
+                dot.style.boxShadow = '0 0 0 4px rgba(235, 77, 75, 0.4), 0 0 10px rgba(0,0,0,0.3)';
+            }
+
+            el.appendChild(dot);
+
+            marker.current = new maplibregl.Marker({ element: el })
+                .setLngLat([nLng, nLat])
+                .addTo(map.current);
+        });
+
+        return () => {
+            if (map.current) {
+                map.current.remove();
+                map.current = null;
+            }
+        };
+    }, [lat, lng, dentroDoRaio]);
+
+    return (
+        <ContainerMapa>
+            <div ref={mapContainer} className="map-container" />
+        </ContainerMapa>
+    );
+}
+
+const ContainerMapa = styled.div`
+  width: 100%;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+
+  .map-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Efeito dark para o mapa */
+  .maplibregl-canvas {
+    filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);
+  }
+
+  .marker-container {
+    cursor: pointer;
+  }
+
+  .custom-marker {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(47, 129, 247, 0.7); }
+    70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 10px rgba(47, 129, 247, 0); }
+    100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(47, 129, 247, 0); }
+  }
+`;

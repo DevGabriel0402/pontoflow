@@ -5,12 +5,13 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useClock } from "../../hooks/useClock";
 import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
-import { FiShield } from "react-icons/fi";
+import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
 import { startOfToday, isAfter, isWeekend } from "date-fns";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
+import ModalMapaPonto from "../../components/ModalMapaPonto";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -38,6 +39,7 @@ export default function HomeColaborador() {
 
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
+  const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
@@ -208,6 +210,33 @@ export default function HomeColaborador() {
             liberar os botões.
           </Aviso>
         )}
+
+        {/* Histórico Recente (Início) */}
+        <SecaoHistorico>
+          <TituloSecao>
+            <FiClock size={16} /> Histórico Recente
+          </TituloSecao>
+          <ListaHistorico>
+            {historico.slice(0, 5).map((p) => (
+              <ItemHistorico key={p.id}>
+                <ItemInfo>
+                  <TipoPonto>{p.type === 'ENTRADA' ? 'Entrada' : p.type === 'SAIDA' ? 'Saída' : p.type === 'INICIO_INTERVALO' ? 'Início Int.' : 'Fim Int.'}</TipoPonto>
+                  <DataHora>{new Date(getDataPonto(p)).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</DataHora>
+                </ItemInfo>
+                <ItemAcoes>
+                  <Indicator $ok={p.dentroDoRaio}>
+                    {p.dentroDoRaio ? <FiMapPin size={12} /> : <FiAlertTriangle size={12} />}
+                  </Indicator>
+                  <BtnMapa onClick={() => setPontoParaMapa(p)}>
+                    <FiMap size={14} />
+                  </BtnMapa>
+                </ItemAcoes>
+              </ItemHistorico>
+            ))}
+            {historico.length === 0 && <SemHistorico>Nenhum registro recente.</SemHistorico>}
+          </ListaHistorico>
+        </SecaoHistorico>
+        {/* Histórico Recente (Fim) */}
       </Conteudo>
 
       <TabbarMobile mostrarAdmin={isAdmin} />
@@ -220,6 +249,12 @@ export default function HomeColaborador() {
           setModalTrocaSenhaAberto(false);
         }}
         onFechar={() => setModalTrocaSenhaAberto(false)}
+      />
+
+      <ModalMapaPonto
+        aberto={!!pontoParaMapa}
+        ponto={pontoParaMapa}
+        onFechar={() => setPontoParaMapa(null)}
       />
     </Tela>
   );
@@ -420,5 +455,103 @@ const MensagemAlerta = styled.div`
   max-width: 420px;
   width: 100%;
   animation: fadeIn 0.4s ease-out;
+`;
+
+const SecaoHistorico = styled.section`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 32px;
+`;
+
+const TituloSecao = styled.h3`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.cores.texto2};
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const ListaHistorico = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const ItemHistorico = styled.div`
+  background: ${({ theme }) => theme.cores.superficie2};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const ItemInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const TipoPonto = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.cores.texto};
+`;
+
+const DataHora = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.cores.texto2};
+`;
+
+const ItemAcoes = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const Indicator = styled.div`
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ theme, $ok }) => $ok ? theme.cores.sucesso + '15' : theme.cores.perigo + '15'};
+  color: ${({ theme, $ok }) => $ok ? theme.cores.sucesso : theme.cores.perigo};
+`;
+
+const BtnMapa = styled.button`
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  background: ${({ theme }) => theme.cores.superficie};
+  color: ${({ theme }) => theme.cores.texto2};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${({ theme }) => theme.cores.azul};
+    color: #fff;
+    border-color: ${({ theme }) => theme.cores.azul};
+  }
+`;
+
+const SemHistorico = styled.div`
+  text-align: center;
+  font-size: 13px;
+  color: ${({ theme }) => theme.cores.texto2};
+  padding: 20px;
+  background: ${({ theme }) => theme.cores.superficie2};
+  border-radius: 12px;
+  border: 1px dashed ${({ theme }) => theme.cores.borda};
 `;
 

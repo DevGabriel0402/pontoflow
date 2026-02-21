@@ -3,7 +3,8 @@ import styled from "styled-components";
 import { useAdminPontos } from "../../hooks/useAdminPontos";
 import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { useNavigate } from "react-router-dom";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft } from "react-icons/fi";
+import ModalMapaPonto from "../../components/ModalMapaPonto";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap } from "react-icons/fi";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -64,6 +65,7 @@ export default function DashboardAdmin() {
   const [configRaio, setConfigRaio] = React.useState(120);
   const [configLat, setConfigLat] = React.useState(-19.9440459);
   const [configLng, setConfigLng] = React.useState(-43.9147834);
+  const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
 
   // Carregar config inicial do Firestore
@@ -111,8 +113,8 @@ export default function DashboardAdmin() {
   }, [mostrarToast]);
 
   const filtrados = React.useMemo(() => {
-    const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
-    const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
+    const ini = dataInicio ? new Date(`${dataInicio} T00:00:00`) : null;
+    const fim = dataFim ? new Date(`${dataFim} T23: 59: 59`) : null;
 
     return itens.filter((p) => {
       const nome = (p.userName || "").toLowerCase();
@@ -139,7 +141,7 @@ export default function DashboardAdmin() {
   const gerarPdf = () => {
     const periodo =
       dataInicio || dataFim
-        ? `${dataInicio || "…"} até ${dataFim || "…"}`
+        ? `${dataInicio || "…"} até ${dataFim || "…"} `
         : "Todos os períodos";
 
     exportarPontosPdf(filtrados, {
@@ -243,9 +245,12 @@ export default function DashboardAdmin() {
                               <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />
                               {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
                               {!p.dentroDoRaio && <FiAlertTriangle className="icon-alerta" />}
+                              <BtnVerMapa onClick={() => setPontoParaMapa(p)} title="Ver no Mapa">
+                                <FiMap size={14} />
+                              </BtnVerMapa>
                             </LocalInfo>
                           </td>
-                          <td>{typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa}m` : "X"}</td>
+                          <td>{typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa} m` : "X"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -327,7 +332,7 @@ export default function DashboardAdmin() {
                               <BotaoAcao onClick={async () => {
                                 try {
                                   await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
-                                  toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'}!`);
+                                  toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'} !`);
                                 } catch (e) {
                                   toast.error("Erro ao mudar status.");
                                 }
@@ -433,6 +438,12 @@ export default function DashboardAdmin() {
           onFechar={() => setModalAberto(false)}
         />
 
+        <ModalMapaPonto
+          aberto={!!pontoParaMapa}
+          ponto={pontoParaMapa}
+          onFechar={() => setPontoParaMapa(null)}
+        />
+
         <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
       </ConteudoPrincipal>
     </LayoutAdmin>
@@ -442,400 +453,400 @@ export default function DashboardAdmin() {
 /* ---------------- styled ---------------- */
 
 const Tela = styled.div`
-  min-height: 100vh;
-  background: ${({ theme }) => theme.cores.fundo};
-  color: ${({ theme }) => theme.cores.texto};
+min - height: 100vh;
+background: ${({ theme }) => theme.cores.fundo};
+color: ${({ theme }) => theme.cores.texto};
 `;
 
 const LayoutAdmin = styled.div`
-  display: flex;
-  min-height: 100vh;
-  background: #121214;
-  color: #e1e1e6;
+display: flex;
+min - height: 100vh;
+background: #121214;
+color: #e1e1e6;
 `;
 
 const Sidebar = styled.aside`
-  width: 260px;
-  flex-shrink: 0;
-  background: #19191b;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  display: flex;
-  flex-direction: column;
-  padding: 24px;
+width: 260px;
+flex - shrink: 0;
+background: #19191b;
+border - right: 1px solid rgba(255, 255, 255, 0.05);
+display: flex;
+flex - direction: column;
+padding: 24px;
 
-  @media (max-width: 900px) {
-    display: none;
-  }
+@media(max - width: 900px) {
+  display: none;
+}
 `;
 
 const Branding = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 700;
-  font-size: 20px;
-  margin-bottom: 48px;
+display: flex;
+align - items: center;
+gap: 12px;
+font - weight: 700;
+font - size: 20px;
+margin - bottom: 48px;
 `;
 
 const Logo = styled.img`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  object-fit: contain;
+width: 32px;
+height: 32px;
+border - radius: 8px;
+object - fit: contain;
 `;
 
 const Nav = styled.nav`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+display: flex;
+flex - direction: column;
+gap: 8px;
 `;
 
 const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  color: ${({ $ativo }) => $ativo ? "#fff" : "#8d8d99"};
-  background: ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.05)" : "transparent"};
-  border: 1px solid ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.1)" : "transparent"};
+display: flex;
+align - items: center;
+gap: 12px;
+padding: 12px 16px;
+border - radius: 8px;
+font - size: 14px;
+font - weight: 600;
+cursor: pointer;
+transition: all 0.2s;
+
+color: ${({ $ativo }) => $ativo ? "#fff" : "#8d8d99"};
+background: ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.05)" : "transparent"};
+border: 1px solid ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.1)" : "transparent"};
 
   &:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.05);
-  }
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
 
   svg {
-    font-size: 18px;
-  }
+  font - size: 18px;
+}
 `;
 
 const NavSeparador = styled.div`
-  height: 1px;
-  background: rgba(255, 255, 255, 0.05);
-  margin: 16px 0;
+height: 1px;
+background: rgba(255, 255, 255, 0.05);
+margin: 16px 0;
 `;
 
 const ConteudoPrincipal = styled.main`
-  flex: 1;
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+flex: 1;
+padding: 32px;
+display: flex;
+flex - direction: column;
+gap: 24px;
 
-  @media (max-width: 900px) {
-    padding: 20px 16px 100px;
-  }
+@media(max - width: 900px) {
+  padding: 20px 16px 100px;
+}
 `;
 
 const Topo = styled.header`
-  display: flex;
-  align-items: center;
-  gap: 16px;
+display: flex;
+align - items: center;
+gap: 16px;
 
-  @media (max-width: 900px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+@media(max - width: 900px) {
+  flex - direction: column;
+  align - items: stretch;
+}
 `;
 
 const BuscaWrapper = styled.div`
-  flex: 1;
-  max-width: 400px;
-  height: 44px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+flex: 1;
+max - width: 400px;
+height: 44px;
+background: #19191b;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 8px;
+padding: 0 16px;
+display: flex;
+align - items: center;
+gap: 12px;
 
   svg {
-    color: #8d8d99;
-  }
+  color: #8d8d99;
+}
 
   input {
-    background: transparent;
-    border: 0;
-    color: #fff;
-    width: 100%;
-    outline: none;
-    font-size: 14px;
-  }
+  background: transparent;
+  border: 0;
+  color: #fff;
+  width: 100 %;
+  outline: none;
+  font - size: 14px;
+}
 `;
 
 const FiltroDataWrapper = styled.div`
-  height: 44px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
+height: 44px;
+background: #19191b;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 8px;
+padding: 0 12px;
+display: flex;
+align - items: center;
 
   input {
-    background: transparent;
-    border: 0;
-    color: #fff;
-    outline: none;
-    font-size: 14px;
-  }
+  background: transparent;
+  border: 0;
+  color: #fff;
+  outline: none;
+  font - size: 14px;
+}
 `;
 
 const SeletorAcordeaoWrapper = styled.div`
-  min-width: 180px;
+min - width: 180px;
 `;
 
 const BotaoExportar = styled.button`
-  height: 44px;
-  padding: 0 20px;
-  background: #2f81f7;
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: filter 0.2s;
+height: 44px;
+padding: 0 20px;
+background: #2f81f7;
+color: #fff;
+border: 0;
+border - radius: 8px;
+font - weight: 600;
+display: flex;
+align - items: center;
+gap: 10px;
+cursor: pointer;
+transition: filter 0.2s;
 
-  &:hover:not(:disabled) {
-    filter: brightness(1.2);
-  }
+  &: hover: not(: disabled) {
+  filter: brightness(1.2);
+}
   
   &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  opacity: 0.5;
+  cursor: not - allowed;
+}
 `;
 
 const ResumoCards = styled.div`
-  display: flex;
-  gap: 16px;
+display: flex;
+gap: 16px;
 
-  @media (max-width: 600px) {
-    flex-direction: column;
-  }
+@media(max - width: 600px) {
+  flex - direction: column;
+}
 `;
 
 const Card = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 20px 24px;
-  min-width: 200px;
+background: #19191b;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 12px;
+padding: 20px 24px;
+min - width: 200px;
 `;
 
 const LabelCard = styled.div`
-  font-size: 13px;
-  color: #8d8d99;
-  font-weight: 600;
-  margin-bottom: 8px;
+font - size: 13px;
+color: #8d8d99;
+font - weight: 600;
+margin - bottom: 8px;
 `;
 
 const ValorCard = styled.div`
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
+font - size: 24px;
+font - weight: 700;
+color: #fff;
 `;
 
 const TabelaContainer = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  overflow-x: auto;
+background: #19191b;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 12px;
+overflow - x: auto;
   
-  &::-webkit-scrollbar {
-    height: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-  }
+  &:: -webkit - scrollbar {
+  height: 6px;
+}
+  &:: -webkit - scrollbar - thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border - radius: 10px;
+}
 `;
 
 const TabelaStyled = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  min-width: 800px;
+width: 100 %;
+border - collapse: collapse;
+text - align: left;
+min - width: 800px;
 
-  th, td {
-    padding: 16px;
-    font-size: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
+th, td {
+  padding: 16px;
+  font - size: 14px;
+  border - bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
   th {
-    background: #1c1c1e;
-    color: #8d8d99;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-  }
+  background: #1c1c1e;
+  color: #8d8d99;
+  font - weight: 600;
+  text - transform: uppercase;
+  font - size: 11px;
+  letter - spacing: 0.5px;
+}
 
-  tr.row-alerta {
-    background: rgba(235, 77, 75, 0.15);
-  }
+tr.row - alerta {
+  background: rgba(235, 77, 75, 0.15);
+}
 
-  input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: #2f81f7;
-  }
+input[type = "checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent - color: #2f81f7;
+}
 `;
 
 const LocalInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+display: flex;
+align - items: center;
+gap: 8px;
 
-  .pin-ok { color: #2ecc71; }
-  .pin-alerta { color: #f1c40f; }
-  .icon-alerta { color: #f1c40f; font-size: 16px; }
+  .pin - ok { color: #2ecc71; }
+  .pin - alerta { color: #f1c40f; }
+  .icon - alerta { color: #f1c40f; font - size: 16px; }
 `;
 
 const Botao = styled.button`
-  height: 44px;
-  padding: 0 20px;
-  background: #2f81f7;
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: filter 0.2s;
+height: 44px;
+padding: 0 20px;
+background: #2f81f7;
+color: #fff;
+border: 0;
+border - radius: 8px;
+font - weight: 600;
+display: flex;
+align - items: center;
+gap: 10px;
+cursor: pointer;
+transition: filter 0.2s;
 
   &:hover {
-    filter: brightness(1.2);
-  }
+  filter: brightness(1.2);
+}
 `;
 
 const BotaoGhost = styled.button`
-  height: 44px;
-  padding: 0 20px;
-  background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
+height: 44px;
+padding: 0 20px;
+background: transparent;
+color: #fff;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 8px;
+font - weight: 600;
+display: flex;
+align - items: center;
+gap: 10px;
+cursor: pointer;
+transition: all 0.2s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: #2f81f7;
-  }
+  background: rgba(255, 255, 255, 0.05);
+  border - color: #2f81f7;
+}
 `;
 
 const TituloSecao = styled.h2`
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0;
-  color: #fff;
+font - size: 20px;
+font - weight: 700;
+margin: 0;
+color: #fff;
 `;
 
 const PainelConfig = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
+display: grid;
+grid - template - columns: repeat(auto - fill, minmax(400px, 1fr));
+gap: 24px;
 
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
+@media(max - width: 600px) {
+  grid - template - columns: 1fr;
+}
 `;
 
 const ConfigBox = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 24px;
+background: #19191b;
+border: 1px solid rgba(255, 255, 255, 0.1);
+border - radius: 12px;
+padding: 24px;
 
   h4 {
-    margin: 0 0 8px;
-    font-size: 16px;
-    color: #fff;
-  }
+  margin: 0 0 8px;
+  font - size: 16px;
+  color: #fff;
+}
 
   p {
-    font-size: 13px;
-    color: #8d8d99;
-    margin: 0 0 20px;
-  }
+  font - size: 13px;
+  color: #8d8d99;
+  margin: 0 0 20px;
+}
 
-  .input-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .input - row {
+  display: flex;
+  align - items: center;
+  gap: 12px;
 
     input {
-      background: #121214;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      height: 44px;
-      padding: 0 16px;
-      color: #fff;
-      outline: none;
-      flex: 1;
+    background: #121214;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border - radius: 8px;
+    height: 44px;
+    padding: 0 16px;
+    color: #fff;
+    outline: none;
+    flex: 1;
       
       &:focus {
-        border-color: #2f81f7;
-      }
-    }
-
-    span {
-      color: #8d8d99;
-      font-size: 14px;
-      font-weight: 600;
+      border-color: #2f81f7;
     }
   }
+
+    span {
+    color: #8d8d99;
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
 `;
 
 const AvisoInfo = styled.div`
-  padding: 20px;
-  background: rgba(47, 129, 247, 0.1);
-  border-radius: 8px;
-  color: #2f81f7;
+padding: 20px;
+background: rgba(47, 129, 247, 0.1);
+border - radius: 8px;
+color: #2f81f7;
 `;
 
 const AvisoErro = styled.div`
-  padding: 20px;
-  background: rgba(235, 77, 75, 0.1);
-  border-radius: 8px;
-  color: #eb4d4b;
+padding: 20px;
+background: rgba(235, 77, 75, 0.1);
+border - radius: 8px;
+color: #eb4d4b;
 `;
 
 const ToastSucesso = styled.div`
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  background: #2ecc71;
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-  animation: slideIn 0.3s ease-out;
+position: fixed;
+bottom: 32px;
+right: 32px;
+background: #2ecc71;
+color: #fff;
+padding: 12px 24px;
+border-radius: 8px;
+font-weight: 600;
+font-size: 14px;
+box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+animation: slideIn 0.3s ease-out;
 
-  @keyframes slideIn {
+@keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
-  }
+}
 `;
 const StatusBadge = styled.div`
   display: inline-flex;
@@ -870,5 +881,24 @@ const BotaoAcao = styled.button`
     color: #fff;
     border-color: #2f81f7;
     background: rgba(47, 129, 247, 0.1);
+  }
+`;
+
+const BtnVerMapa = styled.button`
+  background: rgba(47, 129, 247, 0.1);
+  border: 1px solid rgba(47, 129, 247, 0.2);
+  color: #2f81f7;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: auto;
+
+  &:hover {
+    background: #2f81f7;
+    color: #fff;
   }
 `;

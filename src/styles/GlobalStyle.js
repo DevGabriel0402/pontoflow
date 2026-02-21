@@ -14,6 +14,10 @@ const GlobalStyle = createGlobalStyle`
     cursor: pointer;
   }
   a { color: inherit; text-decoration: none; }
+
+  .maplibregl-ctrl{
+    display: none !important;
+  }
 `;
 
 export default GlobalStyle;
