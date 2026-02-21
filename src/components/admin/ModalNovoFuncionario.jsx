@@ -206,7 +206,15 @@ const Rodape = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 12px;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+    
+    button {
+      width: 100%;
+    }
+  }
 `;
 
 const BtnGhost = styled.button`
@@ -255,12 +263,14 @@ const Codigo = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  height: 44px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: ${({ theme }) => theme.raio.lg};
   border: 1px solid ${({ theme }) => theme.cores.borda};
   background: ${({ theme }) => theme.cores.superficie};
   font-weight: 900;
+  word-break: break-all;
+  font-size: 13px;
 `;
 
 const IconBtn = styled.button`

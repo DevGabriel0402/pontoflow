@@ -149,6 +149,10 @@ const ContainerMapa = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
 
+  @media (max-width: 480px) {
+    height: 250px;
+  }
+
   .map-container {
     width: 100%;
     height: 100%;
@@ -174,4 +178,12 @@ const Legenda = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.05);
   pointer-events: none;
   z-index: 10;
+
+  @media (max-width: 480px) {
+    font-size: 10px;
+    padding: 6px 10px;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+  }
 `;

@@ -453,62 +453,64 @@ export default function DashboardAdmin() {
 /* ---------------- styled ---------------- */
 
 const Tela = styled.div`
-min - height: 100vh;
+min-height: 100vh;
 background: ${({ theme }) => theme.cores.fundo};
 color: ${({ theme }) => theme.cores.texto};
 `;
 
 const LayoutAdmin = styled.div`
-display: flex;
-min - height: 100vh;
-background: #121214;
-color: #e1e1e6;
+  display: flex;
+  min-height: 100vh;
+  background: #121214;
+  color: #e1e1e6;
+  width: 100%;
+  overflow-x: hidden; /* Garante que nada escape do layout principal */
 `;
 
 const Sidebar = styled.aside`
 width: 260px;
-flex - shrink: 0;
+flex-shrink: 0;
 background: #19191b;
-border - right: 1px solid rgba(255, 255, 255, 0.05);
+border-right: 1px solid rgba(255, 255, 255, 0.05);
 display: flex;
-flex - direction: column;
+flex-direction: column;
 padding: 24px;
 
-@media(max - width: 900px) {
+@media (max-width: 900px) {
   display: none;
 }
 `;
 
 const Branding = styled.div`
 display: flex;
-align - items: center;
+align-items: center;
 gap: 12px;
-font - weight: 700;
-font - size: 20px;
-margin - bottom: 48px;
+font-weight: 700;
+font-size: 20px;
+margin-bottom: 48px;
 `;
 
 const Logo = styled.img`
 width: 32px;
 height: 32px;
-border - radius: 8px;
-object - fit: contain;
+border-radius: 8px;
+object-fit: contain;
 `;
 
 const Nav = styled.nav`
 display: flex;
-flex - direction: column;
+flex-direction: column;
 gap: 8px;
 `;
 
 const NavItem = styled.div`
 display: flex;
-align - items: center;
+align-items: center;
 gap: 12px;
 padding: 12px 16px;
-border - radius: 8px;
-font - size: 14px;
-font - weight: 600;
+border-radius: 8px;
+font-size: 14px;
+font-weight: 600;
 cursor: pointer;
 transition: all 0.2s;
 
@@ -522,7 +524,7 @@ border: 1px solid ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.1)" : "trans
 }
 
   svg {
-  font - size: 18px;
+  font-size: 18px;
 }
 `;
 
@@ -533,74 +535,95 @@ margin: 16px 0;
 `;
 
 const ConteudoPrincipal = styled.main`
-flex: 1;
-padding: 32px;
-display: flex;
-flex - direction: column;
-gap: 24px;
+  flex: 1;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0; /* Permite que o flex child encolha */
 
-@media(max - width: 900px) {
-  padding: 20px 16px 100px;
-}
+  @media (max-width: 900px) {
+    padding: 20px 16px 100px;
+  }
 `;
 
 const Topo = styled.header`
-display: flex;
-align - items: center;
-gap: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 
-@media(max - width: 900px) {
-  flex - direction: column;
-  align - items: stretch;
-}
+  @media (max-width: 900px) {
+    gap: 12px;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const BuscaWrapper = styled.div`
-flex: 1;
-max - width: 400px;
-height: 44px;
-background: #19191b;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 8px;
-padding: 0 16px;
-display: flex;
-align - items: center;
-gap: 12px;
+  flex: 1;
+  max-width: 400px;
+  height: 44px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 600px) {
+    max-width: none;
+    width: 100%;
+  }
 
   svg {
-  color: #8d8d99;
-}
+    color: #8d8d99;
+  }
 
   input {
-  background: transparent;
-  border: 0;
-  color: #fff;
-  width: 100 %;
-  outline: none;
-  font - size: 14px;
-}
+    background: transparent;
+    border: 0;
+    color: #fff;
+    width: 100%;
+    outline: none;
+    font-size: 14px;
+    &::placeholder { color: #555; }
+  }
 `;
 
 const FiltroDataWrapper = styled.div`
-height: 44px;
-background: #19191b;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 8px;
-padding: 0 12px;
-display: flex;
-align - items: center;
+  height: 44px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+
+  @media (max-width: 600px) {
+    width: 100%;
+    input { width: 100%; }
+  }
 
   input {
-  background: transparent;
-  border: 0;
-  color: #fff;
-  outline: none;
-  font - size: 14px;
-}
+    background: transparent;
+    border: 0;
+    color: #fff;
+    outline: none;
+    font-size: 14px;
+  }
 `;
 
 const SeletorAcordeaoWrapper = styled.div`
-min - width: 180px;
+  min-width: 180px;
+  @media (max-width: 600px) {
+    min-width: 0;
+    width: 100%;
+  }
 `;
 
 const BotaoExportar = styled.button`
@@ -609,10 +632,10 @@ padding: 0 20px;
 background: #2f81f7;
 color: #fff;
 border: 0;
-border - radius: 8px;
-font - weight: 600;
+border-radius: 8px;
+font-weight: 600;
 display: flex;
-align - items: center;
+align-items: center;
 gap: 10px;
 cursor: pointer;
 transition: filter 0.2s;
@@ -623,95 +646,104 @@ transition: filter 0.2s;
   
   &:disabled {
   opacity: 0.5;
-  cursor: not - allowed;
+  cursor: not-allowed;
 }
 `;
 
 const ResumoCards = styled.div`
-display: flex;
-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
 
-@media(max - width: 600px) {
-  flex - direction: column;
-}
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Card = styled.div`
-background: #19191b;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 12px;
-padding: 20px 24px;
-min - width: 200px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 180px;
+
+  @media (max-width: 600px) {
+    min-width: 0;
+    width: 100%;
+  }
 `;
 
 const LabelCard = styled.div`
-font - size: 13px;
+font-size: 13px;
 color: #8d8d99;
-font - weight: 600;
-margin - bottom: 8px;
+font-weight: 600;
+margin-bottom: 8px;
 `;
 
 const ValorCard = styled.div`
-font - size: 24px;
-font - weight: 700;
+font-size: 24px;
+font-weight: 700;
 color: #fff;
 `;
 
 const TabelaContainer = styled.div`
-background: #19191b;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 12px;
-overflow - x: auto;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow-x: auto;
+  width: 100%; /* Garante que a div não estoure o pai */
   
-  &:: -webkit - scrollbar {
-  height: 6px;
-}
-  &:: -webkit - scrollbar - thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border - radius: 10px;
-}
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
 `;
 
 const TabelaStyled = styled.table`
-width: 100 %;
-border - collapse: collapse;
-text - align: left;
-min - width: 800px;
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 900px;
 
-th, td {
-  padding: 16px;
-  font - size: 14px;
-  border - bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
+  th, td {
+    padding: 14px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
 
   th {
-  background: #1c1c1e;
-  color: #8d8d99;
-  font - weight: 600;
-  text - transform: uppercase;
-  font - size: 11px;
-  letter - spacing: 0.5px;
-}
+    background: #1c1c1e;
+    color: #8d8d99;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
 
-tr.row - alerta {
-  background: rgba(235, 77, 75, 0.15);
-}
+  tr.row-alerta {
+    background: rgba(235, 77, 75, 0.06);
+  }
 
-input[type = "checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent - color: #2f81f7;
-}
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #2f81f7;
+    cursor: pointer;
+  }
 `;
 
 const LocalInfo = styled.div`
 display: flex;
-align - items: center;
+align-items: center;
 gap: 8px;
 
-  .pin - ok { color: #2ecc71; }
-  .pin - alerta { color: #f1c40f; }
-  .icon - alerta { color: #f1c40f; font - size: 16px; }
+  .pin-ok { color: #2ecc71; }
+  .pin-alerta { color: #f1c40f; }
+  .icon-alerta { color: #f1c40f; font-size: 16px; }
 `;
 
 const Botao = styled.button`
@@ -720,10 +752,10 @@ padding: 0 20px;
 background: #2f81f7;
 color: #fff;
 border: 0;
-border - radius: 8px;
-font - weight: 600;
+border-radius: 8px;
+font-weight: 600;
 display: flex;
-align - items: center;
+align-items: center;
 gap: 10px;
 cursor: pointer;
 transition: filter 0.2s;
@@ -739,10 +771,10 @@ padding: 0 20px;
 background: transparent;
 color: #fff;
 border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 8px;
-font - weight: 600;
+border-radius: 8px;
+font-weight: 600;
 display: flex;
-align - items: center;
+align-items: center;
 gap: 10px;
 cursor: pointer;
 transition: all 0.2s;
@@ -754,49 +786,64 @@ transition: all 0.2s;
 `;
 
 const TituloSecao = styled.h2`
-font - size: 20px;
-font - weight: 700;
+font-size: 20px;
+font-weight: 700;
 margin: 0;
 color: #fff;
 `;
 
 const PainelConfig = styled.div`
-display: grid;
-grid - template - columns: repeat(auto - fill, minmax(400px, 1fr));
-gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
 
-@media(max - width: 600px) {
-  grid - template - columns: 1fr;
-}
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 `;
 
 const ConfigBox = styled.div`
-background: #19191b;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border - radius: 12px;
-padding: 24px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+
+  @media (max-width: 600px) {
+    padding: 20px 16px;
+  }
 
   h4 {
-  margin: 0 0 8px;
-  font - size: 16px;
-  color: #fff;
-}
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: #fff;
+  }
 
   p {
-  font - size: 13px;
-  color: #8d8d99;
-  margin: 0 0 20px;
-}
+    font-size: 13px;
+    color: #8d8d99;
+    margin: 0 0 20px;
+  }
 
-  .input - row {
-  display: flex;
-  align - items: center;
-  gap: 12px;
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    @media (max-width: 480px) {
+      gap: 8px;
+      
+      input {
+        width: 100%;
+        flex: none;
+      }
+    }
 
     input {
     background: #121214;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border - radius: 8px;
+    border-radius: 8px;
     height: 44px;
     padding: 0 16px;
     color: #fff;
@@ -819,14 +866,14 @@ padding: 24px;
 const AvisoInfo = styled.div`
 padding: 20px;
 background: rgba(47, 129, 247, 0.1);
-border - radius: 8px;
+border-radius: 8px;
 color: #2f81f7;
 `;
 
 const AvisoErro = styled.div`
 padding: 20px;
 background: rgba(235, 77, 75, 0.1);
-border - radius: 8px;
+border-radius: 8px;
 color: #eb4d4b;
 `;
 
