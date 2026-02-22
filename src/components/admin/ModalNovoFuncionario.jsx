@@ -8,6 +8,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
+  const [role, setRole] = useState("colaborador");
   const [carregando, setCarregando] = useState(false);
 
   const [resultado, setResultado] = useState(null); // {email, senhaTemporaria, uid}
@@ -16,6 +17,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     setNome("");
     setEmail("");
     setDataNascimento("");
+    setRole("colaborador");
     setResultado(null);
   };
 
@@ -40,7 +42,8 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
       const data = await criarFuncionarioFn({
         nome: nome.trim(),
         email: email.trim(),
-        dataNascimento
+        dataNascimento,
+        role
       });
       setResultado(data);
       toast.success("Funcionário criado com sucesso!");
@@ -82,6 +85,26 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
             <Campo>
               <label>Data de Nascimento</label>
               <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+            </Campo>
+
+            <Campo>
+              <label>Tipo de Acesso</label>
+              <RoleSelector>
+                <RoleOption
+                  $ativo={role === 'colaborador'}
+                  onClick={() => setRole('colaborador')}
+                  type="button"
+                >
+                  Colaborador
+                </RoleOption>
+                <RoleOption
+                  $ativo={role === 'admin'}
+                  onClick={() => setRole('admin')}
+                  type="button"
+                >
+                  Administrador
+                </RoleOption>
+              </RoleSelector>
             </Campo>
 
             <Rodape>
@@ -287,4 +310,30 @@ const Aviso = styled.div`
   background: rgba(47,129,247,0.10);
   color: ${({ theme }) => theme.cores.texto2};
   font-size: 12px;
+`;
+
+const RoleSelector = styled.div`
+  display: flex;
+  background: ${({ theme }) => theme.cores.superficie};
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.raio.lg};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  gap: 4px;
+`;
+
+const RoleOption = styled.button`
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: ${({ $ativo, theme }) => $ativo ? theme.cores.azul : "transparent"};
+  color: ${({ $ativo, theme }) => $ativo ? "#fff" : theme.cores.texto2};
+
+  &:hover {
+    background: ${({ $ativo, theme }) => $ativo ? theme.cores.azul : theme.cores.superficie2};
+  }
 `;

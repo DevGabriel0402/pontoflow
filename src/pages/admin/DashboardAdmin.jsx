@@ -65,6 +65,8 @@ export default function DashboardAdmin() {
   const [configRaio, setConfigRaio] = React.useState(120);
   const [configLat, setConfigLat] = React.useState(-19.9440459);
   const [configLng, setConfigLng] = React.useState(-43.9147834);
+  const [nomePainel, setNomePainel] = React.useState("PontoFlow");
+  const [tempNomePainel, setTempNomePainel] = React.useState("PontoFlow");
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
 
@@ -78,6 +80,10 @@ export default function DashboardAdmin() {
           if (data.raio) setConfigRaio(data.raio);
           if (data.lat) setConfigLat(data.lat);
           if (data.lng) setConfigLng(data.lng);
+          if (data.nomePainel) {
+            setNomePainel(data.nomePainel);
+            setTempNomePainel(data.nomePainel);
+          }
         }
       } catch (e) {
         console.error("Erro ao carregar settings:", e);
@@ -93,8 +99,10 @@ export default function DashboardAdmin() {
         raio: Number(configRaio),
         lat: Number(configLat),
         lng: Number(configLng),
+        nomePainel: tempNomePainel.trim() || "PontoFlow",
         atualizadoEm: new Date(),
       });
+      setNomePainel(tempNomePainel.trim() || "PontoFlow");
       toast.success("Configurações salvas!");
     } catch (e) {
       toast.error("Erro ao salvar.");
@@ -113,8 +121,8 @@ export default function DashboardAdmin() {
   }, [mostrarToast]);
 
   const filtrados = React.useMemo(() => {
-    const ini = dataInicio ? new Date(`${dataInicio} T00:00:00`) : null;
-    const fim = dataFim ? new Date(`${dataFim} T23: 59: 59`) : null;
+    const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
+    const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
 
     return itens.filter((p) => {
       const nome = (p.userName || "").toLowerCase();
@@ -158,8 +166,8 @@ export default function DashboardAdmin() {
     <LayoutAdmin>
       <Sidebar>
         <Branding>
-          <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-          PontoFlow
+          <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
+          {nomePainel}
         </Branding>
 
         <Nav>
@@ -203,7 +211,13 @@ export default function DashboardAdmin() {
                   </BuscaWrapper>
 
                   <FiltroDataWrapper>
-                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+                    <span>De:</span>
+                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} title="Data Início" />
+                  </FiltroDataWrapper>
+
+                  <FiltroDataWrapper>
+                    <span>Até:</span>
+                    <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} title="Data Fim" />
                   </FiltroDataWrapper>
 
                   <SeletorAcordeaoWrapper>
@@ -356,7 +370,10 @@ export default function DashboardAdmin() {
 
                 <PainelConfig>
                   <ConfigBox>
-                    <h4>Geofencing (Raio da Escola)</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <FiMapPin size={18} color="#fff" />
+                      <h4 style={{ margin: 0 }}>Geofencing (Raio de Ponto)</h4>
+                    </div>
                     <p>Defina o raio de tolerância para batida de ponto na Escola Municipal Senador Levindo Coelho.</p>
                     <div className="input-row">
                       <input
@@ -371,19 +388,25 @@ export default function DashboardAdmin() {
                     <div style={{ marginTop: '24px' }}>
                       <h4>Localização da Sede</h4>
                       <p>Coordenadas centrais da escola ou arraste o marcador.</p>
-                      <div className="input-row" style={{ marginBottom: '16px' }}>
-                        <input
-                          type="text"
-                          placeholder="Latitude"
-                          value={configLat}
-                          onChange={(e) => setConfigLat(e.target.value)}
-                        />
-                        <input
-                          type="text"
-                          placeholder="Longitude"
-                          value={configLng}
-                          onChange={(e) => setConfigLng(e.target.value)}
-                        />
+                      <div className="input-grid" style={{ marginBottom: '16px' }}>
+                        <div className="input-group">
+                          <label>Latitude</label>
+                          <input
+                            type="text"
+                            placeholder="Latitude"
+                            value={configLat}
+                            onChange={(e) => setConfigLat(e.target.value)}
+                          />
+                        </div>
+                        <div className="input-group">
+                          <label>Longitude</label>
+                          <input
+                            type="text"
+                            placeholder="Longitude"
+                            value={configLng}
+                            onChange={(e) => setConfigLng(e.target.value)}
+                          />
+                        </div>
                       </div>
                       <MapaConfig
                         lat={Number(configLat)}
@@ -412,18 +435,56 @@ export default function DashboardAdmin() {
                       disabled={salvandoConfig}
                       style={{ marginTop: '32px', width: '100%', justifyContent: 'center' }}
                     >
-                      {salvandoConfig ? "Salvando..." : "Salvar Configurações"}
+                      {salvandoConfig ? (
+                        "Salvando..."
+                      ) : (
+                        <>
+                          <FiCheckSquare size={18} /> Salvar Configurações
+                        </>
+                      )}
                     </Botao>
                   </ConfigBox>
 
-                  <ConfigBox>
-                    <h4>Gestão de Acessos</h4>
-                    <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
-                    <BotaoGhost onClick={() => setModalAberto(true)}>
-                      <FiUserPlus size={16} />
-                      Cadastrar Novo Funcionário
-                    </BotaoGhost>
-                  </ConfigBox>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <ConfigBox>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <FiUsers size={18} color="#fff" />
+                        <h4 style={{ margin: 0 }}>Gestão de Acessos</h4>
+                      </div>
+                      <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
+                      <BotaoGhost onClick={() => setModalAberto(true)} style={{ width: '100%', justifyContent: 'center' }}>
+                        <FiUserPlus size={16} />
+                        Cadastrar Novo Funcionário
+                      </BotaoGhost>
+                    </ConfigBox>
+
+                    <ConfigBox>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <FiSettings size={18} color="#fff" />
+                        <h4 style={{ margin: 0 }}>Identidade do Painel</h4>
+                      </div>
+                      <p>Personalize o nome que aparece no topo e na barra lateral.</p>
+
+                      <div className="input-row">
+                        <span>Nome do Painel</span>
+                        <input
+                          type="text"
+                          value={tempNomePainel}
+                          onChange={(e) => setTempNomePainel(e.target.value)}
+                          placeholder="Ex: Minha Empresa"
+                        />
+                      </div>
+
+                      <Botao
+                        onClick={handleSalvarConfig}
+                        disabled={salvandoConfig}
+                        style={{ marginTop: '24px', width: '100%', justifyContent: 'center' }}
+                      >
+                        {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
+                        Salvar Identidade
+                      </Botao>
+                    </ConfigBox>
+                  </div>
                 </PainelConfig>
               </>
             )}
@@ -567,13 +628,19 @@ const BuscaWrapper = styled.div`
   flex: 1;
   max-width: 400px;
   height: 44px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0 16px;
+  background: ${({ theme }) => theme.cores.superficie};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: ${({ theme }) => theme.raio.lg};
+  padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: ${({ theme }) => theme.cores.azul};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.cores.azul}22;
+  }
 
   @media (max-width: 600px) {
     max-width: none;
@@ -581,40 +648,62 @@ const BuscaWrapper = styled.div`
   }
 
   svg {
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
+    font-size: 18px;
   }
 
   input {
     background: transparent;
     border: 0;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     width: 100%;
     outline: none;
     font-size: 14px;
-    &::placeholder { color: #555; }
+    &::placeholder { color: ${({ theme }) => theme.cores.texto2}88; }
   }
 `;
 
 const FiltroDataWrapper = styled.div`
   height: 44px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: ${({ theme }) => theme.cores.superficie};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: ${({ theme }) => theme.raio.lg};
   padding: 0 12px;
   display: flex;
   align-items: center;
+  transition: all 0.2s;
+
+  &:focus-within {
+    border-color: ${({ theme }) => theme.cores.azul};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.cores.azul}22;
+  }
 
   @media (max-width: 600px) {
     width: 100%;
-    input { width: 100%; }
   }
 
   input {
     background: transparent;
     border: 0;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     outline: none;
     font-size: 14px;
+    flex: 1;
+
+    &::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+  }
+
+  span {
+    font-size: 11px;
+    font-weight: 800;
+    color: ${({ theme }) => theme.cores.texto2};
+    text-transform: uppercase;
+    margin-right: 8px;
+    user-select: none;
+    letter-spacing: 0.5px;
   }
 `;
 
@@ -794,11 +883,15 @@ color: #fff;
 
 const PainelConfig = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 24px;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
 
   @media (max-width: 600px) {
-    grid-template-columns: 1fr;
     gap: 16px;
   }
 `;
@@ -856,11 +949,51 @@ const ConfigBox = styled.div`
   }
 
     span {
-    color: #8d8d99;
-    font-size: 14px;
-    font-weight: 600;
+      color: ${({ theme }) => theme.cores.texto2};
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
   }
-}
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: ${({ theme }) => theme.cores.texto2};
+        margin-bottom: 0;
+      }
+
+      input {
+        background: #121214;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        height: 44px;
+        padding: 0 16px;
+        color: #fff;
+        outline: none;
+        width: 100%;
+        
+        &:focus {
+          border-color: #2f81f7;
+        }
+      }
+    }
+  }
 `;
 
 const AvisoInfo = styled.div`
@@ -910,6 +1043,14 @@ const StatusBadge = styled.div`
 
   svg {
     font-size: 14px;
+    &.spin {
+      animation: spin 2s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 

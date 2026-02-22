@@ -117,6 +117,9 @@ export function exportarPontosPdf(pontos, meta = {}) {
         );
     }
 
-    const nomeArquivo = meta.nomeArquivo || `pontos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`;
-    doc.save(nomeArquivo);
+    // em vez de doc.save(nomeArquivo);
+    // vamos usar autoPrint e abrir em nova aba
+    doc.autoPrint();
+    const blob = doc.output("bloburl");
+    window.open(blob, "_blank");
 }

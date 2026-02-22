@@ -67,7 +67,7 @@ const Wrapper = styled.div`
 `;
 
 const Header = styled.div`
-  height: 42px;
+  height: 44px;
   padding: 0 12px;
   border-radius: ${({ theme }) => theme.raio.lg};
   border: 1px solid ${({ theme, $aberto }) => $aberto ? theme.cores.azul : theme.cores.borda};

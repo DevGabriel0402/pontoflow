@@ -12,6 +12,7 @@ import { obterFila } from "../../services/offlineQueue";
 import { startOfToday, isAfter, isWeekend } from "date-fns";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
+import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -40,6 +41,8 @@ export default function HomeColaborador() {
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
+  const [permissaoGPS, setPermissaoGPS] = React.useState("prompt"); // prompt, granted, denied
+  const [showConsentModal, setShowConsentModal] = React.useState(false);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
@@ -77,16 +80,37 @@ export default function HomeColaborador() {
 
   // ✅ validar local ao entrar na tela (e quando voltar pro app)
   React.useEffect(() => {
+    const checkPermission = async () => {
+      if (!navigator.permissions) return;
+      try {
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        setPermissaoGPS(status.state);
+
+        if (status.state === "prompt") {
+          setShowConsentModal(true);
+        }
+
+        status.onchange = () => setPermissaoGPS(status.state);
+      } catch (e) {
+        console.error("Erro ao checar permissão GPS:", e);
+      }
+    };
+
     const run = async () => {
       try {
         await validarLocal();
       } catch (e) {
-        toast.error(e.message);
+        // Se der erro de permissão (code 1), a gente já captura via navigator.permissions
+        // mas alguns browsers não suportam navigator.permissions.query({...})
+        if (e.message?.includes("negada")) {
+          setPermissaoGPS("denied");
+        }
       } finally {
         setChecou(true);
       }
     };
 
+    checkPermission();
     run();
 
     const onVis = () => {
@@ -102,7 +126,12 @@ export default function HomeColaborador() {
     return (checou && validacao.ok === false) || ehFimDeSemana;
   }, [isAdmin, checou, validacao.ok, ehFimDeSemana]);
 
-  const handle = (tipo) => {
+  const handle = async (tipo) => {
+    if (permissaoGPS === "denied") {
+      toast.error("Localização bloqueada. Ative nas configurações do navegador.");
+      return;
+    }
+
     if (ehFimDeSemana && !isAdmin) {
       toast.error("Registro de ponto não disponível no final de semana.");
       return;
@@ -111,7 +140,21 @@ export default function HomeColaborador() {
       toast.error("Este ponto já foi registrado hoje!");
       return;
     }
-    registrarPonto(tipo);
+
+    try {
+      await registrarPonto(tipo);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAceitarConsentimento = () => {
+    setShowConsentModal(false);
+    validarLocal().catch(e => {
+      if (e.message?.includes("negada")) {
+        setPermissaoGPS("denied");
+      }
+    });
   };
 
   return (
@@ -256,6 +299,35 @@ export default function HomeColaborador() {
         ponto={pontoParaMapa}
         onFechar={() => setPontoParaMapa(null)}
       />
+
+      <ModalConsentimentoGPS
+        aberto={showConsentModal}
+        onAceitar={handleAceitarConsentimento}
+      />
+
+      {permissaoGPS === "denied" && (
+        <OverlayBloqueio>
+          <CardBloqueio>
+            <FiAlertTriangle size={48} color="#f1c40f" />
+            <TituloBloqueio>Acesso à Localização Negado</TituloBloqueio>
+            <DescBloqueio>
+              O PontoFlow precisa da sua localização para validar o registro de ponto.
+              Você bloqueou o acesso anteriormente.
+            </DescBloqueio>
+
+            <Passos>
+              <strong>Como reativar:</strong>
+              <p>1. Clique no ícone de 🔒 ou ⚙️ na barra de endereço do navegador.</p>
+              <p>2. Ative a opção "Localização".</p>
+              <p>3. Recarregue esta página.</p>
+            </Passos>
+
+            <BotaoReativar onClick={() => window.location.reload()}>
+              Já ativei, recarregar
+            </BotaoReativar>
+          </CardBloqueio>
+        </OverlayBloqueio>
+      )}
     </Tela>
   );
 }
@@ -553,5 +625,79 @@ const SemHistorico = styled.div`
   background: ${({ theme }) => theme.cores.superficie2};
   border-radius: 12px;
   border: 1px dashed ${({ theme }) => theme.cores.borda};
+`;
+
+const OverlayBloqueio = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 18, 20, 0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10000;
+  backdrop-filter: blur(10px);
+`;
+
+const CardBloqueio = styled.div`
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 32px;
+  border-radius: 24px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+`;
+
+const TituloBloqueio = styled.h2`
+  font-size: 20px;
+  font-weight: 800;
+  margin: 20px 0 12px;
+  color: #fff;
+`;
+
+const DescBloqueio = styled.p`
+  font-size: 14px;
+  color: ${({ theme }) => theme.cores.texto2};
+  line-height: 1.6;
+  margin-bottom: 24px;
+`;
+
+const Passos = styled.div`
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+
+  strong {
+    display: block;
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+
+  p {
+    font-size: 12px;
+    color: ${({ theme }) => theme.cores.texto2};
+    margin: 8px 0;
+    line-height: 1.4;
+  }
+`;
+
+const BotaoReativar = styled.button`
+  width: 100%;
+  height: 48px;
+  background: ${({ theme }) => theme.cores.azul};
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
 `;
 
