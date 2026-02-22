@@ -2,10 +2,11 @@ import React from "react";
 import styled from "styled-components";
 import { useAdminPontos } from "../../hooks/useAdminPontos";
 import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
+import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap } from "react-icons/fi";
-import { format } from "date-fns";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle } from "react-icons/fi";
+import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalNovoFuncionario from "../../components/admin/ModalNovoFuncionario";
@@ -146,6 +147,81 @@ export default function DashboardAdmin() {
     return ids.size;
   }, [itens]);
 
+  const opcoesFuncionarios = React.useMemo(() => {
+    const lista = (funcionarios || [])
+      .filter(f => f.role !== 'admin')
+      .map(f => ({ value: f.nome, label: f.nome }));
+
+    return [{ value: "", label: "Todos os Funcionários" }, ...lista];
+  }, [funcionarios]);
+
+  const resumoJornada = React.useMemo(() => {
+    // 1. Agrupar por data e usuário
+    const grupos = {};
+
+    filtrados.forEach(p => {
+      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      if (!d) return;
+
+      const dataKey = format(d, "yyyy-MM-dd");
+      const userKey = p.userId;
+      const key = `${dataKey}_${userKey}`;
+
+      if (!grupos[key]) {
+        grupos[key] = {
+          data: d,
+          userId: p.userId,
+          userName: p.userName,
+          pontos: []
+        };
+      }
+      grupos[key].pontos.push({ ...p, dateObj: d });
+    });
+
+    // 2. Calcular cada grupo
+    return Object.values(grupos).map(g => {
+      const pontos = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
+
+      const entrada = pontos.find(p => p.type === "ENTRADA")?.dateObj;
+      const saida = pontos.find(p => p.type === "SAIDA")?.dateObj;
+      const iniInt = pontos.find(p => p.type === "INICIO_INTERVALO")?.dateObj;
+      const fimInt = pontos.find(p => p.type === "FIM_INTERVALO")?.dateObj;
+
+      let minutosTrabalhados = 0;
+      let status = "Incompleto";
+
+      if (entrada && saida) {
+        let total = differenceInMinutes(saida, entrada);
+        let intervalo = 0;
+
+        if (iniInt && fimInt) {
+          intervalo = differenceInMinutes(fimInt, iniInt);
+        }
+
+        minutosTrabalhados = total - (intervalo > 0 ? intervalo : 0);
+        status = (iniInt && !fimInt) || (!iniInt && fimInt) ? "Intervalo Incompleto" : "Ok";
+      }
+
+      const horas = Math.floor(minutosTrabalhados / 60);
+      const minutos = minutosTrabalhados % 60;
+
+      return {
+        ...g,
+        totalMinutos: minutosTrabalhados,
+        totalFormatado: `${horas}h ${minutos}m`,
+        status,
+        check: { entrada, saida, iniInt, fimInt }
+      };
+    }).sort((a, b) => b.data - a.data);
+  }, [filtrados]);
+
+  const totalHorasPeriodo = React.useMemo(() => {
+    const totalMin = resumoJornada.reduce((acc, curr) => acc + curr.totalMinutos, 0);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h ${m}m`;
+  }, [resumoJornada]);
+
   const gerarPdf = () => {
     const periodo =
       dataInicio || dataFim
@@ -157,6 +233,21 @@ export default function DashboardAdmin() {
       empresa: nomePainel,
       periodo,
       nomeArquivo: `relatorio_pontos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`,
+    });
+
+    setMostrarToast(true);
+  };
+
+  const handleGerarResumoPdf = () => {
+    const periodo =
+      dataInicio || dataFim
+        ? `${dataInicio || "…"} até ${dataFim || "…"} `
+        : "Todos os períodos";
+
+    exportarResumoPdf(resumoJornada, {
+      empresa: nomePainel,
+      periodo,
+      totalGeral: totalHorasPeriodo
     });
 
     setMostrarToast(true);
@@ -174,7 +265,7 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "DASHBOARD"} onClick={() => setAbaAtiva("DASHBOARD")}>
             <FiGrid /> <span>Dashboard</span>
           </NavItem>
-          <NavItem $ativo={abaAtiva === "HISTORICO"} onClick={() => setAbaAtiva("HISTORICO")}>
+          <NavItem $ativo={abaAtiva === "HISTORICO"} onClick={() => { setAbaAtiva("HISTORICO"); setTipo("TODOS"); }}>
             <FiClock /> <span>Histórico de Pontos</span>
           </NavItem>
           <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
@@ -201,14 +292,13 @@ export default function DashboardAdmin() {
             {abaAtiva === "HISTORICO" && (
               <>
                 <Topo>
-                  <BuscaWrapper>
-                    <FiSearch />
-                    <input
-                      placeholder="Nome do Funcionário"
+                  <SeletorAcordeaoWrapper>
+                    <SeletorAcordeao
+                      opcoes={opcoesFuncionarios}
                       value={buscaNome}
-                      onChange={(e) => setBuscaNome(e.target.value)}
+                      onChange={(val) => setBuscaNome(val)}
                     />
-                  </BuscaWrapper>
+                  </SeletorAcordeaoWrapper>
 
                   <FiltroDataWrapper>
                     <span>De:</span>
@@ -275,6 +365,7 @@ export default function DashboardAdmin() {
               </>
             )}
 
+
             {abaAtiva === "DASHBOARD" && (
               <>
                 <TituloSecao>Visão Geral</TituloSecao>
@@ -292,6 +383,74 @@ export default function DashboardAdmin() {
                     <ValorCard>{filtrados.filter(p => !p.dentroDoRaio).length}</ValorCard>
                   </Card>
                 </ResumoCards>
+
+                <div style={{ marginTop: '32px' }}>
+                  <Topo>
+                    <SeletorAcordeaoWrapper>
+                      <SeletorAcordeao
+                        opcoes={opcoesFuncionarios}
+                        value={buscaNome}
+                        onChange={(val) => setBuscaNome(val)}
+                      />
+                    </SeletorAcordeaoWrapper>
+
+                    <FiltroDataWrapper>
+                      <span>De:</span>
+                      <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} title="Data Início" />
+                    </FiltroDataWrapper>
+
+                    <FiltroDataWrapper>
+                      <span>Até:</span>
+                      <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} title="Data Fim" />
+                    </FiltroDataWrapper>
+
+                    <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
+                      <FiFileText /> Exportar Resumo PDF
+                    </BotaoExportar>
+                  </Topo>
+
+                  <TabelaContainer>
+                    <ResumoHeader>
+                      <div className="resumo-info">
+                        <h3>Resumo de Jornada</h3>
+                        <p>Detalhamento diário por colaborador</p>
+                      </div>
+                    </ResumoHeader>
+                    <TabelaStyled>
+                      <thead>
+                        <tr>
+                          <th>Funcionário</th>
+                          <th>Data</th>
+                          <th>Entrada</th>
+                          <th>Início Intervalo</th>
+                          <th>Fim Intervalo</th>
+                          <th>Saída</th>
+                          <th>Total Trabalhado</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {resumoJornada.map((j, index) => (
+                          <tr key={`${j.userId}-${format(j.data, 'yyyy-MM-dd')}-${index}`}>
+                            <td>{j.userName || "—"}</td>
+                            <td>{format(j.data, 'dd/MM/yyyy')}</td>
+                            <td>{j.check.entrada ? format(j.check.entrada, 'HH:mm') : '—'}</td>
+                            <td>{j.check.iniInt ? format(j.check.iniInt, 'HH:mm') : '—'}</td>
+                            <td>{j.check.fimInt ? format(j.check.fimInt, 'HH:mm') : '—'}</td>
+                            <td>{j.check.saida ? format(j.check.saida, 'HH:mm') : '—'}</td>
+                            <td>{j.totalFormatado}</td>
+                            <td>
+                              <StatusBadge $ativo={j.status === "Ok"}>
+                                {j.status === "Ok" ? <FiCheckCircle /> : <FiAlertTriangle />}
+                                {j.status}
+                              </StatusBadge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </TabelaStyled>
+                  </TabelaContainer>
+                </div>
               </>
             )}
 
@@ -577,9 +736,9 @@ font-weight: 600;
 cursor: pointer;
 transition: all 0.2s;
 
-color: ${({ $ativo }) => $ativo ? "#fff" : "#8d8d99"};
-background: ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.05)" : "transparent"};
-border: 1px solid ${({ $ativo }) => $ativo ? "rgba(255, 255, 255, 0.1)" : "transparent"};
+color: ${({ $ativo }) => ($ativo ? "#fff" : "#8d8d99")};
+background: ${({ $ativo }) => ($ativo ? "rgba(255, 255, 255, 0.05)" : "transparent")};
+border: 1px solid ${({ $ativo }) => ($ativo ? "rgba(255, 255, 255, 0.1)" : "transparent")};
 
   &:hover {
   color: #fff;
@@ -615,9 +774,11 @@ const Topo = styled.header`
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 24px;
 
   @media (max-width: 900px) {
     gap: 12px;
+    margin-bottom: 16px;
   }
 
   @media (max-width: 600px) {
@@ -710,7 +871,7 @@ const FiltroDataWrapper = styled.div`
 `;
 
 const SeletorAcordeaoWrapper = styled.div`
-  min-width: 180px;
+  min-width: 240px;
   @media (max-width: 600px) {
     min-width: 0;
     width: 100%;
@@ -739,6 +900,36 @@ transition: filter 0.2s;
   opacity: 0.5;
   cursor: not-allowed;
 }
+`;
+
+const ResumoHeader = styled.div`
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+  .resumo-info {
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 4px;
+    }
+    p {
+      font-size: 13px;
+      color: #8d8d99;
+      strong { color: #2f81f7; }
+    }
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    
+    button { width: 100%; }
+  }
 `;
 
 const ResumoCards = styled.div`
