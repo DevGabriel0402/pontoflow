@@ -17,6 +17,17 @@ function getDeviceInfo() {
     };
 }
 
+async function getPublicIP() {
+    try {
+        const response = await fetch("https://api.ipify.org?format=json");
+        const data = await response.json();
+        return data.ip;
+    } catch (e) {
+        console.error("Erro ao obter IP:", e);
+        return "Indisponível";
+    }
+}
+
 export function usePonto() {
     const { usuario, perfil, isAdmin } = useAuth();
     const { obterPosicao, carregando: carregandoGeo } = useGeolocation();
@@ -85,6 +96,8 @@ export function usePonto() {
                 return;
             }
 
+            const userIP = await getPublicIP();
+
             const payloadBase = {
                 userId: usuario.uid,
                 userName: perfil?.nome || usuario.email,
@@ -97,6 +110,7 @@ export function usePonto() {
                 distanciaRelativa: distance,
                 dentroDoRaio: !!ok,
                 deviceInfo: getDeviceInfo(),
+                ip: userIP,
             };
 
             // ✅ OFFLINE: enfileira

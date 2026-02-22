@@ -153,8 +153,8 @@ export default function DashboardAdmin() {
         : "Todos os períodos";
 
     exportarPontosPdf(filtrados, {
-      titulo: "Relatório de Pontos — PontoFlow",
-      empresa: "Minha Empresa",
+      titulo: `Relatório de Pontos — ${nomePainel}`,
+      empresa: nomePainel,
       periodo,
       nomeArquivo: `relatorio_pontos_${format(new Date(), "yyyy-MM-dd_HH-mm")}.pdf`,
     });
@@ -242,6 +242,7 @@ export default function DashboardAdmin() {
                         <th>Tipo</th>
                         <th>Data/Hora</th>
                         <th>Origem</th>
+                        <th>IP</th>
                         <th>Localização</th>
                         <th>Distância</th>
                       </tr>
@@ -254,6 +255,7 @@ export default function DashboardAdmin() {
                           <td>{formatarTipo(p.type)}</td>
                           <td>{formatarData(p.criadoEm)}</td>
                           <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
+                          <td style={{ fontSize: '12px', fontFamily: 'monospace', opacity: 0.8 }}>{p.ip || "—"}</td>
                           <td>
                             <LocalInfo>
                               <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />

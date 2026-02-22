@@ -24,7 +24,7 @@ export default function MapaConfig({ lat, lng, raio, onMove }) {
 
         map.current = new maplibregl.Map({
             container: mapContainer.current,
-            style: "https://tiles.openfreemap.org/styles/liberty",
+            style: "https://tiles.openfreemap.org/styles/dark",
             center: [startLng, startLat],
             zoom: 17,
         });
@@ -55,9 +55,19 @@ export default function MapaConfig({ lat, lng, raio, onMove }) {
                 }
             });
 
+            const el = document.createElement('div');
+            el.className = 'custom-marker';
+            el.style.width = '20px';
+            el.style.height = '20px';
+            el.style.backgroundColor = '#2f81f7';
+            el.style.borderRadius = '50%';
+            el.style.border = '3px solid #fff';
+            el.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
+            el.style.cursor = 'move';
+
             marker.current = new maplibregl.Marker({
+                element: el,
                 draggable: true,
-                color: "#2F81F7"
             })
                 .setLngLat([startLng, startLat])
                 .addTo(map.current);
@@ -158,9 +168,17 @@ const ContainerMapa = styled.div`
     height: 100%;
   }
 
-  /* Ajuste de tema dark para o mapa (filtro se o estilo for light) */
+  /* O estilo dark-matter já é dark, não precisa de filtro */
   .maplibregl-canvas {
-    filter: invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%);
+    outline: none;
+  }
+
+  .custom-marker {
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s ease;
+    &:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
   }
 `;
 
