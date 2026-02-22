@@ -1,19 +1,30 @@
 // src/hooks/useAdminFuncionarios.js
 import React from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { useAuth } from "../contexts/AuthContexto";
 
 export function useAdminFuncionarios() {
+    const { perfil } = useAuth();
     const [funcionarios, setFuncionarios] = React.useState([]);
     const [carregando, setCarregando] = React.useState(true);
     const [erro, setErro] = React.useState(null);
 
     React.useEffect(() => {
+        if (!perfil?.companyId) {
+            setCarregando(false);
+            return;
+        }
+
         setCarregando(true);
         setErro(null);
 
-        // Busca todos os usuários ordenados por nome
-        const q = query(collection(db, "users"), orderBy("nome", "asc"));
+        // Busca usuários da mesma empresa ordenados por nome
+        const q = query(
+            collection(db, "users"),
+            where("companyId", "==", perfil.companyId),
+            orderBy("nome", "asc")
+        );
 
         const unsub = onSnapshot(
             q,

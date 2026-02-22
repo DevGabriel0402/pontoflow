@@ -21,12 +21,12 @@ try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
         <TemaProviderApp>
-          <ConfigProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <ConfigProvider>
               <GlobalStyle />
               <App />
-            </AuthProvider>
-          </ConfigProvider>
+            </ConfigProvider>
+          </AuthProvider>
         </TemaProviderApp>
       </React.StrictMode>
     );

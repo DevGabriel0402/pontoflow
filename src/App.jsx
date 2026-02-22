@@ -4,17 +4,18 @@ import { Toaster } from "react-hot-toast";
 
 import PrivateRoute from "./routes/PrivateRoute";
 import AdminRoute from "./routes/AdminRoute";
+import MasterRoute from "./routes/MasterRoute";
 
 import Login from "./pages/auth/Login";
 import HomeColaborador from "./pages/colaborador/HomeColaborador";
 import Historico from "./pages/colaborador/Historico";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
+import DashboardMaster from "./pages/master/DashboardMaster";
 
 import { useSync } from "./hooks/useSync";
 import CookieConsent from "./components/CookieConsent";
 
 export default function App() {
-  console.log("App.jsx: Renderizando...");
   // ✅ deixa sincronizando sempre que necessário
   useSync();
 
@@ -48,6 +49,15 @@ export default function App() {
             <AdminRoute>
               <DashboardAdmin />
             </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/master"
+          element={
+            <MasterRoute>
+              <DashboardMaster />
+            </MasterRoute>
           }
         />
       </Routes>

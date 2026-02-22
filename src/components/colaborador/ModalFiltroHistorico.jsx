@@ -4,77 +4,77 @@ import { FiX, FiFilter } from "react-icons/fi";
 import SeletorAcordeao from "../SeletorAcordeao";
 
 const TIPOS = [
-    { value: "TODOS", label: "Todos os Registros" },
-    { value: "ENTRADA", label: "Entrada" },
-    { value: "INICIO_INTERVALO", label: "Início Intervalo" },
-    { value: "FIM_INTERVALO", label: "Fim Intervalo" },
-    { value: "SAIDA", label: "Saída" },
+  { value: "TODOS", label: "Todos os Registros" },
+  { value: "ENTRADA", label: "Entrada" },
+  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
+  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
+  { value: "SAIDA", label: "Saída" },
 ];
 
 export default function ModalFiltroHistorico({
-    aberto,
-    aoFechar,
-    tipo,
-    setTipo,
-    dataInicio,
-    setDataInicio,
-    dataFim,
-    setDataFim,
-    aoLimpar
+  aberto,
+  aoFechar,
+  tipo,
+  setTipo,
+  dataInicio,
+  setDataInicio,
+  dataFim,
+  setDataFim,
+  aoLimpar
 }) {
-    if (!aberto) return null;
+  if (!aberto) return null;
 
-    return (
-        <Overlay onClick={aoFechar}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-                <Topo>
-                    <Titulo>
-                        <FiFilter size={18} />
-                        Filtrar Histórico
-                    </Titulo>
-                    <BotaoFechar onClick={aoFechar}>
-                        <FiX size={20} />
-                    </BotaoFechar>
-                </Topo>
+  return (
+    <Overlay>
+      <Modal>
+        <Topo>
+          <Titulo>
+            <FiFilter size={18} />
+            Filtrar Histórico
+          </Titulo>
+          <BotaoFechar onClick={aoFechar}>
+            <FiX size={20} />
+          </BotaoFechar>
+        </Topo>
 
-                <Corpo>
-                    <Label>Tipo de Registro</Label>
-                    <SeletorAcordeao
-                        opcoes={TIPOS}
-                        selecionado={tipo}
-                        aoSelecionar={setTipo}
-                    />
+        <Corpo>
+          <Label>Tipo de Registro</Label>
+          <SeletorAcordeao
+            opcoes={TIPOS}
+            selecionado={tipo}
+            aoSelecionar={setTipo}
+          />
 
-                    <Espaco />
+          <Espaco />
 
-                    <Label>Período Personalizado</Label>
-                    <DataGrid>
-                        <Campo>
-                            <span>De:</span>
-                            <input
-                                type="date"
-                                value={dataInicio}
-                                onChange={(e) => setDataInicio(e.target.value)}
-                            />
-                        </Campo>
-                        <Campo>
-                            <span>Até:</span>
-                            <input
-                                type="date"
-                                value={dataFim}
-                                onChange={(e) => setDataFim(e.target.value)}
-                            />
-                        </Campo>
-                    </DataGrid>
-                </Corpo>
+          <Label>Período Personalizado</Label>
+          <DataGrid>
+            <Campo>
+              <span>De:</span>
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+              />
+            </Campo>
+            <Campo>
+              <span>Até:</span>
+              <input
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+              />
+            </Campo>
+          </DataGrid>
+        </Corpo>
 
-                <Rodape>
-                    <BotaoSecundario onClick={aoLimpar}>Limpar</BotaoSecundario>
-                    <BotaoPrincipal onClick={aoFechar}>Aplicar Filtros</BotaoPrincipal>
-                </Rodape>
-            </Modal>
-        </Overlay>
-    );
+        <Rodape>
+          <BotaoSecundario onClick={aoLimpar}>Limpar</BotaoSecundario>
+          <BotaoPrincipal onClick={aoFechar}>Aplicar Filtros</BotaoPrincipal>
+        </Rodape>
+      </Modal>
+    </Overlay>
+  );
 }
 
 const Overlay = styled.div`

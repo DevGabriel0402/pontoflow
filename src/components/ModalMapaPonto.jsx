@@ -4,49 +4,49 @@ import { FiX, FiMapPin, FiNavigation } from "react-icons/fi";
 import MapaVisualizacao from "./MapaVisualizacao";
 
 export default function ModalMapaPonto({ aberto, onFechar, ponto }) {
-    if (!aberto || !ponto) return null;
+  if (!aberto || !ponto) return null;
 
-    const lat = ponto.geolocation?.lat;
-    const lng = ponto.geolocation?.lng;
+  const lat = ponto.geolocation?.lat;
+  const lng = ponto.geolocation?.lng;
 
-    return (
-        <Overlay onClick={onFechar}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-                <Topo>
-                    <Titulo>
-                        <FiMapPin size={18} />
-                        Local do Registro
-                    </Titulo>
-                    <Fechar onClick={onFechar}>
-                        <FiX size={18} />
-                    </Fechar>
-                </Topo>
+  return (
+    <Overlay>
+      <Modal>
+        <Topo>
+          <Titulo>
+            <FiMapPin size={18} />
+            Local do Registro
+          </Titulo>
+          <Fechar onClick={onFechar}>
+            <FiX size={18} />
+          </Fechar>
+        </Topo>
 
-                <Conteudo>
-                    <Info>
-                        <strong>Funcionário:</strong> {ponto.userName || "—"} <br />
-                        <strong>Data/Hora:</strong> {new Date(ponto.criadoEm?.seconds * 1000).toLocaleString("pt-BR")}
-                    </Info>
+        <Conteudo>
+          <Info>
+            <strong>Funcionário:</strong> {ponto.userName || "—"} <br />
+            <strong>Data/Hora:</strong> {new Date(ponto.criadoEm?.seconds * 1000).toLocaleString("pt-BR")}
+          </Info>
 
-                    {lat && lng ? (
-                        <MapaVisualizacao lat={lat} lng={lng} dentroDoRaio={ponto.dentroDoRaio} />
-                    ) : (
-                        <SemMapa>Coordenadas não disponíveis para este registro.</SemMapa>
-                    )}
+          {lat && lng ? (
+            <MapaVisualizacao lat={lat} lng={lng} dentroDoRaio={ponto.dentroDoRaio} />
+          ) : (
+            <SemMapa>Coordenadas não disponíveis para este registro.</SemMapa>
+          )}
 
-                    <Ações>
-                        <BtnGoogleMaps
-                            href={`https://www.google.com/maps?q=${lat},${lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <FiNavigation size={16} /> Ver no Google Maps
-                        </BtnGoogleMaps>
-                    </Ações>
-                </Conteudo>
-            </Modal>
-        </Overlay>
-    );
+          <Ações>
+            <BtnGoogleMaps
+              href={`https://www.google.com/maps?q=${lat},${lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FiNavigation size={16} /> Ver no Google Maps
+            </BtnGoogleMaps>
+          </Ações>
+        </Conteudo>
+      </Modal>
+    </Overlay>
+  );
 }
 
 const Overlay = styled.div`

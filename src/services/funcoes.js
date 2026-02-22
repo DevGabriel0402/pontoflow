@@ -19,3 +19,10 @@ export const deletarFuncionarioFn = async (uid) => {
     const res = await call({ uid });
     return res.data;
 };
+
+export const criarAdminEmpresaFn = async ({ companyId, nome, email, dataNascimento }) => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    const call = httpsCallable(functions, "criarAdminEmpresa");
+    const res = await call({ companyId, nome, email, dataNascimento });
+    return res.data;
+};

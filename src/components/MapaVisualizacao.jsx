@@ -15,56 +15,60 @@ export default function MapaVisualizacao({ lat, lng, dentroDoRaio = true }) {
   const marker = useRef(null);
 
   useEffect(() => {
-    if (map.current) return;
-
     const nLat = Number(lat);
     const nLng = Number(lng);
-
     if (isNaN(nLat) || isNaN(nLng)) return;
 
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: "https://tiles.openfreemap.org/styles/dark",
-      center: [nLng, nLat],
-      zoom: 16,
-    });
+    if (!map.current) {
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: "https://tiles.openfreemap.org/styles/dark",
+        center: [nLng, nLat],
+        zoom: 16,
+      });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+      map.current.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    map.current.on("load", () => {
-      // Container do marcador (MapLibre usa o transform aqui para posicionar)
-      const el = document.createElement('div');
-      el.className = 'marker-container';
+      map.current.on("load", () => {
+        const el = document.createElement('div');
+        el.className = 'marker-container';
+        const dot = document.createElement('div');
+        dot.className = 'custom-marker';
+        dot.style.backgroundColor = '#2f81f7';
+        dot.style.width = '20px';
+        dot.style.height = '20px';
+        dot.style.borderRadius = '50%';
+        dot.style.border = `3px solid #fff`;
+        dot.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
+        el.appendChild(dot);
 
-      // Elemento interno para o visual e animação
-      const dot = document.createElement('div');
-      dot.className = 'custom-marker';
-
-      dot.style.backgroundColor = '#2f81f7';
-      dot.style.width = '20px';
-      dot.style.height = '20px';
-      dot.style.borderRadius = '50%';
-      dot.style.border = `3px solid #fff`;
-      dot.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
-
-      if (!dentroDoRaio) {
-        dot.style.boxShadow = '0 0 0 4px rgba(235, 77, 75, 0.4), 0 0 10px rgba(0,0,0,0.3)';
+        marker.current = new maplibregl.Marker({ element: el })
+          .setLngLat([nLng, nLat])
+          .addTo(map.current);
+      });
+    } else {
+      // Se o mapa já existe, apenas atualiza posição e centro
+      if (marker.current) {
+        marker.current.setLngLat([nLng, nLat]);
       }
+      map.current.flyTo({ center: [nLng, nLat], speed: 1.5 });
+    }
 
-      el.appendChild(dot);
+    return () => {
+      // Não removemos o mapa em cada render se ele existir, 
+      // apenas se o componente desmontar completamente (isso é tratado pelo React se o useEffect não tivesse o "else")
+    };
+  }, [lat, lng]);
 
-      marker.current = new maplibregl.Marker({ element: el })
-        .setLngLat([nLng, nLat])
-        .addTo(map.current);
-    });
-
+  // UseEffect separado para limpeza real no desmonte
+  useEffect(() => {
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [lat, lng, dentroDoRaio]);
+  }, []);
 
   return (
     <ContainerMapa>

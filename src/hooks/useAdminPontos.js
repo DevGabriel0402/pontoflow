@@ -1,18 +1,29 @@
 // src/hooks/useAdminPontos.js
 import React from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { useAuth } from "../contexts/AuthContexto";
 
 export function useAdminPontos() {
+    const { perfil } = useAuth();
     const [itens, setItens] = React.useState([]);
     const [carregando, setCarregando] = React.useState(true);
     const [erro, setErro] = React.useState(null);
 
     React.useEffect(() => {
+        if (!perfil?.companyId) {
+            setCarregando(false);
+            return;
+        }
+
         setCarregando(true);
         setErro(null);
 
-        const q = query(collection(db, "pontos"), orderBy("criadoEm", "desc"));
+        const q = query(
+            collection(db, "pontos"),
+            where("companyId", "==", perfil.companyId),
+            orderBy("criadoEm", "desc")
+        );
 
         const unsub = onSnapshot(
             q,

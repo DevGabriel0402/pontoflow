@@ -19,6 +19,7 @@ import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
 import { useConfig } from "../../contexts/ConfigContexto";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { deletarFuncionarioFn } from "../../services/funcoes";
+import { useAuth } from "../../contexts/AuthContexto";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -51,8 +52,9 @@ function formatarData(ts) {
 
 export default function DashboardAdmin() {
   const navigate = useNavigate();
+  const { usuario, perfil } = useAuth();
   const { itens, carregando, erro } = useAdminPontos();
-  const { nomePainel } = useConfig();
+  const { config, nomePainel } = useConfig();
 
   const [buscaNome, setBuscaNome] = React.useState("");
   const [tipo, setTipo] = React.useState("TODOS");
@@ -74,18 +76,25 @@ export default function DashboardAdmin() {
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
 
-  // Carregar config inicial do Firestore
+  // Carregar config inicial do Firestore de forma isolada por empresa
   React.useEffect(() => {
     const carregar = async () => {
       try {
-        const snap = await getDoc(doc(db, "settings", "geofencing"));
+        const companyId = perfil?.companyId;
+        const docRef = companyId
+          ? doc(db, "companies", companyId)
+          : doc(db, "settings", "geofencing");
+
+        const snap = await getDoc(docRef);
         if (snap.exists()) {
           const data = snap.data();
-          if (data.raio) setConfigRaio(data.raio);
-          if (data.lat) setConfigLat(data.lat);
-          if (data.lng) setConfigLng(data.lng);
-          if (data.nomePainel) {
-            setTempNomePainel(data.nomePainel);
+          const configData = data.config || data; // Se for empresa, está em .config; se for global, é o próprio data
+
+          if (configData.raio || configData.raioM) setConfigRaio(configData.raioM || configData.raio);
+          if (configData.lat) setConfigLat(configData.lat);
+          if (configData.lng) setConfigLng(configData.lng);
+          if (configData.nomePainel) {
+            setTempNomePainel(configData.nomePainel);
           }
         }
       } catch (e) {
@@ -93,21 +102,36 @@ export default function DashboardAdmin() {
       }
     };
     carregar();
-  }, []);
+  }, [perfil?.companyId]);
 
   const handleSalvarConfig = async () => {
     setSalvandoConfig(true);
     try {
-      await setDoc(doc(db, "settings", "geofencing"), {
-        raio: Number(configRaio),
-        lat: Number(configLat),
-        lng: Number(configLng),
-        nomePainel: tempNomePainel.trim() || "PontoFlow",
-        atualizadoEm: new Date(),
-      });
-      toast.success("Configurações salvas!");
+      const companyId = perfil?.companyId;
+
+      if (companyId) {
+        // Salva na empresa específica
+        await updateDoc(doc(db, "companies", companyId), {
+          "config.raioM": Number(configRaio),
+          "config.lat": Number(configLat),
+          "config.lng": Number(configLng),
+          "config.nomePainel": tempNomePainel.trim() || nomePainel,
+          "config.atualizadoEm": new Date(),
+        });
+      } else {
+        // Fallback global (legado ou superadmin)
+        await setDoc(doc(db, "settings", "geofencing"), {
+          raio: Number(configRaio),
+          lat: Number(configLat),
+          lng: Number(configLng),
+          nomePainel: tempNomePainel.trim() || nomePainel,
+          atualizadoEm: new Date(),
+        });
+      }
+      toast.success("Configurações salvas localmente para sua empresa!");
     } catch (e) {
-      toast.error("Erro ao salvar.");
+      console.error(e);
+      toast.error("Erro ao salvar. Verifique suas permissões.");
     } finally {
       setSalvandoConfig(false);
     }

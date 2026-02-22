@@ -28,8 +28,11 @@ async function getPublicIP() {
     }
 }
 
+import { useConfig } from "../contexts/ConfigContexto";
+
 export function usePonto() {
     const { usuario, perfil, isAdmin } = useAuth();
+    const { config } = useConfig();
     const { obterPosicao, carregando: carregandoGeo } = useGeolocation();
 
     const [validacao, setValidacao] = useState({
@@ -38,33 +41,17 @@ export function usePonto() {
         coords: null,
     });
 
-    const [dynamicConfig, setDynamicConfig] = useState(null);
-
     const { radius, officeCoords } = useMemo(() => {
         const env = getOfficeConfig();
-        if (!dynamicConfig) return env;
+        if (!config) return env;
         return {
-            radius: dynamicConfig.raio || env.radius,
+            radius: config.raioM || config.raio || env.radius,
             officeCoords: {
-                latitude: dynamicConfig.lat || env.officeCoords.latitude,
-                longitude: dynamicConfig.lng || env.officeCoords.longitude,
+                latitude: config.lat || env.officeCoords.latitude,
+                longitude: config.lng || env.officeCoords.longitude,
             }
         };
-    }, [dynamicConfig]);
-
-    useEffect(() => {
-        const fetchConfig = async () => {
-            try {
-                const snap = await getDoc(doc(db, "settings", "geofencing"));
-                if (snap.exists()) {
-                    setDynamicConfig(snap.data());
-                }
-            } catch (e) {
-                console.error("Erro ao buscar config:", e);
-            }
-        };
-        fetchConfig();
-    }, []);
+    }, [config]);
 
     const validarLocal = useCallback(async () => {
         const pos = await obterPosicao();
@@ -101,6 +88,7 @@ export function usePonto() {
             const payloadBase = {
                 userId: usuario.uid,
                 userName: perfil?.nome || usuario.email,
+                companyId: perfil?.companyId || "default", // Garante companyId no ponto
                 type,
 
                 geolocation: {
@@ -137,12 +125,12 @@ export function usePonto() {
         [usuario, perfil, validarLocal, isAdmin]
     );
 
-    return {
+    return useMemo(() => ({
         registrarPonto,
         validarLocal,
         validacao,
         carregandoGeo,
         radius,
         officeCoords,
-    };
+    }), [registrarPonto, validarLocal, validacao, carregandoGeo, radius, officeCoords]);
 }

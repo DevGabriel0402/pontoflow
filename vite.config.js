@@ -52,6 +52,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        navigateFallbackAllowlist: [/^\/admin/, /^\/master/, /^\/colaborador/],
         maximumFileSizeToCacheInBytes: 4000000,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,txt,woff2}'],
         cleanupOutdatedCaches: true,

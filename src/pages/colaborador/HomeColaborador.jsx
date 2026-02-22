@@ -158,7 +158,23 @@ export default function HomeColaborador() {
     });
   };
 
-  if (!perfil || carregandoHist) return <LoadingGlobal />;
+  if (carregandoHist || (carregandoGeo && !checou)) return <LoadingGlobal />;
+
+  if (!perfil) {
+    return (
+      <Tela>
+        <Conteudo>
+          <FiAlertTriangle size={48} color="#f1c40f" style={{ marginBottom: '20px' }} />
+          <h2 style={{ color: '#fff' }}>Perfil não encontrado</h2>
+          <p style={{ color: '#8d8d99', textAlign: 'center', margin: '16px 0' }}>
+            Não encontramos seus dados de acesso no sistema.
+            Entre em contato com o administrador da sua empresa.
+          </p>
+          <BotaoReativar onClick={logout}>Sair do Sistema</BotaoReativar>
+        </Conteudo>
+      </Tela>
+    );
+  }
 
   return (
     <Tela>

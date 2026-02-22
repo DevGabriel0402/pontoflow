@@ -23,6 +23,26 @@ const GlobalStyle = createGlobalStyle`
   .maplibregl-ctrl{
     display: none !important;
   }
+  
+  ::-webkit-scrollbar{
+    background-color: transparent;
+    width: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb{
+    background-color: ${({ theme }) => theme.cores.texto};
+    border-radius: 5px;
+  }
+
+  /* Remove setas de inputs numéricos */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
 `;
 
 export default GlobalStyle;

@@ -2,14 +2,18 @@
 import React from "react";
 import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { useAuth } from "../contexts/AuthContexto";
 
 export function useHistoricoPontos(userId) {
+    const { perfil } = useAuth();
     const [itens, setItens] = React.useState([]);
     const [carregando, setCarregando] = React.useState(true);
     const [erro, setErro] = React.useState(null);
 
     React.useEffect(() => {
-        if (!userId) {
+        console.log("useHistoricoPontos Effect:", { userId, companyId: perfil?.companyId });
+        if (!userId || !perfil?.companyId) {
+            console.log("useHistoricoPontos: Aguardando dados...");
             setCarregando(false);
             return;
         }
@@ -19,7 +23,8 @@ export function useHistoricoPontos(userId) {
 
         const q = query(
             collection(db, "pontos"),
-            where("userId", "==", userId)
+            where("userId", "==", userId),
+            where("companyId", "==", perfil.companyId)
             // orderBy("criadoEm", "desc") -> Removido para evitar necessidade de índices compostos manuais.
             // A ordenação já é feita em memória no componente Historico.jsx
         );

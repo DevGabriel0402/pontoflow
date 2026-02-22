@@ -51,10 +51,11 @@ export function AuthProvider({ children }) {
     };
 
     const isAdmin = perfil?.role === "admin";
+    const isSuperAdmin = perfil?.isSuperAdmin === true;
 
     const value = React.useMemo(
-        () => ({ usuario, perfil, isAdmin, carregando, login, logout, recarregarPerfil }),
-        [usuario, perfil, isAdmin, carregando]
+        () => ({ usuario, perfil, isAdmin, isSuperAdmin, carregando, login, logout, recarregarPerfil }),
+        [usuario, perfil, isAdmin, isSuperAdmin, carregando]
     );
 
     return <AuthContexto.Provider value={value}>{children}</AuthContexto.Provider>;
