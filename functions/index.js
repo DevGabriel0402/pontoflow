@@ -38,7 +38,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
         throw new HttpsError("permission-denied", "Apenas admin pode cadastrar.");
     }
 
-    const { nome, email, dataNascimento } = request.data || {};
+    const { nome, email, dataNascimento, role } = request.data || {};
     if (!nome || !email || !dataNascimento) {
         throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
@@ -59,7 +59,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
                 nome,
                 email,
                 dataNascimento,
-                role: "employee",
+                role: role || "employee",
                 ativo: true,
                 primeiroAcesso: true,
                 criadoEm: admin.firestore.FieldValue.serverTimestamp(),
@@ -77,5 +77,41 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
     } catch (error) {
         console.error("Erro ao criar funcionário:", error);
         throw new HttpsError("internal", error.message || "Erro interno ao criar funcionário.");
+    }
+});
+
+exports.deletarFuncionario = onCall({ region: "southamerica-east1" }, async (request) => {
+    console.log("Iniciando deletarFuncionario...", request.data);
+
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Não autenticado.");
+    }
+
+    const { uid } = request.data || {};
+    if (!uid) {
+        throw new HttpsError("invalid-argument", "UID do usuário é obrigatório.");
+    }
+
+    // Verifica permissão (apenas admin pode deletar)
+    const callerDoc = await admin.firestore().doc(`users/${request.auth.uid}`).get();
+    if (!callerDoc.exists || callerDoc.data().role !== "admin") {
+        throw new HttpsError("permission-denied", "Acesso negado.");
+    }
+
+    try {
+        // 1) Deleta do Firebase Auth
+        await admin.auth().deleteUser(uid);
+
+        // 2) Deleta do Firestore
+        await admin.firestore().doc(`users/${uid}`).delete();
+
+        // 3) (Opcional) Poderia deletar também o histórico de pontos dele aqui
+        // Mas por segurança e auditoria, muitos preferem manter ou apenas marcar como inativo. 
+        // Como o pedido foi "excluir", vamos remover o usuário.
+
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao deletar funcionário:", error);
+        throw new HttpsError("internal", error.message || "Erro ao excluir funcionário.");
     }
 });

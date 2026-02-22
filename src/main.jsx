@@ -4,6 +4,7 @@ import App from "./App";
 import GlobalStyle from "./styles/GlobalStyle";
 import { TemaProviderApp } from "./contexts/TemaContexto";
 import { AuthProvider } from "./contexts/AuthContexto";
+import { ConfigProvider } from "./contexts/ConfigContexto";
 import { registerSW } from 'virtual:pwa-register';
 
 // Registra o Service Worker do PWA
@@ -20,10 +21,12 @@ try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
         <TemaProviderApp>
-          <AuthProvider>
-            <GlobalStyle />
-            <App />
-          </AuthProvider>
+          <ConfigProvider>
+            <AuthProvider>
+              <GlobalStyle />
+              <App />
+            </AuthProvider>
+          </ConfigProvider>
         </TemaProviderApp>
       </React.StrictMode>
     );

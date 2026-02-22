@@ -11,6 +11,7 @@ import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAle
 import { startOfToday, startOfWeek, isAfter } from "date-fns";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
+import LoadingGlobal from "../../components/LoadingGlobal";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -196,9 +197,7 @@ export default function Historico() {
         </HeaderSecao>
 
         <ListaRefatorada>
-          {carregando && (
-            <Vazio>Carregando histórico...</Vazio>
-          )}
+          {carregando && <LoadingGlobal fullHeight={false} />}
 
           {erro && (
             <ErroContainer>

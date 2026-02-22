@@ -222,6 +222,10 @@ const Campo = styled.div`
     background: ${({ theme }) => theme.cores.superficie};
     color: ${({ theme }) => theme.cores.texto};
     outline: none;
+
+    &::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+    }
   }
 `;
 

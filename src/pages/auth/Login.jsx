@@ -3,66 +3,68 @@ import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContexto";
+import { useConfig } from "../../contexts/ConfigContexto";
 import { FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function Login() {
-    const { login } = useAuth();
-    const navigate = useNavigate();
+  const { login } = useAuth();
+  const { nomePainel } = useConfig();
+  const navigate = useNavigate();
 
-    const [email, setEmail] = useState("");
-    const [senha, setSenha] = useState("");
-    const [mostrarSenha, setMostrarSenha] = useState(false);
-    const [carregando, setCarregando] = useState(false);
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setCarregando(true);
-        try {
-            await login(email, senha);
-            toast.success("Bem-vindo ao PontoFlow!");
-            navigate("/");
-        } catch (err) {
-            toast.error("Falha no login. Verifique email e senha.");
-            console.log(err);
-        } finally {
-            setCarregando(false);
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCarregando(true);
+    try {
+      await login(email, senha);
+      toast.success("Bem-vindo ao PontoFlow!");
+      navigate("/");
+    } catch (err) {
+      toast.error("Falha no login. Verifique email e senha.");
+      console.log(err);
+    } finally {
+      setCarregando(false);
+    }
+  };
 
-    return (
-        <Tela>
-            <Card>
-                <Topo>
-                    <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-                    <h1>PontoFlow</h1>
-                </Topo>
+  return (
+    <Tela>
+      <Card>
+        <Topo>
+          <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
+          <h1>{nomePainel}</h1>
+        </Topo>
 
-                <Sub>Faça login para registar seu ponto.</Sub>
+        <Sub>Faça login para registar seu ponto.</Sub>
 
-                <Form onSubmit={handleSubmit}>
-                    <label>Email</label>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+        <Form onSubmit={handleSubmit}>
+          <label>Email</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
 
-                    <label>Senha</label>
-                    <InputSenhaWrapper>
-                        <input
-                            value={senha}
-                            onChange={(e) => setSenha(e.target.value)}
-                            type={mostrarSenha ? "text" : "password"}
-                        />
-                        <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
-                            {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                        </button>
-                    </InputSenhaWrapper>
+          <label>Senha</label>
+          <InputSenhaWrapper>
+            <input
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              type={mostrarSenha ? "text" : "password"}
+            />
+            <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
+              {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </InputSenhaWrapper>
 
-                    <Botao disabled={carregando}>
-                        <FiLogIn size={18} />
-                        {carregando ? "Entrando..." : "Entrar"}
-                    </Botao>
-                </Form>
-            </Card>
-        </Tela>
-    );
+          <Botao disabled={carregando}>
+            <FiLogIn size={18} />
+            {carregando ? "Entrando..." : "Entrar"}
+          </Botao>
+        </Form>
+      </Card>
+    </Tela>
+  );
 }
 
 const Tela = styled.div`

@@ -13,6 +13,7 @@ import { startOfToday, isAfter, isWeekend } from "date-fns";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
+import LoadingGlobal from "../../components/LoadingGlobal";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -35,7 +36,7 @@ export default function HomeColaborador() {
   const { usuario, perfil, isAdmin, logout, recarregarPerfil } = useAuth();
   const { hora, data } = useClock();
   const { pendentes, online, sincronizando, syncAgora } = useSync();
-  const { itens: historico } = useHistoricoPontos(usuario?.uid);
+  const { itens: historico, carregando: carregandoHist } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
 
   const [checou, setChecou] = React.useState(false);
@@ -156,6 +157,8 @@ export default function HomeColaborador() {
       }
     });
   };
+
+  if (!perfil || carregandoHist) return <LoadingGlobal />;
 
   return (
     <Tela>

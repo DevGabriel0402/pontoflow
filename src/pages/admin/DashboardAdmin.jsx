@@ -5,7 +5,7 @@ import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle } from "react-icons/fi";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -16,6 +16,9 @@ import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
+import { useConfig } from "../../contexts/ConfigContexto";
+import LoadingGlobal from "../../components/LoadingGlobal";
+import { deletarFuncionarioFn } from "../../services/funcoes";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -49,6 +52,7 @@ function formatarData(ts) {
 export default function DashboardAdmin() {
   const navigate = useNavigate();
   const { itens, carregando, erro } = useAdminPontos();
+  const { nomePainel } = useConfig();
 
   const [buscaNome, setBuscaNome] = React.useState("");
   const [tipo, setTipo] = React.useState("TODOS");
@@ -66,8 +70,7 @@ export default function DashboardAdmin() {
   const [configRaio, setConfigRaio] = React.useState(120);
   const [configLat, setConfigLat] = React.useState(-19.9440459);
   const [configLng, setConfigLng] = React.useState(-43.9147834);
-  const [nomePainel, setNomePainel] = React.useState("PontoFlow");
-  const [tempNomePainel, setTempNomePainel] = React.useState("PontoFlow");
+  const [tempNomePainel, setTempNomePainel] = React.useState("");
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
 
@@ -82,7 +85,6 @@ export default function DashboardAdmin() {
           if (data.lat) setConfigLat(data.lat);
           if (data.lng) setConfigLng(data.lng);
           if (data.nomePainel) {
-            setNomePainel(data.nomePainel);
             setTempNomePainel(data.nomePainel);
           }
         }
@@ -103,7 +105,6 @@ export default function DashboardAdmin() {
         nomePainel: tempNomePainel.trim() || "PontoFlow",
         atualizadoEm: new Date(),
       });
-      setNomePainel(tempNomePainel.trim() || "PontoFlow");
       toast.success("Configurações salvas!");
     } catch (e) {
       toast.error("Erro ao salvar.");
@@ -253,6 +254,20 @@ export default function DashboardAdmin() {
     setMostrarToast(true);
   };
 
+  const handleDeletarFuncionario = async (funcionario) => {
+    const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${funcionario.nome}? Esta ação não pode ser desfeita.`);
+    if (!confirmar) return;
+
+    const tId = toast.loading("Excluindo funcionário...");
+    try {
+      await deletarFuncionarioFn(funcionario.id);
+      toast.success("Funcionário excluído com sucesso!", { id: tId });
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || "Erro ao excluir funcionário.", { id: tId });
+    }
+  };
+
   return (
     <LayoutAdmin>
       <Sidebar>
@@ -284,7 +299,7 @@ export default function DashboardAdmin() {
       </Sidebar>
 
       <ConteudoPrincipal>
-        {carregando && <AvisoInfo>Carregando dados...</AvisoInfo>}
+        {carregando && <LoadingGlobal />}
         {erro && <AvisoErro>{erro}</AvisoErro>}
 
         {!carregando && !erro && (
@@ -504,16 +519,26 @@ export default function DashboardAdmin() {
                             <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
                             <td>{formatarData(f.criadoEm)}</td>
                             <td>
-                              <BotaoAcao onClick={async () => {
-                                try {
-                                  await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
-                                  toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'} !`);
-                                } catch (e) {
-                                  toast.error("Erro ao mudar status.");
-                                }
-                              }}>
-                                {f.ativo ? "Desativar" : "Ativar"}
-                              </BotaoAcao>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <BotaoAcao onClick={async () => {
+                                  try {
+                                    await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
+                                    toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'} !`);
+                                  } catch (e) {
+                                    toast.error("Erro ao mudar status.");
+                                  }
+                                }}>
+                                  {f.ativo ? "Desativar" : "Ativar"}
+                                </BotaoAcao>
+
+                                <BotaoAcao
+                                  $danger
+                                  onClick={() => handleDeletarFuncionario(f)}
+                                  title="Excluir Permanentemente"
+                                >
+                                  <FiTrash2 size={16} />
+                                </BotaoAcao>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1249,8 +1274,8 @@ const StatusBadge = styled.div`
 
 const BotaoAcao = styled.button`
   background: transparent;
-  color: #8d8d99;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: ${({ $danger }) => $danger ? "#eb4d4b" : "#8d8d99"};
+  border: 1px solid ${({ $danger }) => $danger ? "rgba(235, 77, 75, 0.2)" : "rgba(255, 255, 255, 0.1)"};
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -1260,8 +1285,8 @@ const BotaoAcao = styled.button`
 
   &:hover {
     color: #fff;
-    border-color: #2f81f7;
-    background: rgba(47, 129, 247, 0.1);
+    border-color: ${({ $danger }) => $danger ? "#eb4d4b" : "#2f81f7"};
+    background: ${({ $danger }) => $danger ? "rgba(235, 77, 75, 0.1)" : "rgba(47, 129, 247, 0.1)"};
   }
 `;
 
