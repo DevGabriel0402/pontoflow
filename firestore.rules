@@ -60,7 +60,10 @@ service cloud.firestore {
     // Coleção de Empresas
     match /companies/{companyId} {
       allow read: if isSuperAdmin() || belongsTo(companyId);
+      // SuperAdmin pode escrever qualquer coisa.
+      // Admin pode atualizar apenas a configuração da própria empresa.
       allow write: if isSuperAdmin();
+      allow update: if hasRole('admin') && belongsTo(companyId);
     }
 
     // Coleção de Configurações Globais (Legacy)
