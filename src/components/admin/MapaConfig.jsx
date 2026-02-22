@@ -145,7 +145,7 @@ export default function MapaConfig({ lat, lng, raio, onMove }) {
         <ContainerMapa>
             <div ref={mapContainer} className="map-container" />
             <Legenda>
-                Arraste o marcador azul para definir a localização da escola.
+                Arraste o marcador azul para definir a localização da empresa.
             </Legenda>
         </ContainerMapa>
     );

@@ -1,9 +1,9 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock } from "react-icons/fi";
+import { FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock, FiZap, FiCheckCircle, FiClock } from "react-icons/fi";
 import { db } from "../../services/firebase";
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { FiSave, FiInfo, FiTag, FiPhone, FiMail } from "react-icons/fi";
 import LoadingGlobal from "../../components/LoadingGlobal";
@@ -32,18 +32,34 @@ export default function DashboardMaster() {
         modoManutencao: false
     });
     const [carregandoConfig, setCarregandoConfig] = React.useState(false);
-    const [salvandoConfig, setSalvandoConfig] = React.useState(false);
+    const [statusSalvo, setStatusSalvo] = React.useState("idle"); // "idle" | "salvando" | "salvo"
+    const autoSaveRef = React.useRef(null);
+    const isFirstLoad = React.useRef(true);
+
+    // Changelog
+    const [changelog, setChangelog] = React.useState([]);
+    const [novaVersao, setNovaVersao] = React.useState("");
+    const [novaTitulo, setNovaTitulo] = React.useState("");
+    const [novasNotas, setNovasNotas] = React.useState("");
+    const [publicando, setPublicando] = React.useState(false);
 
     React.useEffect(() => {
         carregarConfigSaaS();
-    }, [abaAtiva]); // Mantém a dependência para estabilidade, mas a lógica interna carrega uma vez se necessário
+    }, []);
+
+    // Escuta changelog em tempo real
+    React.useEffect(() => {
+        const q = query(collection(db, "changelog"), orderBy("dataPublicacao", "desc"), limit(10));
+        const unsub = onSnapshot(q, (snap) => {
+            setChangelog(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+        return () => unsub();
+    }, []);
 
     const carregarConfigSaaS = async () => {
-        if (saasConfig.logoUrl && abaAtiva !== "CONFIG") return; // Evita recarregar se já tiver dados e não estiver na aba de config
         setCarregandoConfig(true);
         try {
-            const docRef = doc(db, "settings", "saas");
-            const snap = await getDoc(docRef);
+            const snap = await getDoc(doc(db, "settings", "saas"));
             if (snap.exists()) {
                 setSaasConfig(prev => ({ ...prev, ...snap.data() }));
             }
@@ -52,23 +68,65 @@ export default function DashboardMaster() {
             toast.error("Erro ao carregar configurações SaaS.");
         } finally {
             setCarregandoConfig(false);
+            isFirstLoad.current = false;
         }
     };
 
-    const handleSalvarConfig = async (e) => {
-        e.preventDefault();
-        setSalvandoConfig(true);
+    // Auto-save com debounce — dispara 1.5s após última mudança
+    const triggerAutoSave = React.useCallback((newConfig) => {
+        if (isFirstLoad.current) return;
+        if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+        setStatusSalvo("salvando");
+        autoSaveRef.current = setTimeout(async () => {
+            try {
+                await setDoc(doc(db, "settings", "saas"), {
+                    ...newConfig,
+                    atualizadoEm: new Date().toISOString()
+                }, { merge: true });
+                setStatusSalvo("salvo");
+                setTimeout(() => setStatusSalvo("idle"), 3000);
+            } catch (e) {
+                console.error(e);
+                setStatusSalvo("idle");
+                toast.error("Erro ao salvar configurações.");
+            }
+        }, 1500);
+    }, []);
+
+    const updateConfig = (field, value) => {
+        const newConfig = { ...saasConfig, [field]: value };
+        setSaasConfig(newConfig);
+        triggerAutoSave(newConfig);
+    };
+
+    const handlePublicarChangelog = async () => {
+        if (!novaVersao.trim() || !novaTitulo.trim() || !novasNotas.trim()) {
+            toast.error("Preencha versão, título e notas antes de publicar.");
+            return;
+        }
+        setPublicando(true);
         try {
+            const docRef = await addDoc(collection(db, "changelog"), {
+                versao: novaVersao.trim(),
+                titulo: novaTitulo.trim(),
+                notas: novasNotas.trim(),
+                dataPublicacao: serverTimestamp(),
+            });
+            // Marca no saas qual é a última atualização publicada
             await setDoc(doc(db, "settings", "saas"), {
-                ...saasConfig,
+                ultimaAtualizacaoId: docRef.id,
+                ultimaVersao: novaVersao.trim(),
                 atualizadoEm: new Date().toISOString()
             }, { merge: true });
-            toast.success("Configurações salvas com sucesso!");
+            toast.success(`Versão ${novaVersao} publicada com sucesso!`);
+            setNovaVersao("");
+            setNovaTitulo("");
+            setNovasNotas("");
         } catch (e) {
             console.error(e);
-            toast.error("Erro ao salvar configurações.");
+            toast.error("Erro ao publicar atualização.");
         } finally {
-            setSalvandoConfig(false);
+            setPublicando(false);
         }
     };
 
@@ -105,7 +163,7 @@ export default function DashboardMaster() {
             <Sidebar>
                 <Branding>
                     <Logo src="/icons/pwa-512x512.png" />
-                    PontoFlow Master
+                    Click Ponto Master
                 </Branding>
 
                 <Nav>
@@ -159,96 +217,172 @@ export default function DashboardMaster() {
 
                 {abaAtiva === "CONFIG" && (
                     <ConfigContainer>
-                        <TituloSecao>Configurações Globais do SaaS</TituloSecao>
-                        <p style={{ color: '#8d8d99', marginTop: '-16px', fontSize: '14px' }}>
-                            Gerencie a identidade, faturamento e canais de suporte padrão do sistema.
-                        </p>
+                        <TituloSecaoRow>
+                            <div>
+                                <TituloSecao>Configurações Globais do SaaS</TituloSecao>
+                                <p style={{ color: '#8d8d99', fontSize: '14px', margin: 0 }}>
+                                    Gerencie a identidade, faturamento e canais de suporte padrão do sistema.
+                                </p>
+                            </div>
+                            <StatusSalvo $status={statusSalvo}>
+                                {statusSalvo === "salvando" && <><FiClock size={13} /> Salvando...</>}
+                                {statusSalvo === "salvo" && <><FiCheckCircle size={13} /> Salvo</>}
+                                {statusSalvo === "idle" && "Salvo automaticamente"}
+                            </StatusSalvo>
+                        </TituloSecaoRow>
 
-                        <FormConfig onSubmit={handleSalvarConfig}>
-                            <GridConfig>
-                                <SecaoConfig>
-                                    <Subtitulo><FiTag /> Identidade e Branding</Subtitulo>
-                                    <InputGroup>
-                                        <label>Nome do Sistema (SaaS)</label>
-                                        <input
-                                            value={saasConfig.nomeSaaS}
-                                            onChange={e => setSaasConfig({ ...saasConfig, nomeSaaS: e.target.value })}
-                                            placeholder="Ex: PontoFlow"
-                                        />
-                                    </InputGroup>
-                                    <InputGroup>
-                                        <label>URL do Logotipo Master</label>
-                                        <input
-                                            value={saasConfig.logoUrl}
-                                            onChange={e => setSaasConfig({ ...saasConfig, logoUrl: e.target.value })}
-                                            placeholder="https://..."
-                                        />
-                                    </InputGroup>
-                                </SecaoConfig>
+                        <GridConfig>
+                            <SecaoConfig>
+                                <Subtitulo><FiTag /> Identidade e Branding</Subtitulo>
+                                <InputGroup>
+                                    <label>Nome do Sistema (SaaS)</label>
+                                    <input
+                                        value={saasConfig.nomeSaaS}
+                                        onChange={e => updateConfig("nomeSaaS", e.target.value)}
+                                        placeholder="Ex: PontoFlow"
+                                    />
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>URL do Logotipo <span style={{ fontWeight: 400, color: '#8d8d99' }}>(opcional)</span></label>
+                                    <input
+                                        value={saasConfig.logoUrl}
+                                        onChange={e => updateConfig("logoUrl", e.target.value)}
+                                        placeholder="https://..."
+                                    />
+                                </InputGroup>
+                            </SecaoConfig>
 
-                                <SecaoConfig>
-                                    <Subtitulo><FiDollarSign /> Tabelas de Preços (Mensal)</Subtitulo>
-                                    <InputGroup>
-                                        <label>Valor Plano Básico (R$)</label>
-                                        <input
-                                            type="number"
-                                            value={saasConfig.planoBasicoValor}
-                                            onChange={e => setSaasConfig({ ...saasConfig, planoBasicoValor: Number(e.target.value) })}
-                                        />
-                                    </InputGroup>
-                                    <InputGroup>
-                                        <label>Valor Plano Pro (R$)</label>
-                                        <input
-                                            type="number"
-                                            value={saasConfig.planoProValor}
-                                            onChange={e => setSaasConfig({ ...saasConfig, planoProValor: Number(e.target.value) })}
-                                        />
-                                    </InputGroup>
-                                </SecaoConfig>
+                            <SecaoConfig>
+                                <Subtitulo><FiDollarSign /> Tabelas de Preços (Mensal)</Subtitulo>
+                                <InputGroup>
+                                    <label>Valor Plano Básico (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={saasConfig.planoBasicoValor}
+                                        onChange={e => updateConfig("planoBasicoValor", Number(e.target.value))}
+                                    />
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>Valor Plano Pro (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={saasConfig.planoProValor}
+                                        onChange={e => updateConfig("planoProValor", Number(e.target.value))}
+                                    />
+                                </InputGroup>
+                            </SecaoConfig>
 
-                                <SecaoConfig>
-                                    <Subtitulo><FiMail /> Canais de Suporte e Vendas</Subtitulo>
-                                    <InputGroup>
-                                        <label>Email de Suporte</label>
-                                        <input
-                                            type="email"
-                                            value={saasConfig.emailSuporte}
-                                            onChange={e => setSaasConfig({ ...saasConfig, emailSuporte: e.target.value })}
-                                            placeholder="suporte@..."
-                                        />
-                                    </InputGroup>
-                                    <InputGroup>
-                                        <label>WhatsApp de Vendas (DDD + Número)</label>
-                                        <input
-                                            value={saasConfig.whatsappVendas}
-                                            onChange={e => setSaasConfig({ ...saasConfig, whatsappVendas: e.target.value })}
-                                            placeholder="319..."
-                                        />
-                                    </InputGroup>
-                                </SecaoConfig>
+                            <SecaoConfig>
+                                <Subtitulo><FiMail /> Canais de Suporte e Vendas</Subtitulo>
+                                <InputGroup>
+                                    <label>Email de Suporte</label>
+                                    <input
+                                        type="email"
+                                        value={saasConfig.emailSuporte}
+                                        onChange={e => updateConfig("emailSuporte", e.target.value)}
+                                        placeholder="suporte@..."
+                                    />
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>WhatsApp de Vendas (DDD + Número)</label>
+                                    <input
+                                        value={saasConfig.whatsappVendas}
+                                        onChange={e => {
+                                            // Máscara: (XX) XXXXX-XXXX
+                                            const nums = e.target.value.replace(/\D/g, '').substring(0, 11);
+                                            let masked = nums;
+                                            if (nums.length > 2) masked = `(${nums.slice(0, 2)}) ${nums.slice(2)}`;
+                                            if (nums.length > 7) masked = `(${nums.slice(0, 2)}) ${nums.slice(2, 7)}-${nums.slice(7)}`;
+                                            updateConfig("whatsappVendas", masked);
+                                        }}
+                                        placeholder="(31) 99166-0594"
+                                        maxLength={15}
+                                        inputMode="numeric"
+                                    />
+                                </InputGroup>
+                            </SecaoConfig>
 
-                                <SecaoConfig>
-                                    <Subtitulo><FiInfo /> Status do Sistema</Subtitulo>
-                                    <ToggleWrapper>
-                                        <label>
-                                            <input
-                                                type="checkbox"
-                                                checked={saasConfig.modoManutencao}
-                                                onChange={e => setSaasConfig({ ...saasConfig, modoManutencao: e.target.checked })}
-                                            />
-                                            Modo Manutenção Global
-                                        </label>
-                                        <small>Se ativado, impede o acesso de todos os usuários às plataformas admin e colaborador.</small>
-                                    </ToggleWrapper>
-                                </SecaoConfig>
-                            </GridConfig>
+                            <SecaoConfig>
+                                <Subtitulo><FiInfo /> Status do Sistema</Subtitulo>
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={saasConfig.modoManutencao}
+                                            onClick={() => updateConfig("modoManutencao", !saasConfig.modoManutencao)}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Modo Manutenção Global
+                                    </label>
+                                    <small>Se ativado, bloqueia o acesso de todos os usuários (exceto Master).</small>
+                                </ToggleWrapper>
+                            </SecaoConfig>
+                        </GridConfig>
 
-                            <FooterAcoes>
-                                <BotaoPrincipal type="submit" disabled={salvandoConfig}>
-                                    {salvandoConfig ? "Salvando..." : <><FiSave /> Salvar Alterações</>}
-                                </BotaoPrincipal>
-                            </FooterAcoes>
-                        </FormConfig>
+                        {/* ── NOTAS DE ATUALIZAÇÃO ─────────────────────── */}
+                        <SecaoDivisor />
+
+                        <SecaoChangelog>
+                            <Subtitulo><FiZap /> Notas de Atualização</Subtitulo>
+                            <p style={{ color: '#8d8d99', fontSize: '13px', margin: '0 0 16px' }}>
+                                Publique o que foi modificado nesta versão. As notas aparecerão no painel de cada empresa cliente.
+                            </p>
+
+                            <GridChangelog>
+                                <InputGroup>
+                                    <label>Versão (ex: 1.2.0)</label>
+                                    <input
+                                        value={novaVersao}
+                                        onChange={e => setNovaVersao(e.target.value)}
+                                        placeholder="1.0.0"
+                                    />
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>Título da Atualização</label>
+                                    <input
+                                        value={novaTitulo}
+                                        onChange={e => setNovaTitulo(e.target.value)}
+                                        placeholder="Ex: Melhorias no relatório PDF"
+                                    />
+                                </InputGroup>
+                            </GridChangelog>
+
+                            <InputGroup style={{ marginTop: '12px' }}>
+                                <label>Notas (o que mudou nesta versão)</label>
+                                <TextareaNotas
+                                    value={novasNotas}
+                                    onChange={e => setNovasNotas(e.target.value)}
+                                    placeholder={"• Correção no cálculo de horas\n• Novo filtro por data no histórico\n• Melhorias de performance"}
+                                    rows={5}
+                                />
+                            </InputGroup>
+
+                            <BotaoPublicar onClick={handlePublicarChangelog} disabled={publicando}>
+                                <FiZap size={15} />
+                                {publicando ? "Publicando..." : "Publicar Atualização"}
+                            </BotaoPublicar>
+
+                            {/* Histórico de versões */}
+                            {changelog.length > 0 && (
+                                <HistoricoChangelog>
+                                    <h4>Versões Publicadas</h4>
+                                    {changelog.map(entry => (
+                                        <EntryChangelog key={entry.id}>
+                                            <EntryHeader>
+                                                <VersionBadge>v{entry.versao}</VersionBadge>
+                                                <EntryTitulo>{entry.titulo}</EntryTitulo>
+                                                <EntryData>
+                                                    {entry.dataPublicacao?.toDate
+                                                        ? entry.dataPublicacao.toDate().toLocaleDateString("pt-BR")
+                                                        : "..."}
+                                                </EntryData>
+                                            </EntryHeader>
+                                            <EntryNotas>{entry.notas}</EntryNotas>
+                                        </EntryChangelog>
+                                    ))}
+                                </HistoricoChangelog>
+                            )}
+                        </SecaoChangelog>
                     </ConfigContainer>
                 )}
 
@@ -579,6 +713,34 @@ const FormConfig = styled.form`
     gap: 24px;
 `;
 
+const TituloSecaoRow = styled.div`
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+`;
+
+const StatusSalvo = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: all 0.3s;
+    background: ${props => props.$status === "salvo" ? "rgba(46,204,113,0.1)" :
+        props.$status === "salvando" ? "rgba(245,158,11,0.1)" :
+            "rgba(255,255,255,0.04)"
+    };
+    color: ${props => props.$status === "salvo" ? "#2ecc71" :
+        props.$status === "salvando" ? "#f59e0b" :
+            "#8d8d99"
+    };
+`;
+
 const GridConfig = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -643,22 +805,159 @@ const ToggleWrapper = styled.div`
     label {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         font-weight: 600;
         cursor: pointer;
-        
-        input {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
     }
 
     small { color: #8d8d99; font-size: 12px; line-height: 1.5; }
+`;
+
+const ToggleSwitch = styled.div`
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: ${props => props.$ativo ? "#2f81f7" : "rgba(255,255,255,0.1)"};
+    position: relative;
+    cursor: pointer;
+    transition: background 0.25s;
+    flex-shrink: 0;
+
+    span {
+        position: absolute;
+        top: 3px;
+        left: ${props => props.$ativo ? "23px" : "3px"};
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.25s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
 `;
 
 const FooterAcoes = styled.div`
     display: flex;
     justify-content: flex-end;
     margin-top: 16px;
+`;
+
+const SecaoDivisor = styled.hr`
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 8px 0;
+`;
+
+const SecaoChangelog = styled.div`
+    background: #19191b;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+`;
+
+const GridChangelog = styled.div`
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 16px;
+
+    @media (max-width: 700px) { grid-template-columns: 1fr; }
+`;
+
+const TextareaNotas = styled.textarea`
+    background: #121214;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.2s;
+
+    &:focus { border-color: #2f81f7; }
+    &::placeholder { color: #8d8d9966; }
+`;
+
+const BotaoPublicar = styled.button`
+    margin-top: 16px;
+    align-self: flex-start;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: #111;
+    border: 0;
+    padding: 0 24px;
+    height: 44px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: filter 0.2s;
+
+    &:hover:not(:disabled) { filter: brightness(1.1); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+
+const HistoricoChangelog = styled.div`
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    h4 { font-size: 13px; font-weight: 600; color: #8d8d99; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+`;
+
+const EntryChangelog = styled.div`
+    background: #121214;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const EntryHeader = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+`;
+
+const VersionBadge = styled.span`
+    background: rgba(245,158,11,0.15);
+    color: #f59e0b;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+`;
+
+const EntryTitulo = styled.span`
+    font-size: 14px;
+    font-weight: 600;
+    color: #e1e1e6;
+    flex: 1;
+`;
+
+const EntryData = styled.span`
+    font-size: 12px;
+    color: #8d8d99;
+`;
+
+const EntryNotas = styled.pre`
+    font-size: 13px;
+    color: #8d8d99;
+    line-height: 1.7;
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: inherit;
 `;

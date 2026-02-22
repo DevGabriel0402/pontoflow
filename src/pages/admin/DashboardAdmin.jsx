@@ -5,7 +5,7 @@ import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2 } from "react-icons/fi";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -20,6 +20,8 @@ import { useConfig } from "../../contexts/ConfigContexto";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { deletarFuncionarioFn } from "../../services/funcoes";
 import { useAuth } from "../../contexts/AuthContexto";
+import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
+import PainelJustificativas from "../../components/admin/PainelJustificativas";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -313,6 +315,9 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
             <FiSettings /> <span>Configurações</span>
           </NavItem>
+          <NavItem $ativo={abaAtiva === "JUSTIFICATIVAS"} onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
+            <FiMessageSquare /> <span>Justificativas</span>
+          </NavItem>
 
           <NavSeparador />
 
@@ -323,6 +328,7 @@ export default function DashboardAdmin() {
       </Sidebar>
 
       <ConteudoPrincipal>
+        <BannerNovaAtualizacao />
         {carregando && <LoadingGlobal />}
         {erro && <AvisoErro>{erro}</AvisoErro>}
 
@@ -698,11 +704,22 @@ export default function DashboardAdmin() {
                 </PainelConfig>
               </>
             )}
+
+            {abaAtiva === "JUSTIFICATIVAS" && (
+              <>
+                <Topo>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>Justificativas de Ponto</h2>
+                </Topo>
+                <PainelJustificativas />
+              </>
+            )}
+
           </>
         )}
 
         {/* Toast com timeout */}
         {mostrarToast && <ToastSucesso>Relatório PDF gerado com sucesso!</ToastSucesso>}
+
 
         <ModalNovoFuncionario
           aberto={modalAberto}

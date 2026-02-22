@@ -11,9 +11,11 @@ import HomeColaborador from "./pages/colaborador/HomeColaborador";
 import Historico from "./pages/colaborador/Historico";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
 import DashboardMaster from "./pages/master/DashboardMaster";
+import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 
 import { useSync } from "./hooks/useSync";
 import CookieConsent from "./components/CookieConsent";
+import BannerManutencao from "./components/BannerManutencao";
 
 export default function App() {
   // ✅ deixa sincronizando sempre que necessário
@@ -21,9 +23,11 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <BannerManutencao />
       <Toaster position="top-center" />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
 
         <Route
           path="/"

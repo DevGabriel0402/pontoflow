@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useClock } from "../../hooks/useClock";
 import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
-import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin } from "react-icons/fi";
+import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
@@ -14,6 +14,7 @@ import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
 import LoadingGlobal from "../../components/LoadingGlobal";
+import FacePontoModal from "../../components/colaborador/FacePontoModal";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -42,8 +43,10 @@ export default function HomeColaborador() {
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
-  const [permissaoGPS, setPermissaoGPS] = React.useState("prompt"); // prompt, granted, denied
+  const [permissaoGPS, setPermissaoGPS] = React.useState("prompt");
   const [showConsentModal, setShowConsentModal] = React.useState(false);
+  const [tipoSelecionado, setTipoSelecionado] = React.useState(null);
+  const [modalFaceAberto, setModalFaceAberto] = React.useState(false);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
@@ -132,7 +135,6 @@ export default function HomeColaborador() {
       toast.error("Localização bloqueada. Ative nas configurações do navegador.");
       return;
     }
-
     if (ehFimDeSemana && !isAdmin) {
       toast.error("Registro de ponto não disponível no final de semana.");
       return;
@@ -141,13 +143,37 @@ export default function HomeColaborador() {
       toast.error("Este ponto já foi registrado hoje!");
       return;
     }
-
     try {
       await registrarPonto(tipo);
     } catch (err) {
       console.error(err);
+      toast.error("Erro ao registrar ponto. Tente novamente.");
     }
   };
+
+  const handleAbrirFace = () => {
+    if (!tipoSelecionado) {
+      toast.error("Selecione o tipo de ponto antes de continuar.");
+      return;
+    }
+    if (bloqueado && !isAdmin) {
+      toast.error("Você está fora do raio permitido.");
+      return;
+    }
+    setModalFaceAberto(true);
+  };
+
+  const handleSucessoFace = async () => {
+    setModalFaceAberto(false);
+    try {
+      await handle(tipoSelecionado);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao registrar ponto após autenticação facial.");
+    }
+    setTipoSelecionado(null);
+  };
+
 
   const handleAceitarConsentimento = () => {
     setShowConsentModal(false);
@@ -181,7 +207,7 @@ export default function HomeColaborador() {
       <Topo>
         <Marca>
           <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-          <span>PontoFlow</span>
+          <span>ClickPonto</span>
         </Marca>
 
         <AcoesTopo>
@@ -221,39 +247,31 @@ export default function HomeColaborador() {
           <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
         </Status>
 
-        <Grid>
-          <Botao
-            $cor="sucesso"
-            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.ENTRADA)}
-            onClick={() => handle(TIPOS.ENTRADA)}
-          >
-            {tiposFeitosHoje.has(TIPOS.ENTRADA) ? "REGISTRADO" : "ENTRADA"}
-          </Botao>
+        <ChipsGrid>
+          {Object.entries({
+            ENTRADA: "Entrada",
+            INICIO_INTERVALO: "Início Intervalo",
+            FIM_INTERVALO: "Fim Intervalo",
+            SAIDA: "Saída",
+          }).map(([key, label]) => (
+            <Chip
+              key={key}
+              $selecionado={tipoSelecionado === key}
+              $feito={tiposFeitosHoje.has(key)}
+              onClick={() => !tiposFeitosHoje.has(key) && setTipoSelecionado(key)}
+            >
+              {tiposFeitosHoje.has(key) ? `✓ ${label}` : label}
+            </Chip>
+          ))}
+        </ChipsGrid>
 
-          <Botao
-            $cor="alerta"
-            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.INICIO_INTERVALO)}
-            onClick={() => handle(TIPOS.INICIO_INTERVALO)}
-          >
-            {tiposFeitosHoje.has(TIPOS.INICIO_INTERVALO) ? "REGISTRADO" : "INÍCIO INTERVALO"}
-          </Botao>
-
-          <Botao
-            $cor="info"
-            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.FIM_INTERVALO)}
-            onClick={() => handle(TIPOS.FIM_INTERVALO)}
-          >
-            {tiposFeitosHoje.has(TIPOS.FIM_INTERVALO) ? "REGISTRADO" : "FIM INTERVALO"}
-          </Botao>
-
-          <Botao
-            $cor="perigo"
-            disabled={bloqueado || carregandoGeo || tiposFeitosHoje.has(TIPOS.SAIDA)}
-            onClick={() => handle(TIPOS.SAIDA)}
-          >
-            {tiposFeitosHoje.has(TIPOS.SAIDA) ? "REGISTRADO" : "SAÍDA"}
-          </Botao>
-        </Grid>
+        <BotaoFace
+          onClick={handleAbrirFace}
+          disabled={!tipoSelecionado || bloqueado || carregandoGeo}
+        >
+          <FiCamera />
+          Confirmar com Reconhecimento Facial
+        </BotaoFace>
 
         {ehFimDeSemana && (
           <MensagemAlerta>
@@ -323,6 +341,14 @@ export default function HomeColaborador() {
         aberto={showConsentModal}
         onAceitar={handleAceitarConsentimento}
       />
+
+      {modalFaceAberto && (
+        <FacePontoModal
+          tipo={tipoSelecionado}
+          onSucesso={handleSucessoFace}
+          onCancelar={() => setModalFaceAberto(false)}
+        />
+      )}
 
       {permissaoGPS === "denied" && (
         <OverlayBloqueio>
@@ -474,6 +500,83 @@ const Grid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+`;
+
+const ChipsGrid = styled.div`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+`;
+
+const Chip = styled.button`
+  height: 72px;
+  border-radius: 14px;
+  border: 2px solid ${({ theme, $selecionado, $feito }) =>
+    $feito ? theme.cores.sucesso + "66" :
+      $selecionado ? theme.cores.azul :
+        theme.cores.borda};
+  background: ${({ theme, $selecionado, $feito }) =>
+    $feito ? theme.cores.sucesso + "15" :
+      $selecionado ? theme.cores.azul + "20" :
+        theme.cores.superficie2};
+  color: ${({ theme, $selecionado, $feito }) =>
+    $feito ? theme.cores.sucesso :
+      $selecionado ? theme.cores.azul :
+        theme.cores.texto2};
+  font-weight: 700;
+  font-size: 13px;
+  cursor: ${p => p.$feito ? "default" : "pointer"};
+  transition: all 0.15s ease;
+  letter-spacing: 0.2px;
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme, $feito }) => !$feito && theme.cores.azul};
+    background: ${({ theme, $feito }) => !$feito && theme.cores.azul + "15"};
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+`;
+
+const BotaoFace = styled.button`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 16px;
+  height: 58px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  color: #111;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(79,172,254,0.35);
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(79,172,254,0.45);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 `;
 
 const Botao = styled.button`

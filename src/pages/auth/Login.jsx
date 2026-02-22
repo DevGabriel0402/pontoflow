@@ -21,7 +21,7 @@ export default function Login() {
     setCarregando(true);
     try {
       await login(email, senha);
-      toast.success("Bem-vindo ao PontoFlow!");
+      toast.success("Bem-vindo ao ClickPonto BH!");
       navigate("/");
     } catch (err) {
       toast.error("Falha no login. Verifique email e senha.");
@@ -36,7 +36,7 @@ export default function Login() {
       <Card>
         <Topo>
           <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
-          <h1>{nomePainel}</h1>
+          <h1>ClickPonto BH</h1>
         </Topo>
 
         <Sub>Faça login para registar seu ponto.</Sub>

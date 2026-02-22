@@ -1,6 +1,6 @@
 // src/hooks/useHistoricoPontos.js
 import React from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useAuth } from "../contexts/AuthContexto";
 
@@ -11,9 +11,7 @@ export function useHistoricoPontos(userId) {
     const [erro, setErro] = React.useState(null);
 
     React.useEffect(() => {
-        console.log("useHistoricoPontos Effect:", { userId, companyId: perfil?.companyId });
-        if (!userId || !perfil?.companyId) {
-            console.log("useHistoricoPontos: Aguardando dados...");
+        if (!userId) {
             setCarregando(false);
             return;
         }
@@ -21,13 +19,14 @@ export function useHistoricoPontos(userId) {
         setCarregando(true);
         setErro(null);
 
-        const q = query(
-            collection(db, "pontos"),
-            where("userId", "==", userId),
-            where("companyId", "==", perfil.companyId)
-            // orderBy("criadoEm", "desc") -> Removido para evitar necessidade de índices compostos manuais.
-            // A ordenação já é feita em memória no componente Historico.jsx
-        );
+        // Se há companyId, filtra por ele (mais eficiente e seguro).
+        // Se não há (ex: super admin sem empresa), filtra apenas por userId.
+        const filtros = [where("userId", "==", userId)];
+        if (perfil?.companyId) {
+            filtros.push(where("companyId", "==", perfil.companyId));
+        }
+
+        const q = query(collection(db, "pontos"), ...filtros);
 
         const unsub = onSnapshot(
             q,
@@ -38,15 +37,13 @@ export function useHistoricoPontos(userId) {
             },
             (e) => {
                 console.error("[useHistoricoPontos] Erro no Firestore:", e);
-                // Exibir a mensagem técnica ajuda o usuário a identificar falta de índices ou permissão
                 setErro(`Erro ao carregar: ${e.message || "Verifique sua conexão"}`);
                 setCarregando(false);
             }
         );
 
         return () => unsub();
-    }, [userId]);
+    }, [userId, perfil?.companyId]);
 
-    const api = React.useMemo(() => ({ itens, carregando, erro }), [itens, carregando, erro]);
-    return api;
+    return React.useMemo(() => ({ itens, carregando, erro }), [itens, carregando, erro]);
 }

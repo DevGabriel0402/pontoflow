@@ -5,6 +5,36 @@ import LoadingGlobal from "../components/LoadingGlobal";
 import { useAuth } from "./AuthContexto";
 
 const ConfigContext = createContext();
+const SaasConfigContext = createContext({ modoManutencao: false });
+
+// Provider global de configurações SaaS (settings/saas) — não depende de auth
+export function SaasConfigProvider({ children }) {
+    const [modoManutencao, setModoManutencao] = useState(false);
+
+    useEffect(() => {
+        const docRef = doc(db, "settings", "saas");
+        const unsub = onSnapshot(docRef, (snap) => {
+            if (snap.exists()) {
+                setModoManutencao(snap.data().modoManutencao === true);
+            } else {
+                setModoManutencao(false);
+            }
+        }, (err) => {
+            console.error("Erro ao escutar settings/saas:", err);
+        });
+        return () => unsub();
+    }, []);
+
+    return (
+        <SaasConfigContext.Provider value={{ modoManutencao }}>
+            {children}
+        </SaasConfigContext.Provider>
+    );
+}
+
+export function useSaasConfig() {
+    return useContext(SaasConfigContext);
+}
 
 export function ConfigProvider({ children }) {
     const { perfil, carregando: carregandoAuth } = useAuth();

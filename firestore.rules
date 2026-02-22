@@ -39,7 +39,7 @@ service cloud.firestore {
       // Usuário pode atualizar apenas campos pessoais. SuperAdmin pode escrever qualquer coisa.
       allow write: if request.auth.uid == userId && 
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['nome', 'email', 'telefone', 'fotoUrl', 'primeiroAcesso', 'fotoBase64']);
+                        .hasOnly(['nome', 'email', 'telefone', 'fotoUrl', 'primeiroAcesso', 'fotoBase64', 'faceDescriptor']);
       allow write: if isSuperAdmin();
     }
 
@@ -49,9 +49,13 @@ service cloud.firestore {
                     request.auth.uid == resource.data.userId || 
                     (hasRole('admin') && belongsTo(resource.data.companyId));
       
-      allow create: if isAuthenticated() && 
-                      request.resource.data.userId == request.auth.uid && 
-                      belongsTo(request.resource.data.companyId);
+      // Colaborador pode criar o próprio ponto (companyId deve bater com o perfil).
+      // SuperAdmin pode criar ponto em qualquer empresa (para testes e correções).
+      allow create: if isSuperAdmin() ||
+                      (isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       (request.resource.data.companyId == getUserData().companyId ||
+                        request.resource.data.companyId == "default"));
       
       allow update, delete: if isSuperAdmin() || 
                               (hasRole('admin') && belongsTo(resource.data.companyId));
@@ -71,5 +75,22 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
+
+    // Coleção de Justificativas de Ponto
+    match /justificativas/{justId} {
+      // Colaborador pode ler as próprias; admin pode ler as da empresa;
+      allow read: if isSuperAdmin() ||
+                    request.auth.uid == resource.data.userId ||
+                    (hasRole('admin') && belongsTo(resource.data.companyId));
+
+      // Colaborador pode criar a própria justificativa
+      allow create: if isAuthenticated() &&
+                      request.resource.data.userId == request.auth.uid;
+
+      // Admin (ou superadmin) pode atualizar para aprovar/rejeitar
+      allow update: if isSuperAdmin() ||
+                      (hasRole('admin') && belongsTo(resource.data.companyId));
+    }
+
   }
 }

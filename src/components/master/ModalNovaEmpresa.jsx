@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { FiX, FiCheck, FiInfo } from "react-icons/fi";
 import { db } from "../../services/firebase";
-import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { criarAdminEmpresaFn } from "../../services/funcoes";
 import { FiMapPin, FiMap } from "react-icons/fi";
@@ -41,6 +41,23 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
     const [buscandoGeo, setBuscandoGeo] = React.useState(false);
     const [mapaAberto, setMapaAberto] = React.useState(false);
     const [localizacaoManual, setLocalizacaoManual] = React.useState(false);
+    const [planosConfig, setPlanosConfig] = React.useState({ basico: 99, pro: 199 });
+
+    // Busca preços dos planos do painel Master ao abrir o modal
+    React.useEffect(() => {
+        if (!aberto) return;
+        getDoc(doc(db, "settings", "saas"))
+            .then(snap => {
+                if (snap.exists()) {
+                    const d = snap.data();
+                    setPlanosConfig({
+                        basico: d.planoBasicoValor ?? 99,
+                        pro: d.planoProValor ?? 199,
+                    });
+                }
+            })
+            .catch(() => { });
+    }, [aberto]);
 
     React.useEffect(() => {
         if (empresa) {
@@ -350,7 +367,7 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                             <InputGroup>
                                 <label>ID Único (Slug)</label>
                                 <input
-                                    placeholder="ex: escola-municipal-central"
+                                    placeholder="ex: empresa-central"
                                     value={dados.id}
                                     onChange={e => setDados({ ...dados, id: e.target.value })}
                                     disabled={!!empresa}
@@ -387,8 +404,8 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                     value={dados.plano}
                                     onChange={e => setDados({ ...dados, plano: e.target.value })}
                                 >
-                                    <option value="basico">Básico (R$ 99/mês)</option>
-                                    <option value="pro">Pro (R$ 199/mês)</option>
+                                    <option value="basico">Básico (R$ {planosConfig.basico}/mês)</option>
+                                    <option value="pro">Pro (R$ {planosConfig.pro}/mês)</option>
                                     <option value="enterprise">Enterprise (Sob consulta)</option>
                                 </select>
                             </InputGroup>

@@ -4,7 +4,7 @@ import App from "./App";
 import GlobalStyle from "./styles/GlobalStyle";
 import { TemaProviderApp } from "./contexts/TemaContexto";
 import { AuthProvider } from "./contexts/AuthContexto";
-import { ConfigProvider } from "./contexts/ConfigContexto";
+import { ConfigProvider, SaasConfigProvider } from "./contexts/ConfigContexto";
 import { registerSW } from 'virtual:pwa-register';
 
 // Registra o Service Worker do PWA
@@ -20,18 +20,21 @@ try {
   } else {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <TemaProviderApp>
-          <AuthProvider>
-            <ConfigProvider>
-              <GlobalStyle />
-              <App />
-            </ConfigProvider>
-          </AuthProvider>
-        </TemaProviderApp>
+        <SaasConfigProvider>
+          <TemaProviderApp>
+            <AuthProvider>
+              <ConfigProvider>
+                <GlobalStyle />
+                <App />
+              </ConfigProvider>
+            </AuthProvider>
+          </TemaProviderApp>
+        </SaasConfigProvider>
       </React.StrictMode>
     );
     console.log("main.jsx: Render command enviado com sucesso.");
   }
+
 } catch (error) {
   console.error("main.jsx: Erro durante a inicialização:", error);
   if (document.body) {

@@ -7,10 +7,11 @@ import { useSync } from "../../hooks/useSync";
 import { obterFila } from "../../services/offlineQueue";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon } from "react-icons/fi";
+import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon, FiPlusCircle } from "react-icons/fi";
 import { startOfToday, startOfWeek, isAfter } from "date-fns";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
+import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import LoadingGlobal from "../../components/LoadingGlobal";
 
 const TIPOS = [
@@ -72,6 +73,7 @@ export default function Historico() {
   const [dataInicio, setDataInicio] = React.useState("");
   const [dataFim, setDataFim] = React.useState("");
   const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
+  const [modalJustificativaAberto, setModalJustificativaAberto] = React.useState(false);
 
   const filaOffline = React.useMemo(() => obterFila(), [pendentes]);
 
@@ -139,7 +141,7 @@ export default function Historico() {
       <Topo>
         <Branding>
           <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-          PontoFlow
+          ClickPonto
         </Branding>
         <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
           <FiFilter size={20} />
@@ -273,7 +275,17 @@ export default function Historico() {
             {sincronizando ? "Sincronizando..." : `Sincronizar ${pendentes} pontos`}
           </BotaoSincronizar>
         )}
+
+        <BotaoJustificar onClick={() => setModalJustificativaAberto(true)}>
+          <FiPlusCircle size={18} />
+          Justificar ponto esquecido
+        </BotaoJustificar>
       </Corpo>
+
+      <ModalJustificativa
+        aberto={modalJustificativaAberto}
+        onFechar={() => setModalJustificativaAberto(false)}
+      />
 
       <TabbarMobile mostrarAdmin={isAdmin} />
     </Tela>
@@ -505,3 +517,27 @@ const BotaoRecarregar = styled.button`
   font-weight: 600;
   cursor: pointer;
 `;
+
+const BotaoJustificar = styled.button`
+  width: 100%;
+  margin-top: 20px;
+  height: 48px;
+  background: transparent;
+  border: 1.5px dashed rgba(79,172,254,0.4);
+  border-radius: 14px;
+  color: #4facfe;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(79,172,254,0.08);
+    border-color: #4facfe;
+  }
+`;
+
