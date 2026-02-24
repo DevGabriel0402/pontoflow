@@ -5,11 +5,11 @@ import { auth } from "./firebase";
 const functions = getFunctions(undefined, "southamerica-east1");
 // ⚠️ ajuste a região se sua function estiver em outra (ou remova o 2º param pra default)
 
-export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role }) => {
+export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role, jornada }) => {
     // garante que auth está pronto
     if (!auth.currentUser) throw new Error("Usuário não autenticado.");
     const call = httpsCallable(functions, "criarFuncionario");
-    const res = await call({ nome, email, dataNascimento, role });
+    const res = await call({ nome, email, dataNascimento, role, jornada });
     return res.data;
 };
 

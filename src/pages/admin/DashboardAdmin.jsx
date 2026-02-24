@@ -5,11 +5,12 @@ import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare } from "react-icons/fi";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalNovoFuncionario from "../../components/admin/ModalNovoFuncionario";
+import ModalEditarFuncionario from "../../components/admin/ModalEditarFuncionario";
 import MapaConfig from "../../components/admin/MapaConfig";
 import { db } from "../../services/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -65,6 +66,7 @@ export default function DashboardAdmin() {
   const [mostrarToast, setMostrarToast] = React.useState(false);
   const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
   const [modalAberto, setModalAberto] = React.useState(false);
+  const [funcEditando, setFuncEditando] = React.useState(null);
 
   // Lista de funcionários para a aba específica
   const { funcionarios, carregando: carregandoFuncs, erro: erroFuncs } = useAdminFuncionarios();
@@ -546,14 +548,14 @@ export default function DashboardAdmin() {
                         <th>Status</th>
                         <th>Nome</th>
                         <th>Email</th>
+                        <th>Jornada</th>
                         <th>Cargo</th>
-                        <th>Criado em</th>
                         <th>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {funcionarios
-                        .filter(f => f.role !== 'admin') // 👈 Remove administradores da lista
+                        .filter(f => f.role !== 'admin')
                         .filter(f =>
                           f.nome?.toLowerCase().includes(buscaFunc.toLowerCase()) ||
                           f.email?.toLowerCase().includes(buscaFunc.toLowerCase())
@@ -568,14 +570,23 @@ export default function DashboardAdmin() {
                             </td>
                             <td>{f.nome}</td>
                             <td>{f.email}</td>
+                            <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                              {f.jornada
+                                ? `${f.jornada.entrada} - ${f.jornada.saida}`
+                                : <span style={{ color: '#666' }}>Não definida</span>
+                              }
+                            </td>
                             <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
-                            <td>{formatarData(f.criadoEm)}</td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
+                                <BotaoAcao onClick={() => setFuncEditando(f)} title="Editar">
+                                  <FiEdit2 size={16} />
+                                </BotaoAcao>
+
                                 <BotaoAcao onClick={async () => {
                                   try {
                                     await updateDoc(doc(db, "users", f.id), { ativo: !f.ativo });
-                                    toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'} !`);
+                                    toast.success(`Usuário ${f.ativo ? 'desativado' : 'ativado'}!`);
                                   } catch (e) {
                                     toast.error("Erro ao mudar status.");
                                   }
@@ -746,6 +757,12 @@ export default function DashboardAdmin() {
         <ModalNovoFuncionario
           aberto={modalAberto}
           onFechar={() => setModalAberto(false)}
+        />
+
+        <ModalEditarFuncionario
+          aberto={!!funcEditando}
+          funcionario={funcEditando}
+          onFechar={() => setFuncEditando(null)}
         />
 
         <ModalMapaPonto

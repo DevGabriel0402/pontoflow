@@ -11,6 +11,12 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [role, setRole] = useState("colaborador");
   const [carregando, setCarregando] = useState(false);
 
+  // Jornada
+  const [entrada, setEntrada] = useState("08:00");
+  const [inicioIntervalo, setInicioIntervalo] = useState("12:00");
+  const [fimIntervalo, setFimIntervalo] = useState("13:00");
+  const [saida, setSaida] = useState("17:00");
+
   const [resultado, setResultado] = useState(null); // {email, senhaTemporaria, uid}
 
   const resetar = () => {
@@ -18,6 +24,10 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     setEmail("");
     setDataNascimento("");
     setRole("colaborador");
+    setEntrada("08:00");
+    setInicioIntervalo("12:00");
+    setFimIntervalo("13:00");
+    setSaida("17:00");
     setResultado(null);
   };
 
@@ -43,7 +53,8 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
         nome: nome.trim(),
         email: email.trim(),
         dataNascimento,
-        role
+        role,
+        jornada: { entrada, inicioIntervalo, fimIntervalo, saida }
       });
       setResultado(data);
       toast.success("Funcionário criado com sucesso!");
@@ -106,6 +117,28 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
                 </RoleOption>
               </RoleSelector>
             </Campo>
+
+            <Separador />
+
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornada de Trabalho</label>
+            <GradeHorarios>
+              <Campo>
+                <label>Entrada</label>
+                <input type="time" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
+              </Campo>
+              <Campo>
+                <label>Início Intervalo</label>
+                <input type="time" value={inicioIntervalo} onChange={(e) => setInicioIntervalo(e.target.value)} />
+              </Campo>
+              <Campo>
+                <label>Fim Intervalo</label>
+                <input type="time" value={fimIntervalo} onChange={(e) => setFimIntervalo(e.target.value)} />
+              </Campo>
+              <Campo>
+                <label>Saída</label>
+                <input type="time" value={saida} onChange={(e) => setSaida(e.target.value)} />
+              </Campo>
+            </GradeHorarios>
 
             <Rodape>
               <BtnGhost type="button" onClick={fechar}>Cancelar</BtnGhost>
@@ -339,5 +372,21 @@ const RoleOption = styled.button`
 
   &:hover {
     background: ${({ $ativo, theme }) => $ativo ? theme.cores.azul : theme.cores.superficie2};
+  }
+`;
+
+const Separador = styled.div`
+  height: 1px;
+  background: ${({ theme }) => theme.cores.borda};
+  margin: 4px 0;
+`;
+
+const GradeHorarios = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  @media (max-width: 400px) {
+    grid-template-columns: 1fr;
   }
 `;
