@@ -3,9 +3,10 @@ import styled from "styled-components";
 import { useAdminPontos } from "../../hooks/useAdminPontos";
 import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
+import { exportarParaCsv } from "../../utils/exportarCsv";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase } from "react-icons/fi";
+import { FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -283,6 +284,47 @@ export default function DashboardAdmin() {
     setMostrarToast(true);
   };
 
+  const handleExportarCsvHistorico = () => {
+    const dados = filtrados.map(p => ({
+      funcionario: p.userName || "—",
+      tipo: formatarTipo(p.type),
+      data: formatarData(p.criadoEm),
+      origem: p.origem === "offline_queue" ? "Offline" : "Online",
+      ip: p.ip || "—",
+      status: p.dentroDoRaio ? "Dentro do Raio" : "Fora do Raio",
+      distancia: typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa} m` : "X"
+    }));
+
+    exportarParaCsv({
+      dados,
+      colunas: ["Funcionário", "Tipo", "Data/Hora", "Origem", "IP", "Status Localização", "Distância"],
+      chaves: ["funcionario", "tipo", "data", "origem", "ip", "status", "distancia"],
+      nomeArquivo: `historico_pontos_${format(new Date(), "yyyy-MM-dd")}.csv`
+    });
+    toast.success("Histórico exportado em CSV!");
+  };
+
+  const handleExportarCsvResumo = () => {
+    const dados = resumoJornada.map(j => ({
+      funcionario: j.userName || "—",
+      data: format(j.data, "dd/MM/yyyy"),
+      entrada: j.check.entrada ? format(j.check.entrada, "HH:mm") : "—",
+      iniInt: j.check.iniInt ? format(j.check.iniInt, "HH:mm") : "—",
+      fimInt: j.check.fimInt ? format(j.check.fimInt, "HH:mm") : "—",
+      saida: j.check.saida ? format(j.check.saida, "HH:mm") : "—",
+      total: j.totalFormatado,
+      status: j.status
+    }));
+
+    exportarParaCsv({
+      dados,
+      colunas: ["Funcionário", "Data", "Entrada", "Iní. Int", "Fim Int", "Saída", "Total", "Status"],
+      chaves: ["funcionario", "data", "entrada", "iniInt", "fimInt", "saida", "total", "status"],
+      nomeArquivo: `resumo_jornada_${format(new Date(), "yyyy-MM-dd")}.csv`
+    });
+    toast.success("Resumo exportado em CSV!");
+  };
+
   const handleDeletarFuncionario = async (funcionario) => {
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${funcionario.nome}? Esta ação não pode ser desfeita.`);
     if (!confirmar) return;
@@ -381,9 +423,14 @@ export default function DashboardAdmin() {
                     />
                   </SeletorAcordeaoWrapper>
 
-                  <BotaoExportar onClick={gerarPdf} disabled={filtrados.length === 0}>
-                    <FiFileText /> Exportar PDF
-                  </BotaoExportar>
+                  <GrupoBotoesExportar>
+                    <BotaoExportar onClick={gerarPdf} disabled={filtrados.length === 0}>
+                      <FiFileText /> PDF
+                    </BotaoExportar>
+                    <BotaoExportar $csv onClick={handleExportarCsvHistorico} disabled={filtrados.length === 0}>
+                      <FiFile /> CSV
+                    </BotaoExportar>
+                  </GrupoBotoesExportar>
                 </Topo>
 
                 <TabelaContainer>
@@ -467,9 +514,14 @@ export default function DashboardAdmin() {
                       <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} title="Data Fim" />
                     </FiltroDataWrapper>
 
-                    <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
-                      <FiFileText /> Exportar Resumo PDF
-                    </BotaoExportar>
+                    <GrupoBotoesExportar>
+                      <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
+                        <FiFileText /> Resumo PDF
+                      </BotaoExportar>
+                      <BotaoExportar $csv onClick={handleExportarCsvResumo} disabled={resumoJornada.length === 0}>
+                        <FiFile /> Resumo CSV
+                      </BotaoExportar>
+                    </GrupoBotoesExportar>
                   </Topo>
 
                   <TabelaContainer>
@@ -912,6 +964,41 @@ const Topo = styled.header`
   }
 `;
 
+const GrupoBotoesExportar = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const BotaoExportar = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: ${({ theme, $csv }) => $csv ? "rgba(46, 204, 113, 0.15)" : theme.cores.azul + "15"};
+  color: ${({ theme, $csv }) => $csv ? "#2ecc71" : theme.cores.azul};
+  border: 1px solid ${({ theme, $csv }) => $csv ? "rgba(46, 204, 113, 0.3)" : theme.cores.azul + "33"};
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: ${({ theme, $csv }) => $csv ? "rgba(46, 204, 113, 0.25)" : theme.cores.azul + "25"};
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 600px) {
+    flex: 1;
+    justify-content: center;
+  }
+`;
+
 const BuscaWrapper = styled.div`
   flex: 1;
   max-width: 400px;
@@ -1003,29 +1090,6 @@ const SeletorAcordeaoWrapper = styled.div`
   }
 `;
 
-const BotaoExportar = styled.button`
-height: 44px;
-padding: 0 20px;
-background: #2f81f7;
-color: #fff;
-border: 0;
-border-radius: 8px;
-font-weight: 600;
-display: flex;
-align-items: center;
-gap: 10px;
-cursor: pointer;
-transition: filter 0.2s;
-
-  &: hover: not(: disabled) {
-  filter: brightness(1.2);
-}
-  
-  &:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-`;
 
 const ResumoHeader = styled.div`
   padding: 24px;

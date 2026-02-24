@@ -3,16 +3,16 @@ import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import {
-  FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight,
-  FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown
-} from "react-icons/fi";
-import {
   collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
 import { format, differenceInMinutes, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile } from "react-icons/fi";
+import { exportarParaCsv } from "../../utils/exportarCsv";
+
+import SeletorAcordeao from "../SeletorAcordeao";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -238,22 +238,31 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         </TituloBloco>
 
         <FiltrosPeriodo>
-          <SelectPill
-            value={mesSelecionado}
-            onChange={(e) => setMesSelecionado(Number(e.target.value))}
-          >
-            {meses.map((m, i) => <option key={i} value={i}>{m}</option>)}
-          </SelectPill>
-          <SelectPill
-            value={anoSelecionado}
-            onChange={(e) => setAnoSelecionado(Number(e.target.value))}
-          >
-            {anos.map((a) => <option key={a} value={a}>{a}</option>)}
-          </SelectPill>
+          <SeletorWrapper>
+            <SeletorAcordeao
+              opcoes={meses.map((m, i) => ({ value: i, label: m }))}
+              value={mesSelecionado}
+              onChange={(val) => setMesSelecionado(Number(val))}
+            />
+          </SeletorWrapper>
+          <SeletorWrapper $small>
+            <SeletorAcordeao
+              opcoes={[hoje.getFullYear() - 2, hoje.getFullYear() - 1, hoje.getFullYear()].map(a => ({ value: a, label: String(a) }))}
+              value={anoSelecionado}
+              onChange={(val) => setAnoSelecionado(Number(val))}
+            />
+          </SeletorWrapper>
           <BotaoAjuste onClick={() => setModalAberto(true)}>
             <FiPlus size={15} />
             Ajuste Manual
           </BotaoAjuste>
+
+          <GrupoExportar>
+            <BotaoExportar $csv onClick={handleExportarCSV}>
+              <FiFile size={15} />
+              CSV
+            </BotaoExportar>
+          </GrupoExportar>
         </FiltrosPeriodo>
       </Topo>
 
@@ -448,10 +457,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
             <Form onSubmit={handleLancar}>
               <Campo>
                 <label>Funcionário</label>
-                <select value={funcSelecionado || ""} onChange={(e) => setFuncSelecionado(e.target.value)}>
-                  <option value="">Selecione...</option>
-                  {colaboradores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                </select>
+                <SeletorAcordeao
+                  opcoes={colaboradores.map(f => ({ value: f.id, label: f.nome }))}
+                  value={funcSelecionado}
+                  onChange={(val) => setFuncSelecionado(val)}
+                />
               </Campo>
 
               <Campo>
@@ -536,16 +546,16 @@ const FiltrosPeriodo = styled.div`
   flex-wrap: wrap;
 `;
 
+const SeletorWrapper = styled.div`
+  width: ${({ $small }) => $small ? "100px" : "150px"};
+  
+  @media (max-width: 600px) {
+    width: 100%;
+  }
+`;
+
 const SelectPill = styled.select`
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid ${({ theme }) => theme.cores.borda};
-  background: ${({ theme }) => theme.cores.superficie};
-  color: ${({ theme }) => theme.cores.texto};
-  border-radius: 999px;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
+  display: none; // Desativado em favor do SeletorAcordeao
 `;
 
 const BotaoAjuste = styled.button`
@@ -558,10 +568,40 @@ const BotaoAjuste = styled.button`
   color: #fff;
   font-weight: 700;
   border: 0;
-  border-radius: 999px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 13px;
-  &:hover { opacity: 0.85; }
+  transition: all 0.2s;
+  &:hover { opacity: 0.85; transform: translateY(-1px); }
+`;
+
+const GrupoExportar = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-left: 4px;
+`;
+
+const BotaoExportar = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: 38px;
+  background: ${({ theme, $csv }) => $csv ? "rgba(46, 204, 113, 0.15)" : theme.cores.superficie};
+  color: ${({ theme, $csv }) => $csv ? "#2ecc71" : theme.cores.texto};
+  font-weight: 700;
+  border: 1px solid ${({ theme, $csv }) => $csv ? "rgba(46, 204, 113, 0.3)" : theme.cores.borda};
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+
+  &:hover { 
+    background: ${({ $csv }) => $csv ? "rgba(46, 204, 113, 0.25)" : "rgba(255,255,255,0.05)"};
+    transform: translateY(-1px);
+  }
+
+  svg { opacity: 0.8; }
 `;
 
 const TabelaContainer = styled.div`
