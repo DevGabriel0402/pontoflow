@@ -180,12 +180,41 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     return colaboradores.map((f) => {
       const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
       const dias = calcularResumoDiario(pontosFunc, f.jornada);
+
+      const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
+      const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
+
       const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
       const somaManualMinutos = lancamentosNoPeriodo
         .filter((l) => l.userId === f.id)
         .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
       const saldoTotal = somaAutoMinutos + somaManualMinutos;
-      return { func: f, dias, somaAutoMinutos, somaManualMinutos, saldoTotal };
+
+      const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
+      const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
+
+      // Calcular minutos de um dia de jornada para converter horas -> dias
+      const jornadaMin = (() => {
+        if (!f.jornada?.entrada || !f.jornada?.saida) return 480; // fallback 8h
+        const ini = horaParaMin(f.jornada.entrada);
+        const fim = horaParaMin(f.jornada.saida);
+        const pausa = f.jornada.intervaloMin ?? 60;
+        return Math.max(1, fim - ini - pausa);
+      })();
+
+      const saldoTotalDias = saldoTotal / jornadaMin;
+
+      return {
+        func: f,
+        dias,
+        totalTrabalhadoMinutos,
+        totalEsperadoMinutos,
+        somaAutoMinutos,
+        somaManualMinutos,
+        saldoTotal,
+        mediaTrabalhadaDia,
+        saldoTotalDias
+      };
     });
   }, [colaboradores, pontosNoPeriodo, lancamentosNoPeriodo]);
 
@@ -199,18 +228,22 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const anos = [hoje.getFullYear() - 2, hoje.getFullYear() - 1, hoje.getFullYear()];
 
   const handleExportarCSV = () => {
-    const dadosParaExportar = resumoPorFunc.map(({ func, somaAutoMinutos, somaManualMinutos, saldoTotal }) => ({
+    const dadosParaExportar = resumoPorFunc.map(({ func, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => ({
       nome: func.nome || "—",
       jornada: func.jornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "—",
-      saldoAuto: `${Math.floor(somaAutoMinutos / 60)}h ${Math.abs(somaAutoMinutos % 60)}m`,
-      ajustes: `${Math.floor(somaManualMinutos / 60)}h ${Math.abs(somaManualMinutos % 60)}m`,
-      saldoTotal: `${Math.floor(saldoTotal / 60)}h ${Math.abs(saldoTotal % 60)}m`,
+      totalTrabalhado: formatarDuracao(totalTrabalhadoMinutos),
+      totalEsperado: formatarDuracao(totalEsperadoMinutos),
+      mediaDiaria: formatarDuracao(mediaTrabalhadaDia),
+      saldoAuto: formatarSaldo(somaAutoMinutos),
+      ajustes: formatarSaldo(somaManualMinutos),
+      saldoTotalHoras: formatarSaldo(saldoTotal),
+      saldoTotalDias: `${saldoTotalDias >= 0 ? "+" : ""}${saldoTotalDias.toFixed(2)} dias`,
     }));
 
     exportarParaCsv({
       dados: dadosParaExportar,
-      colunas: ["Funcionário", "Jornada", "Saldo Automático", "Ajustes", "Saldo Total"],
-      chaves: ["nome", "jornada", "saldoAuto", "ajustes", "saldoTotal"],
+      colunas: ["Funcionário", "Jornada", "Total Trabalhado", "Total Esperado", "Média Diária", "Saldo Auto", "Ajustes", "Saldo Total (Horas)", "Saldo Total (Dias)"],
+      chaves: ["nome", "jornada", "totalTrabalhado", "totalEsperado", "mediaDiaria", "saldoAuto", "ajustes", "saldoTotalHoras", "saldoTotalDias"],
       nomeArquivo: `banco_horas_${meses[mesSelecionado]}_${anoSelecionado}.csv`
     });
     toast.success("Banco de Horas exportado!");
@@ -303,11 +336,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
             <tr>
               <th style={{ width: 32 }}></th>
               <th>Funcionário</th>
-              <th>Jornada Configurada</th>
-              <th>Dias Registrados</th>
-              <th>Saldo Automático</th>
-              <th>Ajustes Manuais</th>
-              <th>Saldo Total</th>
+              <th>Total Trabalhado</th>
+              <th>Saldo Auto</th>
+              <th>Ajustes</th>
+              <th>Saldo Total (h)</th>
+              <th>Saldo Total (d)</th>
               <th></th>
             </tr>
           </thead>
@@ -319,10 +352,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                 </td>
               </tr>
             )}
-            {resumoPorFunc.map(({ func, dias, somaAutoMinutos, somaManualMinutos, saldoTotal }) => {
+            {resumoPorFunc.map(({ func, dias, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => {
               const temJornada = !!func.jornada?.entrada && !!func.jornada?.saida;
               const isExpandido = expandido === func.id;
-              const diasTrabalhados = dias.filter(d => d.minutosTrabalhados > 0).length;
 
               return (
                 <React.Fragment key={func.id}>
@@ -337,15 +369,12 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                     </td>
                     <td>
                       <NomeFunc>{func.nome}</NomeFunc>
+                      <small style={{ display: "block", fontSize: 10, color: "#666" }}>
+                        {temJornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "Sem jornada"}
+                      </small>
                     </td>
                     <td>
-                      {temJornada
-                        ? <JornadaTag>{func.jornada.entrada} – {func.jornada.saida}</JornadaTag>
-                        : <SemJornada>Não configurada</SemJornada>
-                      }
-                    </td>
-                    <td>
-                      <DiasCount>{diasTrabalhados} dia{diasTrabalhados !== 1 ? "s" : ""}</DiasCount>
+                      <DuracaoTexto>{formatarDuracao(totalTrabalhadoMinutos)}</DuracaoTexto>
                     </td>
                     <td>
                       {temJornada
@@ -362,6 +391,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                       <SaldoTotal $positivo={saldoTotal >= 0}>
                         {formatarSaldo(saldoTotal)}
                       </SaldoTotal>
+                    </td>
+                    <td>
+                      <SaldoDias $positivo={saldoTotalDias >= 0}>
+                        {saldoTotalDias >= 0 ? "+" : ""}{saldoTotalDias.toFixed(1)}d
+                      </SaldoDias>
                     </td>
                     <td>
                       <BtnAjusteLinha onClick={(e) => { e.stopPropagation(); abrirModal(func.id); }}>
@@ -685,6 +719,11 @@ const NomeFunc = styled.span`
   font-size: 14px;
 `;
 
+const DuracaoTexto = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.cores.texto};
+`;
+
 const JornadaTag = styled.span`
   font-size: 12px;
   background: ${({ theme }) => theme.cores.superficie};
@@ -735,6 +774,15 @@ const SaldoTotal = styled.span`
   background: ${({ $positivo }) => $positivo ? "rgba(46,204,113,0.15)" : "rgba(231,76,60,0.15)"};
   color: ${({ $positivo }) => $positivo ? "#2ecc71" : "#e74c3c"};
   border: 1px solid ${({ $positivo }) => $positivo ? "rgba(46,204,113,0.3)" : "rgba(231,76,60,0.3)"};
+`;
+
+const SaldoDias = styled.span`
+  font-size: 13px;
+  font-weight: 700;
+  color: ${({ $positivo }) => $positivo ? "#2ecc71" : "#e74c3c"};
+  background: ${({ $positivo }) => $positivo ? "rgba(46, 204, 113, 0.08)" : "rgba(231, 76, 60, 0.08)"};
+  padding: 3px 8px;
+  border-radius: 6px;
 `;
 
 const BtnAjusteLinha = styled.button`
