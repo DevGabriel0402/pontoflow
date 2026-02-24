@@ -15,6 +15,8 @@ import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import FacePontoModal from "../../components/colaborador/FacePontoModal";
+import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
+import { formatarSaldo } from "../../utils/pontoUtils";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -39,6 +41,7 @@ export default function HomeColaborador() {
   const { pendentes, online, sincronizando, syncAgora } = useSync();
   const { itens: historico, carregando: carregandoHist } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
+  const { saldoMinutos, saldoDias, carregando: carregandoSaldo } = useSaldoBancoHoras(usuario?.uid, perfil);
 
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
@@ -241,6 +244,20 @@ export default function HomeColaborador() {
 
         <Relogio>{hora}</Relogio>
         <Data>{data}</Data>
+
+        <ContainerSaldo>
+          <LabelSaldo>Meu Banco de Horas</LabelSaldo>
+          <GradeSaldo>
+            <BoxSaldo $positivo={saldoMinutos >= 0}>
+              <ValorSaldo $positivo={saldoMinutos >= 0}>{formatarSaldo(saldoMinutos)}</ValorSaldo>
+              <SubSaldo>Saldo em Horas</SubSaldo>
+            </BoxSaldo>
+            <BoxSaldo $positivo={saldoMinutos >= 0}>
+              <ValorSaldo $positivo={saldoMinutos >= 0}>{saldoMinutos >= 0 ? "+" : ""}{saldoDias.toFixed(1)}d</ValorSaldo>
+              <SubSaldo>Saldo em Dias</SubSaldo>
+            </BoxSaldo>
+          </GradeSaldo>
+        </ContainerSaldo>
 
         <Status>
           <PontoStatus $ok={validacao.ok === true} $bad={validacao.ok === false} />
@@ -458,6 +475,55 @@ const SeloSeguranca = styled.div`
   border: 1px solid ${({ theme }) => theme.cores.borda};
   color: ${({ theme }) => theme.cores.texto2};
   font-size: 12px;
+`;
+
+const ContainerSaldo = styled.div`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 24px;
+`;
+
+const LabelSaldo = styled.div`
+  font-size: 10px;
+  font-weight: 800;
+  color: ${({ theme }) => theme.cores.texto2};
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+  opacity: 0.7;
+  text-align: center;
+`;
+
+const GradeSaldo = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const BoxSaldo = styled.div`
+  background: ${({ theme }) => theme.cores.superficie2};
+  border: 1px solid ${({ theme, $positivo }) =>
+    $positivo ? "rgba(46, 204, 113, 0.2)" : "rgba(231, 76, 60, 0.2)"};
+  padding: 14px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+`;
+
+const ValorSaldo = styled.div`
+  font-size: 18px;
+  font-weight: 900;
+  color: ${({ theme, $positivo }) => $positivo ? "#2ecc71" : "#e74c3c"};
+  margin-bottom: 2px;
+  letter-spacing: -0.5px;
+`;
+
+const SubSaldo = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.cores.texto2};
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 `;
 
 const Relogio = styled.div`
