@@ -77,6 +77,15 @@ export default function HomeColaborador() {
     return Object.values(TIPOS).every(t => tiposFeitosHoje.has(t));
   }, [tiposFeitosHoje]);
 
+  // ✅ Filtra pontos de hoje para a lista de histórico
+  const pontosHoje = React.useMemo(() => {
+    const hoje = startOfToday();
+    return historico.filter(p => {
+      const d = getDataPonto(p);
+      return d && isAfter(d, hoje);
+    });
+  }, [historico]);
+
   const statusTexto = React.useMemo(() => {
     if (!checou) return "Validando localização...";
     if (validacao.ok) return "Localização Validada: Escola Municipal Senador Levindo Coelho";
@@ -311,14 +320,14 @@ export default function HomeColaborador() {
         {/* Histórico Recente (Início) */}
         <SecaoHistorico>
           <TituloSecao>
-            <FiClock size={16} /> Histórico Recente
+            <FiClock size={16} /> Registros de Hoje
           </TituloSecao>
           <ListaHistorico>
-            {historico.slice(0, 5).map((p) => (
+            {pontosHoje.map((p) => (
               <ItemHistorico key={p.id}>
                 <ItemInfo>
                   <TipoPonto>{p.type === 'ENTRADA' ? 'Entrada' : p.type === 'SAIDA' ? 'Saída' : p.type === 'INICIO_INTERVALO' ? 'Início Int.' : 'Fim Int.'}</TipoPonto>
-                  <DataHora>{new Date(getDataPonto(p)).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</DataHora>
+                  <DataHora>{new Date(getDataPonto(p)).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</DataHora>
                 </ItemInfo>
                 <ItemAcoes>
                   <Indicator $ok={p.dentroDoRaio}>
@@ -330,7 +339,7 @@ export default function HomeColaborador() {
                 </ItemAcoes>
               </ItemHistorico>
             ))}
-            {historico.length === 0 && <SemHistorico>Nenhum registro recente.</SemHistorico>}
+            {pontosHoje.length === 0 && <SemHistorico>Nenhum registro hoje.</SemHistorico>}
           </ListaHistorico>
         </SecaoHistorico>
         {/* Histórico Recente (Fim) */}
