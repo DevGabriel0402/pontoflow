@@ -30,12 +30,16 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
       const user = auth.currentUser;
       if (!user) throw new Error("Usuário não encontrado.");
 
+      // Garante que o estado local do usuário está atualizado com o servidor
+      await user.reload();
+      const emailLimpo = (user.email || "").trim();
       const senhaLimpa = senhaAtual.trim();
-      console.log(`[TrocaSenha] Iniciando reautenticação para: ${user.email}`);
-      console.log(`[TrocaSenha] Tamanho da senha digitada: ${senhaLimpa.length} caracteres`);
+
+      console.log(`[TrocaSenha] Iniciando reautenticação para: "${emailLimpo}"`);
+      console.log(`[TrocaSenha] Comprimento da senha: ${senhaLimpa.length}`);
 
       // 1) Re-autentica com a senha atual/temporária
-      const credential = EmailAuthProvider.credential(user.email, senhaLimpa);
+      const credential = EmailAuthProvider.credential(emailLimpo, senhaLimpa);
       await reauthenticateWithCredential(user, credential);
 
       console.log("[TrocaSenha] Reautenticação bem-sucedida!");
