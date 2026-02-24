@@ -41,7 +41,7 @@ export function useAdminFuncionarios() {
         );
 
         return () => unsub();
-    }, []);
+    }, [perfil?.companyId]);
 
     return React.useMemo(() => ({ funcionarios, carregando, erro }), [funcionarios, carregando, erro]);
 }

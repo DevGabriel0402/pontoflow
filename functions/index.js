@@ -175,3 +175,81 @@ exports.criarAdminEmpresa = onCall({ region: "southamerica-east1" }, async (requ
         throw new HttpsError("internal", error.message || "Erro interno ao provisionar administrador.");
     }
 });
+
+/**
+ * Corrige o companyId de funcionários e pontos que foram criados
+ * com companyId incorreto ou "default".
+ * Somente admin pode chamar. Atualiza todos os users criados por ele
+ * (criadoPor == adminUid) e também os pontos desses users.
+ */
+exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1" }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Não autenticado.");
+    }
+
+    const adminUid = request.auth.uid;
+    const adminDoc = await admin.firestore().doc(`users/${adminUid}`).get();
+
+    if (!adminDoc.exists || adminDoc.data().role !== "admin") {
+        throw new HttpsError("permission-denied", "Apenas admin pode executar esta correção.");
+    }
+
+    const adminData = adminDoc.data();
+    const companyId = adminData.companyId;
+
+    if (!companyId) {
+        throw new HttpsError("failed-precondition", "Seu perfil de admin não possui companyId definido.");
+    }
+
+    console.log(`[corrigirCompany] Admin ${adminUid} corrigindo para companyId: ${companyId}`);
+
+    // 1) Busca TODOS os users criados por este admin
+    const usersSnap = await admin.firestore()
+        .collection("users")
+        .where("criadoPor", "==", adminUid)
+        .get();
+
+    let usersCorrigidos = 0;
+    let pontosCorrigidos = 0;
+    const batch = admin.firestore().batch();
+    const userIds = [];
+
+    for (const userDoc of usersSnap.docs) {
+        const userData = userDoc.data();
+        if (userData.companyId !== companyId) {
+            batch.update(userDoc.ref, { companyId });
+            usersCorrigidos++;
+            console.log(`  -> Corrigindo user ${userDoc.id} (${userData.nome}): ${userData.companyId} -> ${companyId}`);
+        }
+        userIds.push(userDoc.id);
+    }
+
+    // 2) Busca pontos dos funcionários corrigidos
+    for (const uid of userIds) {
+        const pontosSnap = await admin.firestore()
+            .collection("pontos")
+            .where("userId", "==", uid)
+            .get();
+
+        for (const pontoDoc of pontosSnap.docs) {
+            if (pontoDoc.data().companyId !== companyId) {
+                batch.update(pontoDoc.ref, { companyId });
+                pontosCorrigidos++;
+            }
+        }
+    }
+
+    // 3) Commit
+    if (usersCorrigidos > 0 || pontosCorrigidos > 0) {
+        await batch.commit();
+    }
+
+    console.log(`[corrigirCompany] Resultado: ${usersCorrigidos} users, ${pontosCorrigidos} pontos corrigidos.`);
+
+    return {
+        success: true,
+        usersCorrigidos,
+        pontosCorrigidos,
+        companyId,
+    };
+});

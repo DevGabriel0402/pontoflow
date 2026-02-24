@@ -26,3 +26,10 @@ export const criarAdminEmpresaFn = async ({ companyId, nome, email, dataNascimen
     const res = await call({ companyId, nome, email, dataNascimento });
     return res.data;
 };
+
+export const corrigirCompanyFn = async () => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    const call = httpsCallable(functions, "corrigirCompanyFuncionarios");
+    const res = await call({});
+    return res.data;
+};

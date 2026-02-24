@@ -40,7 +40,7 @@ export function useAdminPontos() {
         );
 
         return () => unsub();
-    }, []);
+    }, [perfil?.companyId]);
 
     return React.useMemo(() => ({ itens, carregando, erro }), [itens, carregando, erro]);
 }

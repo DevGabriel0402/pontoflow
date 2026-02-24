@@ -18,7 +18,7 @@ import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
 import { useConfig } from "../../contexts/ConfigContexto";
 import LoadingGlobal from "../../components/LoadingGlobal";
-import { deletarFuncionarioFn } from "../../services/funcoes";
+import { deletarFuncionarioFn, corrigirCompanyFn } from "../../services/funcoes";
 import { useAuth } from "../../contexts/AuthContexto";
 import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
 import PainelJustificativas from "../../components/admin/PainelJustificativas";
@@ -501,6 +501,28 @@ export default function DashboardAdmin() {
 
             {abaAtiva === "FUNCIONARIOS" && (
               <>
+                {erroFuncs && <AvisoErro>{erroFuncs}</AvisoErro>}
+
+                {/* Se não há funcionários, mostra botão para corrigir vínculos */}
+                {!carregandoFuncs && funcionarios.length === 0 && (
+                  <AvisoInfo style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                    <span>Nenhum funcionário encontrado. Se você já cadastrou funcionários, clique para corrigir os vínculos de empresa.</span>
+                    <Botao onClick={async () => {
+                      try {
+                        toast.loading('Corrigindo vínculos...', { id: 'fix-company' });
+                        const result = await corrigirCompanyFn();
+                        toast.success(`Corrigidos: ${result.usersCorrigidos} funcionários e ${result.pontosCorrigidos} pontos!`, { id: 'fix-company' });
+                      } catch (err) {
+                        console.error(err);
+                        toast.error(err?.message || 'Erro ao corrigir vínculos.', { id: 'fix-company' });
+                      }
+                    }} style={{ whiteSpace: 'nowrap' }}>
+                      <FiCheckSquare size={16} />
+                      Corrigir Vínculos
+                    </Botao>
+                  </AvisoInfo>
+                )}
+
                 <Topo>
                   <BuscaWrapper>
                     <FiSearch />
