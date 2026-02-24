@@ -24,7 +24,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <BannerManutencao />
-      <Toaster position="top-center" />
+      <Toaster
+        position="top-center"
+        containerStyle={{ zIndex: 99999 }}
+      />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
