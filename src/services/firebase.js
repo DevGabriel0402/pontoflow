@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -17,11 +17,18 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Nova forma de habilitar persistência sem avisos de depreciação
-export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
+// Usa getFirestore padrão — robusto e sem risco de corrupção do IndexedDB
+export const db = getFirestore(app);
+
+// Habilita persistência offline com fallback silencioso
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === "failed-precondition") {
+        console.warn("Firestore: múltiplas abas abertas — persistência offline desabilitada nesta aba.");
+    } else if (err.code === "unimplemented") {
+        console.warn("Firestore: navegador não suporta persistência offline.");
+    } else {
+        console.warn("Firestore: falha ao habilitar persistência offline:", err.message);
+    }
 });
 
 // Analytics pode falhar em alguns navegadores/ambientes

@@ -33,3 +33,10 @@ export const corrigirCompanyFn = async () => {
     const res = await call({});
     return res.data;
 };
+
+export const trocarSenhaPrimeiroAcessoFn = async (novaSenha) => {
+    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
+    const call = httpsCallable(functions, "trocarSenhaPrimeiroAcesso");
+    const res = await call({ novaSenha });
+    return res.data;
+};

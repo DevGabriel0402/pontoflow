@@ -272,3 +272,47 @@ exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1" }, a
         companyId,
     };
 });
+
+/**
+ * Troca a senha no primeiro acesso usando o Admin SDK.
+ * Não requer reauthenticação com a senha temporária.
+ * Só funciona se o documento do usuário tem primeiroAcesso === true.
+ */
+exports.trocarSenhaPrimeiroAcesso = onCall({ region: "southamerica-east1" }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Não autenticado.");
+    }
+
+    const uid = request.auth.uid;
+    const { novaSenha } = request.data || {};
+
+    if (!novaSenha || novaSenha.length < 6) {
+        throw new HttpsError("invalid-argument", "A nova senha deve ter no mínimo 6 caracteres.");
+    }
+
+    // Verifica se é realmente primeiro acesso
+    const userDoc = await admin.firestore().doc(`users/${uid}`).get();
+    if (!userDoc.exists) {
+        throw new HttpsError("not-found", "Documento do usuário não encontrado.");
+    }
+
+    if (userDoc.data().primeiroAcesso !== true) {
+        throw new HttpsError("permission-denied", "Esta função só pode ser usada no primeiro acesso.");
+    }
+
+    try {
+        // Troca a senha via Admin SDK (sem precisar da senha antiga)
+        await admin.auth().updateUser(uid, { password: novaSenha });
+
+        // Marca primeiro acesso como false
+        await admin.firestore().doc(`users/${uid}`).update({
+            primeiroAcesso: false,
+            senhaAlteradaEm: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao trocar senha no primeiro acesso:", error);
+        throw new HttpsError("internal", error.message || "Erro ao trocar senha.");
+    }
+});

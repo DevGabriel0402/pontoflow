@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
-import { FiLock, FiX, FiCheckCircle, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiLock, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../services/firebase";
+import { trocarSenhaPrimeiroAcessoFn } from "../../services/funcoes";
 
 export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigatorio = false }) {
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -15,9 +16,7 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
 
   const handleTrocar = async (e) => {
     e.preventDefault();
-    if (!senhaAtual.trim()) {
-      return toast.error("Digite sua senha atual (temporária).");
-    }
+
     if (novaSenha.length < 6) {
       return toast.error("A senha deve ter no mínimo 6 caracteres.");
     }
@@ -27,36 +26,41 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
 
     setCarregando(true);
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("Usuário não encontrado.");
+      if (obrigatorio) {
+        // ===== PRIMEIRO ACESSO =====
+        // Usa Cloud Function com Admin SDK — não precisa da senha temporária
+        await trocarSenhaPrimeiroAcessoFn(novaSenha);
+        toast.success("Senha alterada com sucesso!");
+        onSucesso();
+      } else {
+        // ===== TROCA DE SENHA NORMAL =====
+        // Precisa da senha atual para reautenticar
+        if (!senhaAtual.trim()) {
+          setCarregando(false);
+          return toast.error("Digite sua senha atual.");
+        }
 
-      // Garante que o estado local do usuário está atualizado com o servidor
-      await user.reload();
-      const emailLimpo = (user.email || "").trim();
-      const senhaLimpa = senhaAtual.trim();
+        const user = auth.currentUser;
+        if (!user) throw new Error("Usuário não encontrado.");
 
-      console.log(`[TrocaSenha] Iniciando reautenticação para: "${emailLimpo}"`);
-      console.log(`[TrocaSenha] Comprimento da senha: ${senhaLimpa.length}`);
+        await user.reload();
+        const emailLimpo = (user.email || "").trim();
+        const senhaLimpa = senhaAtual.trim();
 
-      // 1) Re-autentica com a senha atual/temporária
-      const credential = EmailAuthProvider.credential(emailLimpo, senhaLimpa);
-      await reauthenticateWithCredential(user, credential);
+        const credential = EmailAuthProvider.credential(emailLimpo, senhaLimpa);
+        await reauthenticateWithCredential(user, credential);
 
-      console.log("[TrocaSenha] Reautenticação bem-sucedida!");
+        await updatePassword(user, novaSenha);
 
-      // 2) Atualiza a senha no Firebase Auth
-      await updatePassword(user, novaSenha);
+        await updateDoc(doc(db, "users", user.uid), {
+          senhaAlteradaEm: new Date(),
+        });
 
-      // 3) Marca como feito no Firestore
-      await updateDoc(doc(db, "users", user.uid), {
-        primeiroAcesso: false,
-        senhaAlteradaEm: new Date(),
-      });
-
-      toast.success("Senha alterada com sucesso!");
-      onSucesso();
+        toast.success("Senha alterada com sucesso!");
+        onSucesso();
+      }
     } catch (err) {
-      console.error(err);
+      console.error("[TrocaSenha] Erro:", err);
       if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
         toast.error("Senha atual incorreta. Verifique e tente novamente.");
       } else if (err.code === "auth/requires-recent-login") {
@@ -90,25 +94,30 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
 
         <Conteudo>
           <Mensagem>
-            Olá! Por segurança, você precisa definir uma nova senha no seu primeiro acesso.
+            {obrigatorio
+              ? "Olá! Por segurança, defina uma nova senha para continuar usando o sistema."
+              : "Digite sua senha atual e a nova senha desejada."}
           </Mensagem>
 
           <Form onSubmit={handleTrocar}>
-            <Campo>
-              <label>Senha Atual (temporária)</label>
-              <InputGrupo>
-                <input
-                  type={mostrarSenha ? "text" : "password"}
-                  value={senhaAtual}
-                  onChange={(e) => setSenhaAtual(e.target.value)}
-                  placeholder="Digite sua senha atual"
-                  required
-                />
-                <ToggleSenha type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
-                  {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                </ToggleSenha>
-              </InputGrupo>
-            </Campo>
+            {/* Campo de senha atual: só aparece na troca NORMAL (não primeiro acesso) */}
+            {!obrigatorio && (
+              <Campo>
+                <label>Senha Atual</label>
+                <InputGrupo>
+                  <input
+                    type={mostrarSenha ? "text" : "password"}
+                    value={senhaAtual}
+                    onChange={(e) => setSenhaAtual(e.target.value)}
+                    placeholder="Digite sua senha atual"
+                    required
+                  />
+                  <ToggleSenha type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
+                    {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </ToggleSenha>
+                </InputGrupo>
+              </Campo>
+            )}
 
             <Campo>
               <label>Nova Senha</label>
