@@ -94,6 +94,9 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
                   placeholder="Digite sua senha atual"
                   required
                 />
+                <ToggleSenha type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
+                  {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </ToggleSenha>
               </InputGrupo>
             </Campo>
 

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -16,16 +16,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Analytics e Persistência podem falhar em alguns navegadores/ambientes
+// Nova forma de habilitar persistência sem avisos de depreciação
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
+});
+
+// Analytics pode falhar em alguns navegadores/ambientes
 export let analytics = null;
 try {
     analytics = getAnalytics(app);
 } catch (e) {
     console.warn("Firebase Analytics não inicializado:", e.message);
 }
-
-enableIndexedDbPersistence(db).catch((err) => {
-    console.warn("[Firestore persistence]", err?.code || err);
-});
