@@ -157,11 +157,17 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     const inicio = startOfMonth(new Date(anoSelecionado, mesSelecionado, 1));
     const fim = endOfMonth(inicio);
     return lancamentos.filter((l) => {
+      // Se for um lançamento novo (ainda sem timestamp do servidor), 
+      // mostramos no mês atual se o sistema estiver no mês atual
+      if (!l.criadoEm) {
+        return mesSelecionado === hoje.getMonth() && anoSelecionado === hoje.getFullYear();
+      }
+
       const d = l.criadoEm?.toDate ? l.criadoEm.toDate() : null;
       if (!d) return false;
       return d >= inicio && d <= fim;
     });
-  }, [lancamentos, mesSelecionado, anoSelecionado]);
+  }, [lancamentos, mesSelecionado, anoSelecionado, hoje]);
 
   // Colaboradores (sem admins)
   const colaboradores = useMemo(
@@ -192,6 +198,24 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Anos disponíveis (últimos 3 anos)
   const anos = [hoje.getFullYear() - 2, hoje.getFullYear() - 1, hoje.getFullYear()];
 
+  const handleExportarCSV = () => {
+    const dadosParaExportar = resumoPorFunc.map(({ func, somaAutoMinutos, somaManualMinutos, saldoTotal }) => ({
+      nome: func.nome || "—",
+      jornada: func.jornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "—",
+      saldoAuto: `${Math.floor(somaAutoMinutos / 60)}h ${Math.abs(somaAutoMinutos % 60)}m`,
+      ajustes: `${Math.floor(somaManualMinutos / 60)}h ${Math.abs(somaManualMinutos % 60)}m`,
+      saldoTotal: `${Math.floor(saldoTotal / 60)}h ${Math.abs(saldoTotal % 60)}m`,
+    }));
+
+    exportarParaCsv({
+      dados: dadosParaExportar,
+      colunas: ["Funcionário", "Jornada", "Saldo Automático", "Ajustes", "Saldo Total"],
+      chaves: ["nome", "jornada", "saldoAuto", "ajustes", "saldoTotal"],
+      nomeArquivo: `banco_horas_${meses[mesSelecionado]}_${anoSelecionado}.csv`
+    });
+    toast.success("Banco de Horas exportado!");
+  };
+
   const handleLancar = async (e) => {
     e.preventDefault();
     const totalMin = (parseInt(horas || 0) * 60) + parseInt(minutos || 0);
@@ -199,11 +223,16 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     if (!funcSelecionado) return toast.error("Selecione um funcionário.");
     if (!descricao.trim()) return toast.error("Adicione uma descrição.");
 
+    const companyId = perfil?.companyId;
+    if (!companyId) {
+      return toast.error("Erro: ID da empresa não identificado. Tente recarregar a página.");
+    }
+
     setCarregando(true);
     try {
       await addDoc(collection(db, "banco_horas"), {
         userId: funcSelecionado,
-        companyId: perfil.companyId,
+        companyId,
         tipo,
         minutos: totalMin,
         descricao: descricao.trim(),
@@ -213,10 +242,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
       });
       toast.success(`${tipo === "CREDITO" ? "Crédito" : "Débito"} lançado!`);
       setModalAberto(false);
+      // Limpar campos
       setHoras(""); setMinutos(""); setDescricao(""); setFuncSelecionado(null);
     } catch (err) {
-      console.error(err);
-      toast.error("Erro ao lançar horas.");
+      console.error("Erro ao lançar horas:", err);
+      toast.error("Erro ao salvar no banco de dados.");
     } finally {
       setCarregando(false);
     }

@@ -171,6 +171,12 @@ export default function FacePontoModal({ tipo, onSucesso, onCancelar }) {
                         </BtnCapturar>
                     )}
 
+                    {(estado === ESTADOS.ERRO || estado === ESTADOS.SEM_CAMERA) && (
+                        <BtnFallback onClick={() => { pararCamera(); onSucesso(); }}>
+                            Bater Ponto Manualmente
+                        </BtnFallback>
+                    )}
+
                     <BtnCancelar onClick={() => { pararCamera(); onCancelar(); }}>
                         Cancelar
                     </BtnCancelar>
@@ -358,5 +364,26 @@ const BtnCancelar = styled.button`
     &:hover {
         background: rgba(255,255,255,0.1);
         color: #fff;
+    }
+`;
+
+const BtnFallback = styled.button`
+    flex: 1;
+    height: 48px;
+    background: transparent;
+    border: 1px solid ${({ theme }) => theme.cores?.alerta || "#f1c40f"};
+    color: ${({ theme }) => theme.cores?.alerta || "#f1c40f"};
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background: ${({ theme }) => (theme.cores?.alerta || "#f1c40f") + "15"};
+        transform: translateY(-1px);
     }
 `;

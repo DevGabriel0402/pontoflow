@@ -152,107 +152,7 @@ export default function DashboardAdmin() {
     }
   }, [mostrarToast]);
 
-  const filtrados = React.useMemo(() => {
-    const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
-    const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
-
-    return itens.filter((p) => {
-      const nome = (p.userName || "").toLowerCase();
-      const q = buscaNome.trim().toLowerCase();
-
-      if (q && !nome.includes(q)) return false;
-      if (tipo !== "TODOS" && p.type !== tipo) return false;
-
-      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
-      if (!d) return true;
-
-      if (ini && d < ini) return false;
-      if (fim && d > fim) return false;
-
-      return true;
-    });
-  }, [itens, buscaNome, tipo, dataInicio, dataFim]);
-
-  const countAtivos = React.useMemo(() => {
-    const ids = new Set(itens.map(p => p.userId));
-    return ids.size;
-  }, [itens]);
-
-  const opcoesFuncionarios = React.useMemo(() => {
-    const lista = (funcionarios || [])
-      .filter(f => f.role !== 'admin')
-      .map(f => ({ value: f.nome, label: f.nome }));
-
-    return [{ value: "", label: "Todos os Funcionários" }, ...lista];
-  }, [funcionarios]);
-
-  const resumoJornada = React.useMemo(() => {
-    // 1. Agrupar por data e usuário
-    const grupos = {};
-
-    filtrados.forEach(p => {
-      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
-      if (!d) return;
-
-      const dataKey = format(d, "yyyy-MM-dd");
-      const userKey = p.userId;
-      const key = `${dataKey}_${userKey}`;
-
-      if (!grupos[key]) {
-        grupos[key] = {
-          data: d,
-          userId: p.userId,
-          userName: p.userName,
-          pontos: []
-        };
-      }
-      grupos[key].pontos.push({ ...p, dateObj: d });
-    });
-
-    // 2. Calcular cada grupo
-    return Object.values(grupos).map(g => {
-      const pontos = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
-
-      const entrada = pontos.find(p => p.type === "ENTRADA")?.dateObj;
-      const saida = pontos.find(p => p.type === "SAIDA")?.dateObj;
-      const iniInt = pontos.find(p => p.type === "INICIO_INTERVALO")?.dateObj;
-      const fimInt = pontos.find(p => p.type === "FIM_INTERVALO")?.dateObj;
-
-      let minutosTrabalhados = 0;
-      let status = "Incompleto";
-
-      if (entrada && saida) {
-        let total = differenceInMinutes(saida, entrada);
-        let intervalo = 0;
-
-        if (iniInt && fimInt) {
-          intervalo = differenceInMinutes(fimInt, iniInt);
-        }
-
-        minutosTrabalhados = total - (intervalo > 0 ? intervalo : 0);
-        status = (iniInt && !fimInt) || (!iniInt && fimInt) ? "Intervalo Incompleto" : "Ok";
-      }
-
-      const horas = Math.floor(minutosTrabalhados / 60);
-      const minutos = minutosTrabalhados % 60;
-
-      return {
-        ...g,
-        totalMinutos: minutosTrabalhados,
-        totalFormatado: `${horas}h ${minutos}m`,
-        status,
-        check: { entrada, saida, iniInt, fimInt }
-      };
-    }).sort((a, b) => b.data - a.data);
-  }, [filtrados]);
-
-  const totalHorasPeriodo = React.useMemo(() => {
-    const totalMin = resumoJornada.reduce((acc, curr) => acc + curr.totalMinutos, 0);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return `${h}h ${m}m`;
-  }, [resumoJornada]);
-
+  // --- Funções de Exportação ---
   const gerarPdf = () => {
     const periodo =
       dataInicio || dataFim
@@ -324,6 +224,106 @@ export default function DashboardAdmin() {
     });
     toast.success("Resumo exportado em CSV!");
   };
+  // -----------------------------
+
+  const filtrados = React.useMemo(() => {
+    const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
+    const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
+
+    return itens.filter((p) => {
+      if (buscaNome && p.userId !== buscaNome) return false;
+      if (tipo !== "TODOS" && p.type !== tipo) return false;
+
+      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      if (!d) return true;
+
+      if (ini && d < ini) return false;
+      if (fim && d > fim) return false;
+
+      return true;
+    });
+  }, [itens, buscaNome, tipo, dataInicio, dataFim]);
+
+  const countAtivos = React.useMemo(() => {
+    const ids = new Set(itens.map(p => p.userId));
+    return ids.size;
+  }, [itens]);
+
+  const opcoesFuncionarios = React.useMemo(() => {
+    const lista = (funcionarios || [])
+      .filter(f => f.role !== 'admin')
+      .map(f => ({ value: f.id, label: f.nome }));
+
+    return [{ value: "", label: "Todos os Funcionários" }, ...lista];
+  }, [funcionarios]);
+
+  const resumoJornada = React.useMemo(() => {
+    // 1. Agrupar por data e usuário
+    const grupos = {};
+
+    filtrados.forEach(p => {
+      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      if (!d) return;
+
+      const dataKey = format(d, "yyyy-MM-dd");
+      const userKey = p.userId;
+      const key = `${dataKey}_${userKey}`;
+
+      if (!grupos[key]) {
+        grupos[key] = {
+          data: d,
+          userId: p.userId,
+          userName: p.userName,
+          pontos: []
+        };
+      }
+      grupos[key].pontos.push({ ...p, dateObj: d });
+    });
+
+    // 2. Calcular cada grupo
+    return Object.values(grupos).map(g => {
+      const pontos = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
+
+      const entrada = pontos.find(p => p.type === "ENTRADA")?.dateObj;
+      const saida = pontos.find(p => p.type === "SAIDA")?.dateObj;
+      const iniInt = pontos.find(p => p.type === "INICIO_INTERVALO")?.dateObj;
+      const fimInt = pontos.find(p => p.type === "FIM_INTERVALO")?.dateObj;
+
+      let minutosTrabalhados = 0;
+      let status = "Incompleto";
+
+      if (entrada && saida) {
+        let total = differenceInMinutes(saida, entrada);
+        let intervalo = 0;
+
+        if (iniInt && fimInt) {
+          intervalo = differenceInMinutes(fimInt, iniInt);
+        }
+
+        minutosTrabalhados = total - (intervalo > 0 ? intervalo : 0);
+        status = (iniInt && !fimInt) || (!iniInt && fimInt) ? "Intervalo Incompleto" : "Ok";
+      }
+
+      const horas = Math.floor(minutosTrabalhados / 60);
+      const minutos = minutosTrabalhados % 60;
+
+      return {
+        ...g,
+        totalMinutos: minutosTrabalhados,
+        totalFormatado: `${horas}h ${minutos}m`,
+        status,
+        check: { entrada, saida, iniInt, fimInt }
+      };
+    }).sort((a, b) => b.data - a.data);
+  }, [filtrados]);
+
+  const totalHorasPeriodo = React.useMemo(() => {
+    const totalMin = resumoJornada.reduce((acc, curr) => acc + curr.totalMinutos, 0);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h ${m}m`;
+  }, [resumoJornada]);
+
 
   const handleDeletarFuncionario = async (funcionario) => {
     const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${funcionario.nome}? Esta ação não pode ser desfeita.`);
