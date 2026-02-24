@@ -87,9 +87,22 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
                       request.resource.data.userId == request.auth.uid;
 
-      // Admin (ou superadmin) pode atualizar para aprovar/rejeitar
+      // Aprovação/rejeição por admin
       allow update: if isSuperAdmin() ||
                       (hasRole('admin') && belongsTo(resource.data.companyId));
+    }
+
+    // Coleção de Banco de Horas
+    match /banco_horas/{docId} {
+      allow read: if isSuperAdmin() ||
+                    (hasRole('admin') && belongsTo(resource.data.companyId)) ||
+                    request.auth.uid == resource.data.userId;
+
+      allow create: if isSuperAdmin() ||
+                      (hasRole('admin') && request.resource.data.companyId == getUserData().companyId);
+
+      allow update, delete: if isSuperAdmin() ||
+                              (hasRole('admin') && belongsTo(resource.data.companyId));
     }
 
   }

@@ -5,7 +5,7 @@ import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2 } from "react-icons/fi";
+import { FiFileText, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -23,6 +23,7 @@ import { deletarFuncionarioFn, corrigirCompanyFn } from "../../services/funcoes"
 import { useAuth } from "../../contexts/AuthContexto";
 import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
 import PainelJustificativas from "../../components/admin/PainelJustificativas";
+import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -317,6 +318,9 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
             <FiSettings /> <span>Configurações</span>
           </NavItem>
+          <NavItem $ativo={abaAtiva === "BANCO_HORAS"} onClick={() => setAbaAtiva("BANCO_HORAS")}>
+            <FiDatabase /> <span>Banco de Horas</span>
+          </NavItem>
           <NavItem $ativo={abaAtiva === "JUSTIFICATIVAS"} onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
             <FiMessageSquare /> <span>Justificativas</span>
           </NavItem>
@@ -338,6 +342,18 @@ export default function DashboardAdmin() {
           <>
             {abaAtiva === "HISTORICO" && (
               <>
+                {/* Atalhos rápidos — visível só no mobile */}
+                <AtalhosMobile>
+                  <AtalhoBtn onClick={() => setAbaAtiva("BANCO_HORAS")}>
+                    <FiDatabase size={16} />
+                    Banco de Horas
+                  </AtalhoBtn>
+                  <AtalhoBtn onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
+                    <FiMessageSquare size={16} />
+                    Justificativas
+                  </AtalhoBtn>
+                </AtalhosMobile>
+
                 <Topo>
                   <SeletorAcordeaoWrapper>
                     <SeletorAcordeao
@@ -736,6 +752,10 @@ export default function DashboardAdmin() {
                   </div>
                 </PainelConfig>
               </>
+            )}
+
+            {abaAtiva === "BANCO_HORAS" && (
+              <PainelBancoHoras funcionarios={funcionarios} pontos={itens} />
             )}
 
             {abaAtiva === "JUSTIFICATIVAS" && (
@@ -1386,5 +1406,42 @@ const BtnVerMapa = styled.button`
   &:hover {
     background: #2f81f7;
     color: #fff;
+  }
+`;
+
+const AtalhosMobile = styled.div`
+  display: none;
+  gap: 12px;
+  margin-bottom: 24px;
+  width: 100%;
+
+  @media (max-width: 900px) {
+    display: flex;
+  }
+`;
+
+const AtalhoBtn = styled.button`
+  flex: 1;
+  height: 48px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  svg {
+    color: #2f81f7;
   }
 `;
