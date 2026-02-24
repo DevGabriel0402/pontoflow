@@ -30,9 +30,15 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
       const user = auth.currentUser;
       if (!user) throw new Error("Usuário não encontrado.");
 
+      const senhaLimpa = senhaAtual.trim();
+      console.log(`[TrocaSenha] Iniciando reautenticação para: ${user.email}`);
+      console.log(`[TrocaSenha] Tamanho da senha digitada: ${senhaLimpa.length} caracteres`);
+
       // 1) Re-autentica com a senha atual/temporária
-      const credential = EmailAuthProvider.credential(user.email, senhaAtual);
+      const credential = EmailAuthProvider.credential(user.email, senhaLimpa);
       await reauthenticateWithCredential(user, credential);
+
+      console.log("[TrocaSenha] Reautenticação bem-sucedida!");
 
       // 2) Atualiza a senha no Firebase Auth
       await updatePassword(user, novaSenha);
