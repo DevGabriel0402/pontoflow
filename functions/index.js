@@ -22,7 +22,7 @@ function gerarSenhaPadrao(nome, dataNasc) {
     return primeiroNome + ddmm;
 }
 
-exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     console.log("Iniciando criarFuncionario v2...", request.data);
 
     if (!request.auth) {
@@ -102,7 +102,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1" }, async (reque
     }
 });
 
-exports.deletarFuncionario = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.deletarFuncionario = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "Não autenticado.");
     }
@@ -139,7 +139,7 @@ exports.deletarFuncionario = onCall({ region: "southamerica-east1" }, async (req
     }
 });
 
-exports.criarAdminEmpresa = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.criarAdminEmpresa = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     console.log("Iniciando criarAdminEmpresa...", request.data);
 
     if (!request.auth) {
@@ -201,7 +201,7 @@ exports.criarAdminEmpresa = onCall({ region: "southamerica-east1" }, async (requ
  * Somente admin pode chamar. Atualiza todos os users criados por ele
  * (criadoPor == adminUid) e também os pontos desses users.
  */
-exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "Não autenticado.");
     }
@@ -278,7 +278,7 @@ exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1" }, a
  * Não requer reauthenticação com a senha temporária.
  * Só funciona se o documento do usuário tem primeiroAcesso === true.
  */
-exports.trocarSenhaPrimeiroAcesso = onCall({ region: "southamerica-east1" }, async (request) => {
+exports.trocarSenhaPrimeiroAcesso = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "Não autenticado.");
     }
