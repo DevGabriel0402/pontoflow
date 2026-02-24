@@ -9,8 +9,8 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isSuperAdmin == true;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(path) && get(path).data.get('isSuperAdmin', false) == true;
     }
 
     function getUserData() {
@@ -18,11 +18,13 @@ service cloud.firestore {
     }
 
     function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(path) && get(path).data.get('role', '') == role;
     }
 
     function belongsTo(companyId) {
-      return isAuthenticated() && getUserData().companyId == companyId;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isAuthenticated() && exists(path) && get(path).data.get('companyId', '') == companyId;
     }
 
     // Regras por Coleção
@@ -39,7 +41,7 @@ service cloud.firestore {
       // Usuário pode atualizar apenas campos pessoais. SuperAdmin pode escrever qualquer coisa.
       allow write: if request.auth.uid == userId && 
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['nome', 'email', 'telefone', 'fotoUrl', 'primeiroAcesso', 'fotoBase64', 'faceDescriptor']);
+                        .hasOnly(['nome', 'email', 'telefone', 'fotoUrl', 'primeiroAcesso', 'fotoBase64', 'faceDescriptor', 'senhaAlteradaEm', 'atualizadoEm']);
       allow write: if isSuperAdmin();
     }
 
