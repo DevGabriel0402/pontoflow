@@ -75,6 +75,12 @@ export function usePonto() {
                 return;
             }
 
+            const companyId = perfil?.companyId;
+            if (!companyId || companyId === "default") {
+                toast.error("Não foi possível identificar sua empresa. Contate o administrador.");
+                return;
+            }
+
             const { ok, distance, coords } = await validarLocal();
 
             // colaborador bloqueia fora do raio; admin pode (auditoria)
@@ -88,7 +94,7 @@ export function usePonto() {
             const payloadBase = {
                 userId: usuario.uid,
                 userName: perfil?.nome || usuario.email,
-                companyId: perfil?.companyId || "default", // Garante companyId no ponto
+                companyId: companyId,
                 type,
 
                 geolocation: {

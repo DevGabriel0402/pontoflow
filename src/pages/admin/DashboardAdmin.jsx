@@ -573,26 +573,6 @@ export default function DashboardAdmin() {
               <>
                 {erroFuncs && <AvisoErro>{erroFuncs}</AvisoErro>}
 
-                {/* Se não há funcionários, mostra botão para corrigir vínculos */}
-                {!carregandoFuncs && funcionarios.length === 0 && (
-                  <AvisoInfo style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                    <span>Nenhum funcionário encontrado. Se você já cadastrou funcionários, clique para corrigir os vínculos de empresa.</span>
-                    <Botao onClick={async () => {
-                      try {
-                        toast.loading('Corrigindo vínculos...', { id: 'fix-company' });
-                        const result = await corrigirCompanyFn();
-                        toast.success(`Corrigidos: ${result.usersCorrigidos} funcionários e ${result.pontosCorrigidos} pontos!`, { id: 'fix-company' });
-                      } catch (err) {
-                        console.error(err);
-                        toast.error(err?.message || 'Erro ao corrigir vínculos.', { id: 'fix-company' });
-                      }
-                    }} style={{ whiteSpace: 'nowrap' }}>
-                      <FiCheckSquare size={16} />
-                      Corrigir Vínculos
-                    </Botao>
-                  </AvisoInfo>
-                )}
-
                 <Topo>
                   <BuscaWrapper>
                     <FiSearch />
@@ -603,10 +583,30 @@ export default function DashboardAdmin() {
                     />
                   </BuscaWrapper>
 
-                  <Botao onClick={() => setModalAberto(true)}>
-                    <FiUserPlus size={16} />
-                    Novo Funcionário
-                  </Botao>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <BotaoGhost onClick={async () => {
+                      try {
+                        toast.loading('Sincronizando vínculos...', { id: 'fix-company' });
+                        const result = await corrigirCompanyFn();
+                        if (result.usersCorrigidos > 0 || result.pontosCorrigidos > 0) {
+                          toast.success(`Corrigidos: ${result.usersCorrigidos} func. e ${result.pontosCorrigidos} pontos!`, { id: 'fix-company' });
+                        } else {
+                          toast.success('Tudo certo! Nenhum vínculo pendente de correção.', { id: 'fix-company' });
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        toast.error(err?.message || 'Erro ao sincronizar vínculos.', { id: 'fix-company' });
+                      }
+                    }} title="Buscar funcionários antigos e vincular à sua empresa">
+                      <FiCheckSquare size={16} />
+                      <span className="esconder-mobile">Sincronizar</span>
+                    </BotaoGhost>
+
+                    <Botao onClick={() => setModalAberto(true)}>
+                      <FiUserPlus size={16} />
+                      Novo Func.
+                    </Botao>
+                  </div>
                 </Topo>
 
                 <TabelaContainer>

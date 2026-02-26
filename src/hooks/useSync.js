@@ -9,8 +9,10 @@ import {
     totalFila,
     OFFLINE_QUEUE_EVENTO,
 } from "../services/offlineQueue";
+import { useAuth } from "../contexts/AuthContexto";
 
 export function useSync() {
+    const { usuario, perfil } = useAuth();
     const [online, setOnline] = React.useState(navigator.onLine);
     const [sincronizando, setSincronizando] = React.useState(false);
     const [pendentes, setPendentes] = React.useState(totalFila());
@@ -31,8 +33,15 @@ export function useSync() {
 
         try {
             for (const item of fila) {
+                // Revalida companyId caso tenha sido alterado/corrigido enquanto offline
+                let companyIdFinal = item.companyId;
+                if (usuario && usuario.uid === item.userId && perfil?.companyId && perfil.companyId !== "default") {
+                    companyIdFinal = perfil.companyId;
+                }
+
                 const payload = {
                     ...item,
+                    companyId: companyIdFinal,
                     localId: undefined,
                     // criadoEmLocal: undefined,
                     origem: "offline_queue",
@@ -50,13 +59,13 @@ export function useSync() {
             atualizarPendentes();
             toast.success(`Sincronizado: ${enviados} ponto(s) enviados!`);
         } catch (err) {
-            console.log(err);
+            console.error(err);
             toast.error("Falha ao sincronizar. Vamos tentar novamente quando a internet estabilizar.");
             atualizarPendentes();
         } finally {
             setSincronizando(false);
         }
-    }, [atualizarPendentes]);
+    }, [atualizarPendentes, usuario, perfil]);
 
     React.useEffect(() => {
         const onOnline = () => {

@@ -38,7 +38,14 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
     }
 
     const adminData = adminDoc.data();
-    const companyId = adminData.companyId || "default";
+    const companyId = adminData.companyId;
+
+    if (!companyId || companyId === "default") {
+        throw new HttpsError(
+            "failed-precondition",
+            "Seu perfil não possui um vínculo de empresa válido. Clique em 'Sincronizar Vínculos' no painel."
+        );
+    }
 
     const { nome, email, dataNascimento, role, jornada } = request.data || {};
     if (!nome || !email || !dataNascimento) {
