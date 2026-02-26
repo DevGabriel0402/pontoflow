@@ -290,6 +290,14 @@ const Corpo = styled.div`
     padding: 20px;
     display: flex;
     flex-direction: column;
+    max-height: 70vh;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
 `;
 
 const Label = styled.div`

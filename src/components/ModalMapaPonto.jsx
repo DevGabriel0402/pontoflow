@@ -100,6 +100,16 @@ const Fechar = styled.button`
 
 const Conteudo = styled.div`
   padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.cores.borda};
+    border-radius: 4px;
+  }
 `;
 
 const Info = styled.div`

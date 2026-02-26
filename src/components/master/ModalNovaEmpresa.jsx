@@ -690,6 +690,12 @@ const ScrollArea = styled.div`
     display: flex;
     flex-direction: column;
     gap: 24px;
+
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+    }
 `;
 
 const Secao = styled.div`

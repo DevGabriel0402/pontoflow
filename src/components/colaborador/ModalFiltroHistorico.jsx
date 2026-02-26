@@ -140,7 +140,19 @@ const BotaoFechar = styled.button`
   justify-content: center;
 `;
 
-const Corpo = styled.div``;
+const Corpo = styled.div`
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+`;
 
 const Label = styled.div`
   font-size: 13px;

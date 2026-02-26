@@ -429,6 +429,14 @@ const SelectFiltro = styled.select`
     }
 `;
 
+const SeletorWrapper = styled.div`
+  width: ${({ $small }) => $small ? "100px" : "150px"};
+  
+  @media (max-width: 600px) {
+    width: 100%;
+  }
+`;
+
 const Tab = styled.button`
     padding: 8px 18px;
     border-radius: 20px;

@@ -218,6 +218,16 @@ const Fechar = styled.button`
 
 const Conteudo = styled.div`
   padding: 0 20px 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.cores.borda};
+    border-radius: 4px;
+  }
 `;
 
 const Mensagem = styled.p`

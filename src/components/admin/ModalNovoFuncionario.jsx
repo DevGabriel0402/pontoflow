@@ -288,6 +288,16 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 75vh;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.cores.borda};
+    border-radius: 4px;
+  }
 `;
 
 const Campo = styled.div`
