@@ -680,3 +680,35 @@ const BtnPerigo = styled.button`
     cursor: pointer;
     &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
+
+const AcoesSecundarias = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+`;
+
+const BtnEditar = styled.button`
+    height: 34px;
+    padding: 0 14px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #8d8d99;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    
+    &:hover { 
+        color: #fff; 
+        border-color: rgba(255, 255, 255, 0.3); 
+    }
+    
+    &:disabled { 
+        opacity: 0.5; 
+        cursor: not-allowed; 
+    }
+`;
