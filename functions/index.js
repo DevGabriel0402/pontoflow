@@ -47,7 +47,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
         );
     }
 
-    const { nome, email, dataNascimento, role, jornadas, jornada } = request.data || {};
+    const { nome, email, dataNascimento, role, jornadas, jornada, cargaHorariaSemanal } = request.data || {};
     if (!nome || !email || !dataNascimento) {
         throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
@@ -89,6 +89,10 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
             criadoEm: admin.firestore.FieldValue.serverTimestamp(),
             criadoPor: adminUid,
         };
+
+        if (cargaHorariaSemanal) {
+            userData.cargaHorariaSemanal = cargaHorariaSemanal;
+        }
 
         if (jornadas) {
             userData.jornadas = jornadas;

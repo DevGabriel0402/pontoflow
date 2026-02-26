@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import { FiUserPlus, FiX, FiCopy } from "react-icons/fi";
 import { criarFuncionarioFn } from "../../services/funcoes";
+import SeletorAcordeao from "../SeletorAcordeao";
 
 export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [nome, setNome] = useState("");
@@ -10,6 +11,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
   const [carregando, setCarregando] = useState(false);
+  const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
 
   // Jornada (Segunda a Domingo)
   const [jornadas, setJornadas] = useState({
@@ -39,6 +41,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     setEmail("");
     setDataNascimento("");
     setRole("colaborador");
+    setCargaHorariaSemanal("44 Horas");
     setJornadas({
       segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
       terca: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -74,7 +77,8 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
         email: email.trim(),
         dataNascimento,
         role,
-        jornadas
+        jornadas,
+        cargaHorariaSemanal
       });
       setResultado(data);
       toast.success("Funcionário criado com sucesso!");
@@ -140,7 +144,25 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
 
             <Separador />
 
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornada Semanal</label>
+            <Campo>
+              <label>Carga Horária Semanal</label>
+              <SeletorWrapper>
+                <SeletorAcordeao
+                  opcoes={[
+                    { value: "44 Horas", label: "44 Horas" },
+                    { value: "40 Horas", label: "40 Horas" },
+                    { value: "30 Horas", label: "30 Horas" },
+                    { value: "Livre", label: "Livre" }
+                  ]}
+                  selecionado={cargaHorariaSemanal}
+                  aoSelecionar={setCargaHorariaSemanal}
+                />
+              </SeletorWrapper>
+            </Campo>
+
+            <Separador />
+
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
             <JornadaArea>
               {diasSemanaInfo.map((dia) => {
                 const conf = jornadas[dia.key];
@@ -436,6 +458,10 @@ const RoleOption = styled.button`
   &:hover {
     background: ${({ $ativo, theme }) => $ativo ? theme.cores.azul : theme.cores.superficie2};
   }
+`;
+
+const SeletorWrapper = styled.div`
+  width: 100%;
 `;
 
 const Separador = styled.div`

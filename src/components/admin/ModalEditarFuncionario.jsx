@@ -4,12 +4,14 @@ import { toast } from "react-hot-toast";
 import { FiEdit2, FiX } from "react-icons/fi";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import SeletorAcordeao from "../SeletorAcordeao";
 
 export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
+  const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
 
   // Jornada (Segunda a Domingo)
   const [jornadas, setJornadas] = useState({
@@ -41,7 +43,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
       setEmail(funcionario.email || "");
       setDataNascimento(funcionario.dataNascimento || "");
       setRole(funcionario.role || "colaborador");
-      setRole(funcionario.role || "colaborador");
+      setCargaHorariaSemanal(funcionario.cargaHorariaSemanal || "44 Horas");
 
       if (funcionario.jornadas) {
         setJornadas(funcionario.jornadas);
@@ -79,6 +81,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
         dataNascimento,
         role,
         jornadas,
+        cargaHorariaSemanal,
       });
       toast.success("Funcionário atualizado!");
       onFechar();
@@ -141,9 +144,25 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
             </RoleSelector>
           </Campo>
 
+          <Campo>
+            <label>Carga Horária Semanal</label>
+            <SeletorWrapper>
+              <SeletorAcordeao
+                opcoes={[
+                  { value: "44 Horas", label: "44 Horas" },
+                  { value: "40 Horas", label: "40 Horas" },
+                  { value: "30 Horas", label: "30 Horas" },
+                  { value: "Livre", label: "Livre" }
+                ]}
+                selecionado={cargaHorariaSemanal}
+                aoSelecionar={setCargaHorariaSemanal}
+              />
+            </SeletorWrapper>
+          </Campo>
+
           <Separador />
 
-          <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornada Semanal</label>
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
           <JornadaArea>
             {diasSemanaInfo.map((dia) => {
               const conf = jornadas[dia.key];
@@ -337,6 +356,10 @@ const RoleSelector = styled.div`
   border-radius: ${({ theme }) => theme.raio.lg};
   border: 1px solid ${({ theme }) => theme.cores.borda};
   gap: 4px;
+`;
+
+const SeletorWrapper = styled.div`
+  width: 100%;
 `;
 
 const RoleOption = styled.button`

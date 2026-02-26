@@ -638,10 +638,12 @@ export default function DashboardAdmin() {
                             </td>
                             <td>{f.nome}</td>
                             <td>{f.email}</td>
-                            <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                              {f.jornada
-                                ? `${f.jornada.entrada} - ${f.jornada.saida}`
-                                : <span style={{ color: '#666' }}>Não definida</span>
+                            <td style={{ fontSize: 12, whiteSpace: 'nowrap', fontWeight: 600, color: '#e1e1e6' }}>
+                              {f.cargaHorariaSemanal
+                                ? f.cargaHorariaSemanal
+                                : f.jornada
+                                  ? `${f.jornada.entrada} - ${f.jornada.saida}`
+                                  : <span style={{ color: '#666' }}>Não definida</span>
                               }
                             </td>
                             <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
