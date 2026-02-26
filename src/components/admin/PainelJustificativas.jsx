@@ -94,6 +94,7 @@ export default function PainelJustificativas() {
             await updateDoc(doc(db, "justificativas", item.id), {
                 status: "aprovada",
                 avaliadoPor: usuario.uid,
+                avaliadoPorNome: perfil?.nome || usuario.email,
                 avaliadoEm: serverTimestamp(),
             });
             toast.success("Ponto aprovado e registrado com sucesso!");
@@ -111,6 +112,7 @@ export default function PainelJustificativas() {
             await updateDoc(doc(db, "justificativas", item.id), {
                 status: "rejeitada",
                 avaliadoPor: usuario.uid,
+                avaliadoPorNome: perfil?.nome || usuario.email,
                 avaliadoEm: serverTimestamp(),
                 motivoRejeicao: motivoRejeicao.trim() || null,
             });
@@ -176,6 +178,13 @@ export default function PainelJustificativas() {
                                         <strong>{formatarDataHora(item.dataHoraSolicitada)}</strong>
                                     </DetalheItem>
                                 </Detalhe>
+
+                                {(item.status === "aprovada" || item.status === "rejeitada") && item.avaliadoPorNome && (
+                                    <AvaliadorInfo>
+                                        <FiUser size={12} />
+                                        Avaliado por: <strong>{item.avaliadoPorNome}</strong>
+                                    </AvaliadorInfo>
+                                )}
 
                                 <Justificativa>
                                     <FiMessageSquare size={13} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -356,6 +365,19 @@ const DetalheItem = styled.div`
     gap: 2px;
     span { font-size: 11px; color: #666; }
     strong { font-size: 13px; color: #fff; font-weight: 600; }
+`;
+
+const AvaliadorInfo = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #8d8d99;
+    background: rgba(255,255,255,0.03);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    strong { color: #fff; font-weight: 600; }
 `;
 
 const Justificativa = styled.div`

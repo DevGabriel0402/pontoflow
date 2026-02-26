@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useClock } from "../../hooks/useClock";
 import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
-import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera } from "react-icons/fi";
+import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefreshCw } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
@@ -255,7 +255,12 @@ export default function HomeColaborador() {
         <Data>{data}</Data>
 
         <ContainerSaldo>
-          <LabelSaldo>Meu Banco de Horas</LabelSaldo>
+          <HeaderSaldo>
+            <LabelSaldo>Meu Banco de Horas</LabelSaldo>
+            <BotaoSyncSaldo onClick={() => window.location.reload(true)}>
+              <FiRefreshCw size={12} /> Sincronizar
+            </BotaoSyncSaldo>
+          </HeaderSaldo>
           <GradeSaldo>
             <BoxSaldo $positivo={saldoMinutos >= 0}>
               <ValorSaldo $positivo={saldoMinutos >= 0}>{formatarSaldo(saldoMinutos)}</ValorSaldo>
@@ -492,15 +497,41 @@ const ContainerSaldo = styled.div`
   margin-top: 24px;
 `;
 
+const HeaderSaldo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`;
+
 const LabelSaldo = styled.div`
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   color: ${({ theme }) => theme.cores.texto2};
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 8px;
-  opacity: 0.7;
-  text-align: center;
+`;
+
+const BotaoSyncSaldo = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  color: ${({ theme }) => theme.cores.texto2};
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: ${({ theme }) => theme.cores.azul};
+    border-color: ${({ theme }) => theme.cores.azul};
+    background: ${({ theme }) => theme.cores.azul}15;
+  }
 `;
 
 const GradeSaldo = styled.div`

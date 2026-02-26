@@ -5,11 +5,12 @@ import { toast } from "react-hot-toast";
 import {
   collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp
 } from "firebase/firestore";
-import { db } from "../../services/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
 import { format, differenceInMinutes, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile } from "react-icons/fi";
+import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile, FiRefreshCw } from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
   horaParaMin,
@@ -46,6 +47,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const [minutos, setMinutos] = useState("");
   const [descricao, setDescricao] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
 
   // Busca lançamentos manuais do Firestore
   useEffect(() => {
@@ -210,6 +212,26 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     setModalAberto(true);
   };
 
+  const handleSincronizar = async () => {
+    setSincronizando(true);
+    try {
+      toast.loading("Sincronizando vínculos...", { id: "sync-bh" });
+      const func = httpsCallable(functions, "corrigirCompanyFuncionarios");
+      const res = await func();
+
+      if (res.data?.usersCorrigidos > 0 || res.data?.pontosCorrigidos > 0) {
+        toast.success(`Sincronizado! Foram corrigidos vínculos de ${res.data.usersCorrigidos} usuários e ${res.data.pontosCorrigidos} pontos/horas.`, { id: "sync-bh" });
+      } else {
+        toast.success("Tudo certo! Banco de horas e vínculos estão em dia.", { id: "sync-bh" });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Erro ao sincronizar vínculos e saldos.", { id: "sync-bh" });
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   return (
     <>
       {/* ── Cabeçalho ── */}
@@ -238,6 +260,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           <BotaoAjuste onClick={() => setModalAberto(true)}>
             <FiPlus size={15} />
             Ajuste Manual
+          </BotaoAjuste>
+
+          <BotaoAjuste $sincronizar onClick={handleSincronizar} disabled={sincronizando}>
+            <FiRefreshCw size={15} className={sincronizando ? "spin" : ""} />
+            {sincronizando ? "Sinc..." : "Sincronizar"}
           </BotaoAjuste>
 
           <GrupoExportar>
@@ -548,7 +575,7 @@ const BotaoAjuste = styled.button`
   gap: 6px;
   padding: 0 16px;
   height: 38px;
-  background: ${({ theme }) => theme.cores.azul};
+  background: ${({ theme, $sincronizar }) => $sincronizar ? theme.cores.sucesso : theme.cores.azul};
   color: #fff;
   font-weight: 700;
   border: 0;
@@ -557,6 +584,14 @@ const BotaoAjuste = styled.button`
   font-size: 13px;
   transition: all 0.2s;
   &:hover { opacity: 0.85; transform: translateY(-1px); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
 `;
 
 const GrupoExportar = styled.div`
