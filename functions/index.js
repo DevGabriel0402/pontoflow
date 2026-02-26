@@ -250,8 +250,9 @@ exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1", cor
         userIds.push(userDoc.id);
     }
 
-    // 2) Busca pontos dos funcionários corrigidos
+    // 2) Busca pontos e banco de horas dos funcionários corrigidos
     for (const uid of userIds) {
+        // Pontos
         const pontosSnap = await admin.firestore()
             .collection("pontos")
             .where("userId", "==", uid)
@@ -263,10 +264,25 @@ exports.corrigirCompanyFuncionarios = onCall({ region: "southamerica-east1", cor
                 pontosCorrigidos++;
             }
         }
+
+        // Banco de Horas
+        const bancoSnap = await admin.firestore()
+            .collection("banco_horas")
+            .where("userId", "==", uid)
+            .get();
+
+        for (const bancoDoc of bancoSnap.docs) {
+            if (bancoDoc.data().companyId !== companyId) {
+                batch.update(bancoDoc.ref, { companyId });
+                // Não precisa de contador específico para banco_horas no retorno hoje, 
+                // mas caso queira monitorar no console
+                console.log(`  -> Corrigindo banco de horas ${bancoDoc.id}`);
+            }
+        }
     }
 
     // 3) Commit
-    if (usersCorrigidos > 0 || pontosCorrigidos > 0) {
+    if (usersCorrigidos > 0 || pontosCorrigidos > 0 || batch._ops.length > 0) {
         await batch.commit();
     }
 

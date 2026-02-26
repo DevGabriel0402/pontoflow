@@ -100,12 +100,30 @@ const Lista = styled.div`
   border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: ${({ theme }) => theme.raio.lg};
   box-shadow: ${({ theme }) => theme.sombra.forte};
-  overflow: hidden;
   
-  max-height: ${({ $aberto }) => ($aberto ? "300px" : "0")};
+  /* Ajustes para Scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: ${({ $aberto }) => ($aberto ? "350px" : "0")};
+  
   opacity: ${({ $aberto }) => ($aberto ? "1" : "0")};
   pointer-events: ${({ $aberto }) => ($aberto ? "all" : "none")};
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Estilização da barra de rolagem (Scrollbar) */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.cores.borda};
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: ${({ theme }) => theme.cores.texto2};
+  }
 `;
 
 const Opcao = styled.div`
