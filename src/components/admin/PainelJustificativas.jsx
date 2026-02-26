@@ -1,12 +1,13 @@
 import React from "react";
 import styled from "styled-components";
-import { collection, onSnapshot, query, where, updateDoc, addDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, updateDoc, addDoc, doc, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiCheck, FiX, FiUser, FiClock, FiMessageSquare } from "react-icons/fi";
+import { FiCheck, FiX, FiUser, FiClock, FiMessageSquare, FiPaperclip, FiEdit, FiCalendar, FiExternalLink } from "react-icons/fi";
+import SeletorAcordeao from "../SeletorAcordeao";
 
 const STATUS_LABEL = {
     pendente: { label: "Pendente", cor: "#f39c12" },
@@ -19,6 +20,15 @@ const TIPO_LABEL = {
     INICIO_INTERVALO: "Início Intervalo",
     FIM_INTERVALO: "Fim Intervalo",
     SAIDA: "Saída",
+};
+
+const TIPO_ANEXO_LABEL = {
+    SEM_ANEXO: "Nenhum",
+    ATESTADO_MEDICO: "Atestado Médico",
+    COMPARECIMENTO: "Declaração Téc/Comparecimento",
+    OBITO: "Atestado de Óbito Familiar",
+    NASCIMENTO: "Atestado de Nascimento",
+    OUTRO: "Outro"
 };
 
 function formatarDataHora(str) {
@@ -45,6 +55,15 @@ export default function PainelJustificativas() {
     const [motivoRejeicao, setMotivoRejeicao] = React.useState("");
     const [processando, setProcessando] = React.useState(null);
 
+    // Filtros de Data
+    const hoje = new Date();
+    const [mesSelecionado, setMesSelecionado] = React.useState(hoje.getMonth());
+    const [anoSelecionado, setAnoSelecionado] = React.useState(hoje.getFullYear());
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    // View de Foto Modal
+    const [anexoVisualizando, setAnexoVisualizando] = React.useState(null);
+
     React.useEffect(() => {
         if (!usuario) return;
 
@@ -68,12 +87,64 @@ export default function PainelJustificativas() {
     }, [usuario, perfil?.companyId]);
 
 
-    const pendentes = itens.filter(i => i.status === "pendente");
-    const filtrados = itens.filter(i => i.status === aba);
+    // Filtragem local por mês e ano
+    const itensFiltradosPorData = React.useMemo(() => {
+        return itens.filter(item => {
+            const dateStr = item.dataHoraSolicitada || "";
+            if (!dateStr || dateStr.length < 7) return true; // fallback
+            // dataHoraSolicitada = "YYYY-MM-DDTHH:mm"
+            const anoloc = parseInt(dateStr.substring(0, 4));
+            const mesloc = parseInt(dateStr.substring(5, 7)) - 1; // 0-indexed
+            return anoloc === anoSelecionado && mesloc === mesSelecionado;
+        });
+    }, [itens, mesSelecionado, anoSelecionado]);
+
+    const pendentes = itensFiltradosPorData.filter(i => i.status === "pendente");
+    const filtrados = itensFiltradosPorData.filter(i => i.status === aba);
 
     const handleAprovar = async (item) => {
         setProcessando(item.id);
         try {
+            let dataHoraFinal = item.dataHoraSolicitada;
+
+            // Se for justificativa de "FIM_INTERVALO", buscar o "INICIO_INTERVALO" correspondente do dia para cravar exata 1 hora depois
+            if (item.tipo === "FIM_INTERVALO") {
+                const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
+
+                const q = query(
+                    collection(db, "pontos"),
+                    where("userId", "==", item.userId),
+                    where("type", "==", "INICIO_INTERVALO")
+                );
+
+                const snap = await getDocs(q);
+                let inicioEncontrado = null;
+
+                snap.docs.forEach(d => {
+                    const obj = d.data();
+                    const dLocal = obj.dataHoraOriginal
+                        ? obj.dataHoraOriginal.substring(0, 10)
+                        : (obj.criadoEm?.toDate ? format(obj.criadoEm.toDate(), "yyyy-MM-dd") : "");
+
+                    if (dLocal === dateSolicitada) {
+                        inicioEncontrado = obj;
+                    }
+                });
+
+                if (inicioEncontrado) {
+                    const dataObj = inicioEncontrado.dataHoraOriginal
+                        ? new Date(inicioEncontrado.dataHoraOriginal)
+                        : inicioEncontrado.criadoEm.toDate();
+
+                    // Adiciona exatamente 1 hora
+                    dataObj.setHours(dataObj.getHours() + 1);
+                    dataHoraFinal = format(dataObj, "yyyy-MM-dd'T'HH:mm");
+                    toast.success("O sistema fixou o retorno em exatamente 1 hora após o intervalo.", { duration: 4000 });
+                } else {
+                    toast.error("Início do intervalo não encontrado neste dia. O horário solicitado na justificativa foi mantido.", { duration: 4500 });
+                }
+            }
+
             // Cria o ponto retroativamente
             await addDoc(collection(db, "pontos"), {
                 userId: item.userId,
@@ -88,7 +159,7 @@ export default function PainelJustificativas() {
                 criadoEm: serverTimestamp(),
                 origem: "justificativa_aprovada",
                 justificativaId: item.id,
-                dataHoraOriginal: item.dataHoraSolicitada,
+                dataHoraOriginal: dataHoraFinal,
             });
             // Atualiza status
             await updateDoc(doc(db, "justificativas", item.id), {
@@ -127,6 +198,26 @@ export default function PainelJustificativas() {
         }
     };
 
+    const handleVoltarPendente = async (item) => {
+        if (!window.confirm("Deseja voltar esta justificativa para Análise (Pendente)? O ponto será mantido (se foi aprovado) e precisará ser ajustado manualmente se necessário.")) return;
+        setProcessando(item.id);
+        try {
+            await updateDoc(doc(db, "justificativas", item.id), {
+                status: "pendente",
+                avaliadoPor: null,
+                avaliadoPorNome: null,
+                avaliadoEm: null,
+                motivoRejeicao: null,
+            });
+            toast.success("Status retornado para Pendente!");
+        } catch (e) {
+            console.error(e);
+            toast.error("Erro ao alterar o status.");
+        } finally {
+            setProcessando(null);
+        }
+    };
+
     return (
         <Container>
             <Tabs>
@@ -139,6 +230,26 @@ export default function PainelJustificativas() {
                     </Tab>
                 ))}
             </Tabs>
+
+            <FiltrosBar>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#8d8d99', fontSize: 13, fontWeight: 600 }}>
+                    <FiCalendar /> Filtrar por Mês:
+                </div>
+                <SeletorWrapper>
+                    <SeletorAcordeao
+                        opcoes={meses.map((m, i) => ({ value: i, label: m }))}
+                        value={mesSelecionado}
+                        onChange={(val) => setMesSelecionado(Number(val))}
+                    />
+                </SeletorWrapper>
+                <SeletorWrapper $small>
+                    <SeletorAcordeao
+                        opcoes={[hoje.getFullYear() - 2, hoje.getFullYear() - 1, hoje.getFullYear()].map(a => ({ value: a, label: String(a) }))}
+                        value={anoSelecionado}
+                        onChange={(val) => setAnoSelecionado(Number(val))}
+                    />
+                </SeletorWrapper>
+            </FiltrosBar>
 
             {filtrados.length === 0 ? (
                 <Vazio>
@@ -191,6 +302,21 @@ export default function PainelJustificativas() {
                                     {item.justificativa}
                                 </Justificativa>
 
+                                {item.tipoAnexo && item.tipoAnexo !== "SEM_ANEXO" && (
+                                    <AnexoInfo>
+                                        <div className="resumo">
+                                            <FiPaperclip size={14} color="#4facfe" />
+                                            <span>Documento anexado:</span>
+                                            <strong>{TIPO_ANEXO_LABEL[item.tipoAnexo] || item.tipoAnexo}</strong>
+                                        </div>
+                                        {item.anexoUrl && (
+                                            <BtnVerAnexo onClick={() => setAnexoVisualizando(item.anexoUrl)}>
+                                                <FiExternalLink /> Ver Anexo
+                                            </BtnVerAnexo>
+                                        )}
+                                    </AnexoInfo>
+                                )}
+
                                 {item.motivoRejeicao && (
                                     <MotivoRejeicao>
                                         <strong>Motivo da rejeição:</strong> {item.motivoRejeicao}
@@ -237,9 +363,29 @@ export default function PainelJustificativas() {
                                         )}
                                     </>
                                 )}
+                                {item.status !== "pendente" && (
+                                    <AcoesSecundarias>
+                                        <BtnEditar onClick={() => handleVoltarPendente(item)} disabled={processando === item.id}>
+                                            <FiEdit size={13} />
+                                            Editar Status
+                                        </BtnEditar>
+                                    </AcoesSecundarias>
+                                )}
                             </Card>
                         ))}
                 </Lista>
+            )}
+
+            {/* Modal de visualização de anexo */}
+            {anexoVisualizando && (
+                <Overlay onClick={() => setAnexoVisualizando(null)}>
+                    <ModalImg>
+                        <BtnFecharModal onClick={() => setAnexoVisualizando(null)}>
+                            <FiX size={24} />
+                        </BtnFecharModal>
+                        <img src={anexoVisualizando} alt="Atestado" />
+                    </ModalImg>
+                </Overlay>
             )}
         </Container>
     );

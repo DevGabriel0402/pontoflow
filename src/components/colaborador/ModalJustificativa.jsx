@@ -1,6 +1,6 @@
 import React from "react";
 import styled, { keyframes } from "styled-components";
-import { FiX, FiSend, FiClock } from "react-icons/fi";
+import { FiX, FiSend, FiClock, FiPaperclip } from "react-icons/fi";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
@@ -14,12 +14,26 @@ const TIPOS = [
     { value: "SAIDA", label: "Saída" },
 ];
 
+const TIPOS_ANEXO = [
+    { value: "SEM_ANEXO", label: "Não possuo anexo" },
+    { value: "ATESTADO_MEDICO", label: "Atestado Médico" },
+    { value: "COMPARECIMENTO", label: "Declaração Téc/Comparecimento" },
+    { value: "OBITO", label: "Atestado de Óbito Familiar" },
+    { value: "NASCIMENTO", label: "Atestado de Nascimento" },
+    { value: "OUTRO", label: "Outro" }
+];
+
 export default function ModalJustificativa({ aberto, onFechar }) {
     const { usuario, perfil } = useAuth();
     const [tipo, setTipo] = React.useState("ENTRADA");
     const [dataHora, setDataHora] = React.useState("");
     const [texto, setTexto] = React.useState("");
     const [enviando, setEnviando] = React.useState(false);
+
+    const [tipoAnexo, setTipoAnexo] = React.useState("SEM_ANEXO");
+    const [anexoBase64, setAnexoBase64] = React.useState(null);
+    const [nomeArquivo, setNomeArquivo] = React.useState("");
+    const fileInputRef = React.useRef(null);
 
     // Pre-fill datetime with now when modal opens
     React.useEffect(() => {
@@ -29,8 +43,61 @@ export default function ModalJustificativa({ aberto, onFechar }) {
             setDataHora(format(now, "yyyy-MM-dd'T'HH:mm"));
             setTexto("");
             setTipo("ENTRADA");
+            setTipoAnexo("SEM_ANEXO");
+            setAnexoBase64(null);
+            setNomeArquivo("");
         }
     }, [aberto]);
+
+    const lidarComUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Verifica tipo
+        if (!file.type.startsWith("image/")) {
+            toast.error("Por favor, envie apenas imagens (JPG, PNG).");
+            return;
+        }
+
+        // Comprime a imagem gerando um base64
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                const MAX_W = 1000;
+                const MAX_H = 1000;
+                let w = img.width;
+                let h = img.height;
+
+                if (w > h) {
+                    if (w > MAX_W) { h *= MAX_W / w; w = MAX_W; }
+                } else {
+                    if (h > MAX_H) { w *= MAX_H / h; h = MAX_H; }
+                }
+
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.6); // comprime 60% qualidade
+
+                // O Firebase DB tem limite de 1MB por documento inteiro.
+                // 1MB em base64 é aprox 1.332.000 caracteres.
+                if (dataUrl.length > 900000) {
+                    toast.error("Imagem muito grande mesmo após compressão. Tire outra foto mais simples.");
+                    return;
+                }
+
+                setAnexoBase64(dataUrl);
+                setNomeArquivo(file.name);
+            };
+        };
+    };
 
     const handleEnviar = async () => {
         if (!texto.trim() || texto.trim().length < 10) {
@@ -41,6 +108,11 @@ export default function ModalJustificativa({ aberto, onFechar }) {
             toast.error("Informe a data e horário do ponto esquecido.");
             return;
         }
+        if (tipoAnexo !== "SEM_ANEXO" && !anexoBase64) {
+            toast.error("Você informou um tipo de atestado, por favor anexe a imagem!");
+            return;
+        }
+
         setEnviando(true);
         try {
             await addDoc(collection(db, "justificativas"), {
@@ -55,8 +127,16 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                 avaliadoPor: null,
                 avaliadoEm: null,
                 motivoRejeicao: null,
+                tipoAnexo: tipoAnexo,
+                anexoUrl: anexoBase64, // Enviando string base64 direto pro DB
+                anexoNome: nomeArquivo,
             });
-            toast.success("Justificativa enviada! Aguarde a aprovação do administrador.");
+
+            if (anexoBase64) {
+                toast.success("Justificativa e anexo entregues para o RH!");
+            } else {
+                toast.success("Justificativa enviada! Aguarde a aprovação do administrador.");
+            }
             onFechar();
         } catch (e) {
             console.error(e);
@@ -111,7 +191,36 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                     />
                     <Contador $aviso={texto.length > 350}>{texto.length}/400</Contador>
 
-                    <BtnEnviar onClick={handleEnviar} disabled={enviando}>
+                    <Label style={{ marginTop: 20 }}>Anexar Atestado / Documento (Opcional)</Label>
+                    <Select value={tipoAnexo} onChange={(e) => {
+                        setTipoAnexo(e.target.value);
+                        if (e.target.value === "SEM_ANEXO") {
+                            setAnexoBase64(null);
+                            setNomeArquivo("");
+                        }
+                    }}>
+                        {TIPOS_ANEXO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </Select>
+
+                    {tipoAnexo !== "SEM_ANEXO" && (
+                        <AnexoUploadWrapper>
+                            <BtnUpload type="button" onClick={() => fileInputRef.current?.click()}>
+                                <FiPaperclip size={16} />
+                                {nomeArquivo ? "Trocar imagem" : "Selecionar imagem do documento"}
+                            </BtnUpload>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                ref={fileInputRef}
+                                style={{ display: "none" }}
+                                onChange={lidarComUpload}
+                            />
+                            {nomeArquivo && <NomeArquivo>Anexado: <strong>{nomeArquivo}</strong></NomeArquivo>}
+                            {anexoBase64 && <PreviewImg src={anexoBase64} />}
+                        </AnexoUploadWrapper>
+                    )}
+
+                    <BtnEnviar onClick={handleEnviar} disabled={enviando} style={{ marginTop: 20 }}>
                         <FiSend size={16} />
                         {enviando ? "Enviando..." : "Enviar Justificativa"}
                     </BtnEnviar>
@@ -265,4 +374,68 @@ const BtnEnviar = styled.button`
     transition: filter 0.2s;
     &:hover:not(:disabled) { filter: brightness(1.08); }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+
+const Select = styled.select`
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    &:focus { border-color: #4facfe; }
+
+    option {
+        background: #111;
+        color: #fff;
+    }
+`;
+
+const AnexoUploadWrapper = styled.div`
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+`;
+
+const BtnUpload = styled.button`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1.5px dashed rgba(255,255,255,0.3);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: #4facfe;
+        color: #4facfe;
+    }
+`;
+
+const NomeArquivo = styled.div`
+    font-size: 12px;
+    color: #2ecc71;
+    display: flex;
+    align-items: center;
+`;
+
+const PreviewImg = styled.img`
+    width: 100%;
+    max-height: 140px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    opacity: 0.8;
 `;

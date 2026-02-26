@@ -101,7 +101,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const resumoPorFunc = useMemo(() => {
     return colaboradores.map((f) => {
       const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
-      const dias = calcularResumoDiario(pontosFunc, f.jornada);
+      const confJornada = f.jornadas || f.jornada;
+      const dias = calcularResumoDiario(pontosFunc, confJornada);
 
       const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
       const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
@@ -115,13 +116,25 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
       const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
       const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
 
-      // Calcular minutos de um dia de jornada para converter horas -> dias
+      // Calcular minutos de um dia (base Segunda) para converter horas -> dias
       const jornadaMin = (() => {
-        if (!f.jornada?.entrada || !f.jornada?.saida) return 480; // fallback 8h
-        const ini = horaParaMin(f.jornada.entrada);
-        const fim = horaParaMin(f.jornada.saida);
-        const pausa = f.jornada.intervaloMin ?? 60;
-        return Math.max(1, fim - ini - pausa);
+        if (f.jornadas?.segunda?.ativo) {
+          const ls = f.jornadas.segunda;
+          const i = horaParaMin(ls.entrada) || 0;
+          const fim = horaParaMin(ls.saida) || 0;
+          let pausa = ls.intervaloMin ?? 60;
+          if (ls.inicioIntervalo && ls.fimIntervalo) {
+            pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
+          }
+          return Math.max(1, fim - i - pausa);
+        }
+        if (f.jornada?.entrada && f.jornada?.saida) {
+          const ini = horaParaMin(f.jornada.entrada);
+          const fim = horaParaMin(f.jornada.saida);
+          const pausa = f.jornada.intervaloMin ?? 60;
+          return Math.max(1, fim - ini - pausa);
+        }
+        return 480; // fallback 8h
       })();
 
       const saldoTotalDias = saldoTotal / jornadaMin;
@@ -152,7 +165,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const handleExportarCSV = () => {
     const dadosParaExportar = resumoPorFunc.map(({ func, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => ({
       nome: func.nome || "—",
-      jornada: func.jornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "—",
+      jornada: func.jornadas ? "Semanal" : (func.jornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "—"),
       totalTrabalhado: formatarDuracao(totalTrabalhadoMinutos),
       totalEsperado: formatarDuracao(totalEsperadoMinutos),
       mediaDiaria: formatarDuracao(mediaTrabalhadaDia),
@@ -312,7 +325,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
               </tr>
             )}
             {resumoPorFunc.map(({ func, dias, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => {
-              const temJornada = !!func.jornada?.entrada && !!func.jornada?.saida;
+              const temJornadaSemanal = !!func.jornadas;
+              const temJornadaLegada = !!func.jornada?.entrada && !!func.jornada?.saida;
+              const lblJornada = temJornadaSemanal
+                ? "Semanal (Ver perfil)"
+                : (temJornadaLegada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "Sem jornada");
               const isExpandido = expandido === func.id;
 
               return (
@@ -329,14 +346,14 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                     <td>
                       <NomeFunc>{func.nome}</NomeFunc>
                       <small style={{ display: "block", fontSize: 10, color: "#666" }}>
-                        {temJornada ? `${func.jornada.entrada} - ${func.jornada.saida}` : "Sem jornada"}
+                        {lblJornada}
                       </small>
                     </td>
                     <td>
                       <DuracaoTexto>{formatarDuracao(totalTrabalhadoMinutos)}</DuracaoTexto>
                     </td>
                     <td>
-                      {temJornada
+                      {temJornadaSemanal || temJornadaLegada
                         ? <SaldoBadge $positivo={somaAutoMinutos >= 0}>{formatarSaldo(somaAutoMinutos)}</SaldoBadge>
                         : <SemDados>—</SemDados>
                       }

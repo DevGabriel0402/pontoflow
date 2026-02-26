@@ -43,8 +43,8 @@ export function useSaldoBancoHoras(userId, perfil) {
 
     const saldo = useMemo(() => {
         if (!perfil) return { saldoHoras: 0, saldoDias: 0 };
-
-        const dias = calcularResumoDiario(pontos, perfil.jornada);
+        const confJornada = perfil.jornadas || perfil.jornada;
+        const dias = calcularResumoDiario(pontos, confJornada);
 
         // Saldo automático (pontos vs jornada)
         const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
@@ -56,13 +56,24 @@ export function useSaldoBancoHoras(userId, perfil) {
 
         const saldoTotalMinutos = somaAutoMinutos + somaManualMinutos;
 
-        // Calcular minutos de um dia de jornada para converter horas -> dias
         const jornadaMin = (() => {
-            if (!perfil.jornada?.entrada || !perfil.jornada?.saida) return 480; // fallback 8h
-            const ini = horaParaMin(perfil.jornada.entrada);
-            const fim = horaParaMin(perfil.jornada.saida);
-            const pausa = perfil.jornada.intervaloMin ?? 60;
-            return Math.max(1, fim - ini - pausa);
+            if (perfil.jornadas?.segunda?.ativo) {
+                const ls = perfil.jornadas.segunda;
+                const i = horaParaMin(ls.entrada) || 0;
+                const f = horaParaMin(ls.saida) || 0;
+                let pausa = ls.intervaloMin ?? 60;
+                if (ls.inicioIntervalo && ls.fimIntervalo) {
+                    pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
+                }
+                return Math.max(1, f - i - pausa);
+            }
+            if (perfil.jornada?.entrada && perfil.jornada?.saida) {
+                const ini = horaParaMin(perfil.jornada.entrada);
+                const fim = horaParaMin(perfil.jornada.saida);
+                const pausa = perfil.jornada.intervaloMin ?? 60;
+                return Math.max(1, fim - ini - pausa);
+            }
+            return 480; // fallback 8h
         })();
 
         const saldoTotalDias = saldoTotalMinutos / jornadaMin;

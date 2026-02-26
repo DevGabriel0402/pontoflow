@@ -47,14 +47,14 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
         );
     }
 
-    const { nome, email, dataNascimento, role, jornada } = request.data || {};
+    const { nome, email, dataNascimento, role, jornadas, jornada } = request.data || {};
     if (!nome || !email || !dataNascimento) {
         throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
 
     const senhaTemp = gerarSenhaPadrao(nome.trim(), dataNascimento);
 
-    // Monta objeto de jornada se fornecido
+    // Monta objeto de jornada (legacy) se fornecido
     const jornadaData = jornada ? {
         entrada: jornada.entrada || "08:00",
         inicioIntervalo: jornada.inicioIntervalo || "12:00",
@@ -62,7 +62,6 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
         saida: jornada.saida || "17:00",
     } : null;
 
-    // Calcula carga horária diária em minutos
     if (jornadaData) {
         const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
         const trabManha = toMin(jornadaData.inicioIntervalo) - toMin(jornadaData.entrada);
@@ -91,7 +90,9 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
             criadoPor: adminUid,
         };
 
-        if (jornadaData) {
+        if (jornadas) {
+            userData.jornadas = jornadas;
+        } else if (jornadaData) {
             userData.jornada = jornadaData;
         }
 

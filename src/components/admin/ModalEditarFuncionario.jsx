@@ -6,150 +6,206 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
 
 export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }) {
-    const [nome, setNome] = useState("");
-    const [email, setEmail] = useState("");
-    const [dataNascimento, setDataNascimento] = useState("");
-    const [role, setRole] = useState("colaborador");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [role, setRole] = useState("colaborador");
 
-    // Jornada
-    const [entrada, setEntrada] = useState("08:00");
-    const [inicioIntervalo, setInicioIntervalo] = useState("12:00");
-    const [fimIntervalo, setFimIntervalo] = useState("13:00");
-    const [saida, setSaida] = useState("17:00");
+  // Jornada (Segunda a Domingo)
+  const [jornadas, setJornadas] = useState({
+    segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
+    terca: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
+    quarta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
+    quinta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
+    sexta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
+    sabado: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
+    domingo: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
+  });
 
-    const [carregando, setCarregando] = useState(false);
+  const diasSemanaInfo = [
+    { key: "segunda", label: "Segunda" },
+    { key: "terca", label: "Terça" },
+    { key: "quarta", label: "Quarta" },
+    { key: "quinta", label: "Quinta" },
+    { key: "sexta", label: "Sexta" },
+    { key: "sabado", label: "Sábado" },
+    { key: "domingo", label: "Domingo" },
+  ];
 
-    // Preenche os campos com os dados do funcionário
-    useEffect(() => {
-        if (funcionario) {
-            setNome(funcionario.nome || "");
-            setEmail(funcionario.email || "");
-            setDataNascimento(funcionario.dataNascimento || "");
-            setRole(funcionario.role || "colaborador");
-            setEntrada(funcionario.jornada?.entrada || "08:00");
-            setInicioIntervalo(funcionario.jornada?.inicioIntervalo || "12:00");
-            setFimIntervalo(funcionario.jornada?.fimIntervalo || "13:00");
-            setSaida(funcionario.jornada?.saida || "17:00");
-        }
-    }, [funcionario]);
+  const [carregando, setCarregando] = useState(false);
 
-    const handleSalvar = async (e) => {
-        e.preventDefault();
-        if (!funcionario?.id) return;
+  // Preenche os campos com os dados do funcionário
+  useEffect(() => {
+    if (funcionario) {
+      setNome(funcionario.nome || "");
+      setEmail(funcionario.email || "");
+      setDataNascimento(funcionario.dataNascimento || "");
+      setRole(funcionario.role || "colaborador");
+      setRole(funcionario.role || "colaborador");
 
-        setCarregando(true);
-        try {
-            // Calcula carga horária
-            const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
-            const trabManha = toMin(inicioIntervalo) - toMin(entrada);
-            const trabTarde = toMin(saida) - toMin(fimIntervalo);
-            const cargaHorariaDiaria = trabManha + trabTarde;
+      if (funcionario.jornadas) {
+        setJornadas(funcionario.jornadas);
+      } else if (funcionario.jornada) {
+        // Modo legado: copia os horários antigos para os dias úteis
+        const l = funcionario.jornada;
+        const copiaLegada = {
+          entrada: l.entrada || "08:00",
+          inicioIntervalo: l.inicioIntervalo || "12:00",
+          fimIntervalo: l.fimIntervalo || "13:00",
+          saida: l.saida || "17:00",
+          ativo: true
+        };
+        setJornadas({
+          segunda: { ...copiaLegada },
+          terca: { ...copiaLegada },
+          quarta: { ...copiaLegada },
+          quinta: { ...copiaLegada },
+          sexta: { ...copiaLegada },
+          sabado: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
+          domingo: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
+        });
+      }
+    }
+  }, [funcionario]);
 
-            await updateDoc(doc(db, "users", funcionario.id), {
-                nome: nome.trim(),
-                dataNascimento,
-                role,
-                jornada: {
-                    entrada,
-                    inicioIntervalo,
-                    fimIntervalo,
-                    saida,
-                    cargaHorariaDiaria,
-                },
-            });
-            toast.success("Funcionário atualizado!");
-            onFechar();
-        } catch (err) {
-            console.error(err);
-            toast.error(err?.message || "Erro ao salvar.");
-        } finally {
-            setCarregando(false);
-        }
-    };
+  const handleSalvar = async (e) => {
+    e.preventDefault();
+    if (!funcionario?.id) return;
 
-    if (!aberto || !funcionario) return null;
+    setCarregando(true);
+    try {
+      await updateDoc(doc(db, "users", funcionario.id), {
+        nome: nome.trim(),
+        dataNascimento,
+        role,
+        jornadas,
+      });
+      toast.success("Funcionário atualizado!");
+      onFechar();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Erro ao salvar.");
+    } finally {
+      setCarregando(false);
+    }
+  };
 
-    return (
-        <Overlay>
-            <Modal>
-                <Topo>
-                    <Titulo>
-                        <FiEdit2 size={18} />
-                        Editar Funcionário
-                    </Titulo>
-                    <Fechar onClick={onFechar}>
-                        <FiX size={18} />
-                    </Fechar>
-                </Topo>
+  if (!aberto || !funcionario) return null;
 
-                <Form onSubmit={handleSalvar}>
-                    <Campo>
-                        <label>Nome</label>
-                        <input value={nome} onChange={(e) => setNome(e.target.value)} />
-                    </Campo>
+  return (
+    <Overlay>
+      <Modal>
+        <Topo>
+          <Titulo>
+            <FiEdit2 size={18} />
+            Editar Funcionário
+          </Titulo>
+          <Fechar onClick={onFechar}>
+            <FiX size={18} />
+          </Fechar>
+        </Topo>
 
-                    <Campo>
-                        <label>Email</label>
-                        <input value={email} disabled style={{ opacity: 0.5 }} title="Email não pode ser alterado" />
-                    </Campo>
+        <Form onSubmit={handleSalvar}>
+          <Campo>
+            <label>Nome</label>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} />
+          </Campo>
 
-                    <Campo>
-                        <label>Data de Nascimento</label>
-                        <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
-                    </Campo>
+          <Campo>
+            <label>Email</label>
+            <input value={email} disabled style={{ opacity: 0.5 }} title="Email não pode ser alterado" />
+          </Campo>
 
-                    <Campo>
-                        <label>Tipo de Acesso</label>
-                        <RoleSelector>
-                            <RoleOption
-                                $ativo={role === 'colaborador'}
-                                onClick={() => setRole('colaborador')}
-                                type="button"
-                            >
-                                Colaborador
-                            </RoleOption>
-                            <RoleOption
-                                $ativo={role === 'admin'}
-                                onClick={() => setRole('admin')}
-                                type="button"
-                            >
-                                Administrador
-                            </RoleOption>
-                        </RoleSelector>
-                    </Campo>
+          <Campo>
+            <label>Data de Nascimento</label>
+            <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+          </Campo>
 
-                    <Separador />
+          <Campo>
+            <label>Tipo de Acesso</label>
+            <RoleSelector>
+              <RoleOption
+                $ativo={role === 'colaborador'}
+                onClick={() => setRole('colaborador')}
+                type="button"
+              >
+                Colaborador
+              </RoleOption>
+              <RoleOption
+                $ativo={role === 'admin'}
+                onClick={() => setRole('admin')}
+                type="button"
+              >
+                Administrador
+              </RoleOption>
+            </RoleSelector>
+          </Campo>
 
-                    <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornada de Trabalho</label>
-                    <GradeHorarios>
-                        <Campo>
-                            <label>Entrada</label>
-                            <input type="time" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
-                        </Campo>
-                        <Campo>
-                            <label>Início Intervalo</label>
-                            <input type="time" value={inicioIntervalo} onChange={(e) => setInicioIntervalo(e.target.value)} />
-                        </Campo>
-                        <Campo>
-                            <label>Fim Intervalo</label>
-                            <input type="time" value={fimIntervalo} onChange={(e) => setFimIntervalo(e.target.value)} />
-                        </Campo>
-                        <Campo>
-                            <label>Saída</label>
-                            <input type="time" value={saida} onChange={(e) => setSaida(e.target.value)} />
-                        </Campo>
-                    </GradeHorarios>
+          <Separador />
 
-                    <Rodape>
-                        <BtnGhost type="button" onClick={onFechar}>Cancelar</BtnGhost>
-                        <BtnPrimary disabled={carregando || !nome.trim()}>
-                            {carregando ? "Salvando..." : "Salvar"}
-                        </BtnPrimary>
-                    </Rodape>
-                </Form>
-            </Modal>
-        </Overlay>
-    );
+          <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornada Semanal</label>
+          <JornadaArea>
+            {diasSemanaInfo.map((dia) => {
+              const conf = jornadas[dia.key];
+              return (
+                <DiaRow key={dia.key} $ativo={conf.ativo}>
+                  <DiaHeader>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={conf.ativo}
+                        onChange={(e) => setJornadas(pd => ({
+                          ...pd,
+                          [dia.key]: { ...pd[dia.key], ativo: e.target.checked }
+                        }))}
+                      />
+                      {dia.label}
+                    </label>
+                  </DiaHeader>
+
+                  {conf.ativo && (
+                    <HorariosInputs>
+                      <InputSlim
+                        type="time"
+                        value={conf.entrada}
+                        title="Entrada"
+                        onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
+                      />
+                      <InputSlim
+                        type="time"
+                        value={conf.inicioIntervalo}
+                        title="Início Intervalo"
+                        onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
+                      />
+                      <InputSlim
+                        type="time"
+                        value={conf.fimIntervalo}
+                        title="Fim Intervalo"
+                        onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
+                      />
+                      <InputSlim
+                        type="time"
+                        value={conf.saida}
+                        title="Saída"
+                        onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                      />
+                    </HorariosInputs>
+                  )}
+                </DiaRow>
+              );
+            })}
+          </JornadaArea>
+
+          <Rodape>
+            <BtnGhost type="button" onClick={onFechar}>Cancelar</BtnGhost>
+            <BtnPrimary disabled={carregando || !nome.trim()}>
+              {carregando ? "Salvando..." : "Salvar"}
+            </BtnPrimary>
+          </Rodape>
+        </Form>
+      </Modal>
+    </Overlay>
+  );
 }
 
 /* ─── STYLED COMPONENTS ─── */
@@ -296,12 +352,68 @@ const Separador = styled.div`
   margin: 4px 0;
 `;
 
-const GradeHorarios = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+const JornadaArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
 
-  @media (max-width: 400px) {
-    grid-template-columns: 1fr;
+const DiaRow = styled.div`
+  background: ${({ theme, $ativo }) => $ativo ? theme.cores.superficie : "transparent"};
+  border: 1px solid ${({ theme, $ativo }) => $ativo ? theme.cores.borda : "transparent"};
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: ${({ $ativo }) => $ativo ? 1 : 0.6};
+  transition: all 0.2s;
+`;
+
+const DiaHeader = styled.div`
+  font-weight: 700;
+  font-size: 13px;
+  color: ${({ theme }) => theme.cores.texto};
+  
+  label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  input[type="checkbox"] {
+    accent-color: ${({ theme }) => theme.cores.azul};
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+`;
+
+const HorariosInputs = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+`;
+
+const InputSlim = styled.input`
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  background: rgba(255,255,255,0.03);
+  color: ${({ theme }) => theme.cores.texto};
+  font-size: 13px;
+  outline: none;
+
+  &::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+  &:focus {
+    border-color: ${({ theme }) => theme.cores.azul};
   }
 `;

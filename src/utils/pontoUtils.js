@@ -29,15 +29,44 @@ export function formatarDuracao(totalMinutos) {
  * Para um único funcionário e lista de pontos, calcula o resumo diário.
  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
  */
-export function calcularResumoDiario(pontos, jornada) {
-    const minutosEsperadosDia = (() => {
-        if (!jornada?.entrada || !jornada?.saida) return null;
-        const ini = horaParaMin(jornada.entrada);
-        const fim = horaParaMin(jornada.saida);
-        const pausaMin = jornada.intervaloMin ?? 60; // pausa padrão 60min se não configurado
-        if (ini === null || fim === null) return null;
+export function calcularResumoDiario(pontos, jornadas) {
+    // Array para mapear o .getDay() do JS para a nossa chave de jornadas
+    const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+
+    const extrairEsperadoParaDia = (dataObj) => {
+        if (!jornadas) return null; // Sem configuração nenhuma
+
+        let jDia = null;
+
+        // Verifica se é a estrutura nova { segunda: {...}, terca: {...} }
+        if (jornadas.segunda || jornadas.domingo) {
+            const index = dataObj.getDay();
+            const diaStr = mapDias[index];
+            jDia = jornadas[diaStr];
+        } else if (jornadas.entrada && jornadas.saida) {
+            // Estrutura Legada (uma única jornada genérica presumida de Seg a Sex)
+            const isFDS = dataObj.getDay() === 0 || dataObj.getDay() === 6;
+            jDia = isFDS ? { ativo: false } : { ...jornadas, ativo: true };
+        }
+
+        if (!jDia || !jDia.ativo) return 0; // Folga = esperado 0
+
+        const ini = horaParaMin(jDia.entrada);
+        const fim = horaParaMin(jDia.saida);
+        if (ini === null || fim === null) return 0;
+
+        // Pega a duração real do intervalo definido na jornada (ex: 13:00 - 12:00 = 60)
+        let pausaMin = jDia.intervaloMin ?? 60; // fallback pra legado
+        if (jDia.inicioIntervalo && jDia.fimIntervalo) {
+            const pIni = horaParaMin(jDia.inicioIntervalo);
+            const pFim = horaParaMin(jDia.fimIntervalo);
+            if (pIni !== null && pFim !== null) {
+                pausaMin = Math.max(0, pFim - pIni);
+            }
+        }
+
         return Math.max(0, fim - ini - pausaMin);
-    })();
+    };
 
     // Agrupa por data
     const grupos = {};
@@ -70,6 +99,7 @@ export function calcularResumoDiario(pontos, jornada) {
             status = "Sem Saída";
         }
 
+        const minutosEsperadosDia = extrairEsperadoParaDia(g.data);
         const diferenca = minutosEsperadosDia !== null
             ? minutosTrabalhados - minutosEsperadosDia
             : null;
