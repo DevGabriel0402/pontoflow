@@ -154,8 +154,8 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
                   { value: "30 Horas", label: "30 Horas" },
                   { value: "Livre", label: "Livre" }
                 ]}
-                selecionado={cargaHorariaSemanal}
-                aoSelecionar={setCargaHorariaSemanal}
+                value={cargaHorariaSemanal}
+                onChange={setCargaHorariaSemanal}
               />
             </SeletorWrapper>
           </Campo>
