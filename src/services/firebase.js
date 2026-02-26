@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -17,19 +18,15 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Usa getFirestore padrão — robusto e sem risco de corrupção do IndexedDB
-export const db = getFirestore(app);
-
-// Habilita persistência offline com fallback silencioso
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === "failed-precondition") {
-        console.warn("Firestore: múltiplas abas abertas — persistência offline desabilitada nesta aba.");
-    } else if (err.code === "unimplemented") {
-        console.warn("Firestore: navegador não suporta persistência offline.");
-    } else {
-        console.warn("Firestore: falha ao habilitar persistência offline:", err.message);
-    }
+// Inicialização recomendada pelo Firebase para lidar melhor com Cache IndexedDB
+// Evita erros de "corrupção" quando o usuário limpa dados do site com o app aberto
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
 });
+
+export const functions = getFunctions(app, "southamerica-east1");
 
 // Analytics pode falhar em alguns navegadores/ambientes
 export let analytics = null;
