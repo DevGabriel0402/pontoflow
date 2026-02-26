@@ -400,6 +400,35 @@ const Tabs = styled.div`
     margin-bottom: 20px;
 `;
 
+const FiltrosBar = styled.div`
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-wrap: wrap;
+`;
+
+const SelectFiltro = styled.select`
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    min-width: 120px;
+
+    option {
+        background: #1e1e24;
+        color: #fff;
+    }
+`;
+
 const Tab = styled.button`
     padding: 8px 18px;
     border-radius: 20px;
