@@ -3,14 +3,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import {
-  collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp
+  collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, deleteDoc, doc
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
 import { format, differenceInMinutes, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile, FiRefreshCw } from "react-icons/fi";
+import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile, FiRefreshCw, FiTrash2 } from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
   horaParaMin,
@@ -232,6 +232,18 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     }
   };
 
+  const handleExcluirLancamento = async (id) => {
+    if (!window.confirm("Certeza que deseja excluir este ajuste manual? Essa ação não pode ser desfeita e o banco de horas será recalculado.")) return;
+
+    try {
+      await deleteDoc(doc(db, "banco_horas", id));
+      toast.success("Ajuste excluído com sucesso!");
+    } catch (err) {
+      console.error("Erro ao excluir ajuste:", err);
+      toast.error("Erro ao excluir o ajuste.");
+    }
+  };
+
   return (
     <>
       {/* ── Cabeçalho ── */}
@@ -418,6 +430,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                     <th>Tipo</th>
                                     <th>Valor</th>
                                     <th>Descrição</th>
+                                    <th style={{ width: 40, textAlign: "center" }}></th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -437,6 +450,15 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                           </SaldoBadge>
                                         </td>
                                         <td style={{ fontSize: 12, color: "#aaa" }}>{l.descricao}</td>
+                                        <td style={{ textAlign: "center" }}>
+                                          <BtnAjusteLinha
+                                            style={{ color: "#e74c3c", borderColor: "transparent", padding: 4 }}
+                                            onClick={(e) => { e.stopPropagation(); handleExcluirLancamento(l.id); }}
+                                            title="Excluir ajuste"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </BtnAjusteLinha>
+                                        </td>
                                       </tr>
                                     ))
                                   }
