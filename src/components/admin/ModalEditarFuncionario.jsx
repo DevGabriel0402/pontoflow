@@ -11,6 +11,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
+  const [funcao, setFuncao] = useState("");
   const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
 
   // Jornada (Segunda a Domingo)
@@ -43,6 +44,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
       setEmail(funcionario.email || "");
       setDataNascimento(funcionario.dataNascimento || "");
       setRole(funcionario.role || "colaborador");
+      setFuncao(funcionario.funcao || "");
       setCargaHorariaSemanal(funcionario.cargaHorariaSemanal || "44 Horas");
 
       if (funcionario.jornadas) {
@@ -80,6 +82,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
         nome: nome.trim(),
         dataNascimento,
         role,
+        funcao: role === "colaborador" ? funcao.trim() : null,
         jornadas,
         cargaHorariaSemanal,
       });
@@ -143,6 +146,17 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
               </RoleOption>
             </RoleSelector>
           </Campo>
+
+          {role === 'colaborador' && (
+            <Campo>
+              <label>Função / Cargo</label>
+              <input
+                value={funcao}
+                onChange={(e) => setFuncao(e.target.value)}
+                placeholder="Ex: Professor, Secretário..."
+              />
+            </Campo>
+          )}
 
           <Campo>
             <label>Carga Horária Semanal</label>

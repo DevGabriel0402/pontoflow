@@ -10,6 +10,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
+  const [funcao, setFuncao] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
 
@@ -41,6 +42,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     setEmail("");
     setDataNascimento("");
     setRole("colaborador");
+    setFuncao("");
     setCargaHorariaSemanal("44 Horas");
     setJornadas({
       segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -77,6 +79,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
         email: email.trim(),
         dataNascimento,
         role,
+        funcao: role === "colaborador" ? funcao.trim() : null,
         jornadas,
         cargaHorariaSemanal
       });
@@ -141,6 +144,17 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
                 </RoleOption>
               </RoleSelector>
             </Campo>
+
+            {role === 'colaborador' && (
+              <Campo>
+                <label>Função / Cargo</label>
+                <input
+                  value={funcao}
+                  onChange={(e) => setFuncao(e.target.value)}
+                  placeholder="Ex: Professor, Secretário..."
+                />
+              </Campo>
+            )}
 
             <Separador />
 

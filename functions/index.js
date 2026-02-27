@@ -47,7 +47,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
         );
     }
 
-    const { nome, email, dataNascimento, role, jornadas, jornada, cargaHorariaSemanal } = request.data || {};
+    const { nome, email, dataNascimento, role, jornadas, jornada, cargaHorariaSemanal, funcao } = request.data || {};
     if (!nome || !email || !dataNascimento) {
         throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
@@ -92,6 +92,10 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
 
         if (cargaHorariaSemanal) {
             userData.cargaHorariaSemanal = cargaHorariaSemanal;
+        }
+
+        if (userData.role === 'colaborador' && funcao) {
+            userData.funcao = funcao;
         }
 
         if (jornadas) {

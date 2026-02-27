@@ -646,7 +646,12 @@ export default function DashboardAdmin() {
                                   : <span style={{ color: '#666' }}>Não definida</span>
                               }
                             </td>
-                            <td>{f.role === 'admin' ? 'Administrador' : 'Colaborador'}</td>
+                            <td>
+                              {f.role === 'admin'
+                                ? 'Administrador'
+                                : f.funcao ? f.funcao : 'Colaborador'
+                              }
+                            </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <BotaoAcao onClick={() => setFuncEditando(f)} title="Editar">
