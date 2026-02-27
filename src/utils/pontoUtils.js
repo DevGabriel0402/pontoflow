@@ -71,7 +71,12 @@ export function calcularResumoDiario(pontos, jornadas) {
     // Agrupa por data
     const grupos = {};
     pontos.forEach((p) => {
-        const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : p.criadoEm ? new Date(p.criadoEm) : null;
+        let d;
+        if (p.dataHoraOriginal) {
+            d = new Date(p.dataHoraOriginal);
+        } else {
+            d = p.criadoEm?.toDate ? p.criadoEm.toDate() : p.criadoEm ? new Date(p.criadoEm) : null;
+        }
         if (!d) return;
         const key = format(d, "yyyy-MM-dd");
         if (!grupos[key]) grupos[key] = { data: d, pontos: [] };
@@ -100,9 +105,13 @@ export function calcularResumoDiario(pontos, jornadas) {
         }
 
         const minutosEsperadosDia = extrairEsperadoParaDia(g.data);
-        const diferenca = minutosEsperadosDia !== null
-            ? minutosTrabalhados - minutosEsperadosDia
-            : null;
+
+        let diferenca = null;
+        if (saida && minutosEsperadosDia !== null) {
+            diferenca = minutosTrabalhados - minutosEsperadosDia;
+        } else if (!saida && minutosEsperadosDia !== null) {
+            diferenca = 0; // Só atualiza o saldo de horas quando o horário de saída for batido
+        }
 
         return {
             dataKey,
