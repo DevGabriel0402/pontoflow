@@ -234,7 +234,13 @@ export default function DashboardAdmin() {
       if (buscaNome && p.userId !== buscaNome) return false;
       if (tipo !== "TODOS" && p.type !== tipo) return false;
 
-      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      let d;
+      if (p.dataHoraOriginal) {
+        d = new Date(p.dataHoraOriginal);
+      } else {
+        d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      }
+
       if (!d) return true;
 
       if (ini && d < ini) return false;
@@ -262,7 +268,12 @@ export default function DashboardAdmin() {
     const grupos = {};
 
     filtrados.forEach(p => {
-      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      let d;
+      if (p.dataHoraOriginal) {
+        d = new Date(p.dataHoraOriginal);
+      } else {
+        d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      }
       if (!d) return;
 
       const dataKey = format(d, "yyyy-MM-dd");
@@ -453,7 +464,7 @@ export default function DashboardAdmin() {
                           <td><input type="checkbox" /></td>
                           <td>{p.userName || "—"}</td>
                           <td>{formatarTipo(p.type)}</td>
-                          <td>{formatarData(p.criadoEm)}</td>
+                          <td>{formatarData(p.dataHoraOriginal || p.criadoEm)}</td>
                           <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
                           <td style={{ fontSize: '12px', fontFamily: 'monospace', opacity: 0.8 }}>{p.ip || "—"}</td>
                           <td>
