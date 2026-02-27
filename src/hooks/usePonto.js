@@ -47,8 +47,8 @@ export function usePonto() {
         return {
             radius: config.raioM || config.raio || env.radius,
             officeCoords: {
-                latitude: config.lat || env.officeCoords.latitude,
-                longitude: config.lng || env.officeCoords.longitude,
+                latitude: config.lat || env.officeCoords.lat,
+                longitude: config.lng || env.officeCoords.lng,
             }
         };
     }, [config]);
