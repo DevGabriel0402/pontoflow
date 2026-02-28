@@ -1,0 +1,595 @@
+﻿diff --git a/package-lock.json b/package-lock.json
+index 8ef286b..14cd4c5 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -16,6 +16,7 @@
+         "jspdf": "^4.2.0",
+         "jspdf-autotable": "^5.0.7",
+         "maplibre-gl": "^5.18.0",
++        "playwright": "^1.58.2",
+         "react": "^19.2.0",
+         "react-dom": "^19.2.0",
+         "react-hot-toast": "^2.6.0",
+@@ -4019,6 +4020,20 @@
+         "node": ">=10"
+       }
+     },
++    "node_modules/fsevents": {
++      "version": "2.3.2",
++      "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz",
++      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
++      }
++    },
+     "node_modules/function-bind": {
+       "version": "1.1.2",
+       "dev": true,
+@@ -5396,6 +5411,36 @@
+         "url": "https://github.com/sponsors/jonschlinkert"
+       }
+     },
++    "node_modules/playwright": {
++      "version": "1.58.2",
++      "resolved": "https://registry.npmjs.org/playwright/-/playwright-1.58.2.tgz",
++      "integrity": "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "playwright-core": "1.58.2"
++      },
++      "bin": {
++        "playwright": "cli.js"
++      },
++      "engines": {
++        "node": ">=18"
++      },
++      "optionalDependencies": {
++        "fsevents": "2.3.2"
++      }
++    },
++    "node_modules/playwright-core": {
++      "version": "1.58.2",
++      "resolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.58.2.tgz",
++      "integrity": "sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==",
++      "license": "Apache-2.0",
++      "bin": {
++        "playwright-core": "cli.js"
++      },
++      "engines": {
++        "node": ">=18"
++      }
++    },
+     "node_modules/possible-typed-array-names": {
+       "version": "1.1.0",
+       "dev": true,
+@@ -6777,6 +6822,21 @@
+         }
+       }
+     },
++    "node_modules/vite/node_modules/fsevents": {
++      "version": "2.3.3",
++      "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz",
++      "integrity": "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
++      }
++    },
+     "node_modules/web-vitals": {
+       "version": "4.2.4",
+       "resolved": "https://registry.npmjs.org/web-vitals/-/web-vitals-4.2.4.tgz",
+diff --git a/package.json b/package.json
+index 58dfa34..69f5f24 100644
+--- a/package.json
++++ b/package.json
+@@ -18,6 +18,7 @@
+     "jspdf": "^4.2.0",
+     "jspdf-autotable": "^5.0.7",
+     "maplibre-gl": "^5.18.0",
++    "playwright": "^1.58.2",
+     "react": "^19.2.0",
+     "react-dom": "^19.2.0",
+     "react-hot-toast": "^2.6.0",
+diff --git a/scripts/capture_crash.cjs b/scripts/capture_crash.cjs
+new file mode 100644
+index 0000000..61eb5ff
+--- /dev/null
++++ b/scripts/capture_crash.cjs
+@@ -0,0 +1,44 @@
++const { chromium } = require('playwright');
++
++(async () => {
++    console.log('Starting Playwright...');
++    const browser = await chromium.launch({ headless: true });
++    const context = await browser.newContext();
++    const page = await context.newPage();
++
++    page.on('console', msg => {
++        if (msg.type() === 'error' || msg.type() === 'warning') {
++            console.log(`[Browser ${msg.type()}] ${msg.text()}`);
++        }
++    });
++    page.on('pageerror', error => {
++        console.log(`[Browser PageError] ${error.stack}`);
++    });
++
++    console.log('Navigating to login...');
++    await page.goto('http://localhost:3000');
++
++    // Login as admin
++    await page.fill('input[type="email"]', 'gabriellucas2301@gmail.com');
++    await page.click('button:has-text("Entrar")');
++
++    console.log('Waiting for login...');
++    await page.waitForTimeout(3000);
++
++    console.log('Navigating to admin dashboard...');
++    await page.goto('http://localhost:3000/admin');
++    await page.waitForTimeout(3000);
++
++    console.log('Clicking Banco de Horas tab...');
++    try {
++        // Attempt to click the tab
++        await page.click('text="Banco de Horas"');
++        // Wait a bit to let the crash happen
++        await page.waitForTimeout(3000);
++    } catch (e) {
++        console.error('Error clicking tab:', e.message);
++    }
++
++    console.log('Done capturing logs.');
++    await browser.close();
++})();
+diff --git a/src/components/admin/PainelBancoHoras.jsx b/src/components/admin/PainelBancoHoras.jsx
+index f962076..a64539f 100644
+--- a/src/components/admin/PainelBancoHoras.jsx
++++ b/src/components/admin/PainelBancoHoras.jsx
+@@ -21,6 +21,17 @@ import {
+ 
+ import SeletorAcordeao from "../SeletorAcordeao";
+ 
++// Wrapper seguro contra "Invalid Date"
++function safeFormat(dateObj, fmtStr) {
++  if (!dateObj) return "ÔÇö";
++  try {
++    return format(dateObj, fmtStr, { locale: ptBR });
++  } catch (e) {
++    console.error("SafeFormat Error:", e, dateObj);
++    return "Data Inv.";
++  }
++}
++
+ // (Fun├º├Áes helpers movidas para src/utils/pontoUtils.js)
+ 
+ // ÔöÇÔöÇÔöÇ Componente principal ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+@@ -100,57 +111,73 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
+   // Para cada colaborador, calcula o resumo
+   const resumoPorFunc = useMemo(() => {
+     return colaboradores.map((f) => {
+-      const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
+-      const confJornada = f.jornadas || f.jornada;
+-      const dias = calcularResumoDiario(pontosFunc, confJornada);
+-
+-      const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
+-      const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
+-
+-      const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
+-      const somaManualMinutos = lancamentosNoPeriodo
+-        .filter((l) => l.userId === f.id)
+-        .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
+-      const saldoTotal = somaAutoMinutos + somaManualMinutos;
+-
+-      const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
+-      const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
+-
+-      // Calcular minutos de um dia (base Segunda) para converter horas -> dias
+-      const jornadaMin = (() => {
+-        if (f.jornadas?.segunda?.ativo) {
+-          const ls = f.jornadas.segunda;
+-          const i = horaParaMin(ls.entrada) || 0;
+-          const fim = horaParaMin(ls.saida) || 0;
+-          let pausa = ls.intervaloMin ?? 60;
+-          if (ls.inicioIntervalo && ls.fimIntervalo) {
+-            pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
++      try {
++        const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
++        // Extract `diasAbonados` for this specific employee from `lancamentosNoPeriodo`
++        const abonosFunc = lancamentosNoPeriodo
++          .filter(l => l.userId === f.id && l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta"))
++          .map(l => {
++            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
++            if (match) {
++              return `${match[3]}-${match[2]}-${match[1]}`;
++            }
++            return null;
++          })
++          .filter(Boolean);
++
++        const dias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc);
++
++        const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
++        const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
++
++        const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
++        const somaManualMinutos = lancamentosNoPeriodo
++          .filter((l) => l.userId === f.id)
++          .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
++        const saldoTotal = somaAutoMinutos + somaManualMinutos;
++
++        const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
++        const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
++
++        // Calcular minutos de um dia (base Segunda) para converter horas -> dias
++        const jornadaMin = (() => {
++          if (f.jornadas?.segunda?.ativo) {
++            const ls = f.jornadas.segunda;
++            const i = horaParaMin(ls.entrada) || 0;
++            const fim = horaParaMin(ls.saida) || 0;
++            let pausa = ls.intervaloMin ?? 60;
++            if (ls.inicioIntervalo && ls.fimIntervalo) {
++              pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
++            }
++            return Math.max(1, fim - i - pausa);
+           }
+-          return Math.max(1, fim - i - pausa);
+-        }
+-        if (f.jornada?.entrada && f.jornada?.saida) {
+-          const ini = horaParaMin(f.jornada.entrada);
+-          const fim = horaParaMin(f.jornada.saida);
+-          const pausa = f.jornada.intervaloMin ?? 60;
+-          return Math.max(1, fim - ini - pausa);
+-        }
+-        return 480; // fallback 8h
+-      })();
+-
+-      const saldoTotalDias = saldoTotal / jornadaMin;
+-
+-      return {
+-        func: f,
+-        dias,
+-        totalTrabalhadoMinutos,
+-        totalEsperadoMinutos,
+-        somaAutoMinutos,
+-        somaManualMinutos,
+-        saldoTotal,
+-        mediaTrabalhadaDia,
+-        saldoTotalDias
+-      };
+-    });
++          if (f.jornada?.entrada && f.jornada?.saida) {
++            const ini = horaParaMin(f.jornada.entrada);
++            const fim = horaParaMin(f.jornada.saida);
++            const pausa = f.jornada.intervaloMin ?? 60;
++            return Math.max(1, fim - ini - pausa);
++          }
++          return 480; // fallback 8h
++        })();
++
++        const saldoTotalDias = saldoTotal / jornadaMin;
++
++        return {
++          func: f,
++          dias,
++          totalTrabalhadoMinutos,
++          totalEsperadoMinutos,
++          somaAutoMinutos,
++          somaManualMinutos,
++          saldoTotal,
++          mediaTrabalhadaDia,
++          saldoTotalDias
++        };
++      } catch (err) {
++        console.error("ERRO GRAVE ao processar resumo de", f.nome, err);
++        return null; // Return null so we don't crash the whole app
++      }
++    }).filter(Boolean);
+   }, [colaboradores, pontosNoPeriodo, lancamentosNoPeriodo]);
+ 
+   // Meses para o seletor
+@@ -409,11 +436,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
+                               <tbody>
+                                 {dias.map((dia) => (
+                                   <tr key={dia.dataKey}>
+-                                    <td>{format(dia.data, "dd/MM/yyyy", { locale: ptBR })}</td>
+-                                    <td>{dia.check.entrada ? format(dia.check.entrada, "HH:mm") : "ÔÇö"}</td>
+-                                    <td>{dia.check.iniInt ? format(dia.check.iniInt, "HH:mm") : "ÔÇö"}</td>
+-                                    <td>{dia.check.fimInt ? format(dia.check.fimInt, "HH:mm") : "ÔÇö"}</td>
+-                                    <td>{dia.check.saida ? format(dia.check.saida, "HH:mm") : "ÔÇö"}</td>
++                                    <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
++                                    <td>{dia.check.entrada ? safeFormat(dia.check.entrada, "HH:mm") : "ÔÇö"}</td>
++                                    <td>{dia.check.iniInt ? safeFormat(dia.check.iniInt, "HH:mm") : "ÔÇö"}</td>
++                                    <td>{dia.check.fimInt ? safeFormat(dia.check.fimInt, "HH:mm") : "ÔÇö"}</td>
++                                    <td>{dia.check.saida ? safeFormat(dia.check.saida, "HH:mm") : "ÔÇö"}</td>
+                                     <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
+                                     <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "ÔÇö"}</td>
+                                     <td>
+@@ -456,14 +483,14 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
+                                     .map((l) => (
+                                       <tr key={l.id}>
+                                         <td>
+-                                          <DifBadge $positivo={l.tipo === "CREDITO"}>
+-                                            {l.tipo === "CREDITO" ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
+-                                            {l.tipo === "CREDITO" ? "Cr├®dito" : "D├®bito"}
++                                          <DifBadge $positivo={l.tipo === "CREDITO"} $neutro={l.minutos === 0}>
++                                            {l.minutos === 0 ? <FiClock size={12} /> : l.tipo === "CREDITO" ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
++                                            {l.origem === "JUSTIFICATIVA_APROVADA" ? "Justificativa" : (l.tipo === "CREDITO" ? "Cr├®dito" : "D├®bito")}
+                                           </DifBadge>
+                                         </td>
+                                         <td>
+-                                          <SaldoBadge $positivo={l.tipo === "CREDITO"}>
+-                                            {l.tipo === "CREDITO" ? "+" : "-"}{formatarDuracao(l.minutos)}
++                                          <SaldoBadge $positivo={l.tipo === "CREDITO"} $neutro={l.minutos === 0}>
++                                            {l.minutos === 0 ? "" : (l.tipo === "CREDITO" ? "+" : "-")}{formatarDuracao(l.minutos)}
+                                           </SaldoBadge>
+                                         </td>
+                                         <td style={{ fontSize: 12, color: "#aaa" }}>{l.descricao}</td>
+diff --git a/src/components/admin/PainelJustificativas.jsx b/src/components/admin/PainelJustificativas.jsx
+index 7c3d552..f01c076 100644
+--- a/src/components/admin/PainelJustificativas.jsx
++++ b/src/components/admin/PainelJustificativas.jsx
+@@ -20,6 +20,7 @@ const TIPO_LABEL = {
+     INICIO_INTERVALO: "In├¡cio Intervalo",
+     FIM_INTERVALO: "Fim Intervalo",
+     SAIDA: "Sa├¡da",
++    ABONO_FALTA: "Abono de Falta (Dia Inteiro)",
+ };
+ 
+ const TIPO_ANEXO_LABEL = {
+@@ -106,11 +107,10 @@ export default function PainelJustificativas() {
+         setProcessando(item.id);
+         try {
+             let dataHoraFinal = item.dataHoraSolicitada;
++            const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
+ 
+             // Se for justificativa de "FIM_INTERVALO", buscar o "INICIO_INTERVALO" correspondente do dia para cravar exata 1 hora depois
+             if (item.tipo === "FIM_INTERVALO") {
+-                const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
+-
+                 const q = query(
+                     collection(db, "pontos"),
+                     where("userId", "==", item.userId),
+@@ -145,30 +145,66 @@ export default function PainelJustificativas() {
+                 }
+             }
+ 
+-            // Cria o ponto retroativamente
+-            await addDoc(collection(db, "pontos"), {
+-                userId: item.userId,
+-                userName: item.userName,
+-                companyId: item.companyId,
+-                type: item.tipo,
+-                geolocation: { lat: 0, lng: 0 },
+-                distanciaRelativa: 0,
+-                dentroDoRaio: true,
+-                deviceInfo: { dispositivo: "Justificativa aprovada" },
+-                ip: "N/A",
+-                criadoEm: serverTimestamp(),
+-                origem: "justificativa_aprovada",
+-                justificativaId: item.id,
+-                dataHoraOriginal: dataHoraFinal,
+-            });
+-            // Atualiza status
++            if (item.tipo === "ABONO_FALTA") {
++                // Para abono, N├âO criamos o ponto (j├í que a pessoa n├úo trabalhou).
++                // Inserimos um registro no banco de horas com 0 minutos. O utilit├írio
++                // de c├ílculo (pontoUtils) vai identificar a data desse abono
++                // e zerar as horas "Esperadas" para aquele dia.
++                const minutosAbono = 0;
++
++
++                await addDoc(collection(db, "banco_horas"), {
++                    userId: item.userId,
++                    companyId: item.companyId,
++                    tipo: "CREDITO",
++                    minutos: minutosAbono,
++                    descricao: `Abono de Falta ref. ${format(new Date(item.dataHoraSolicitada), "dd/MM/yyyy")}`,
++                    origem: "JUSTIFICATIVA_APROVADA",
++                    justificativaId: item.id,
++                    criadoEm: serverTimestamp(),
++                    criadoPor: usuario.uid,
++                });
++            } else {
++                // Cria o ponto retroativamente
++                await addDoc(collection(db, "pontos"), {
++                    userId: item.userId,
++                    userName: item.userName,
++                    companyId: item.companyId,
++                    type: item.tipo,
++                    geolocation: { lat: 0, lng: 0 },
++                    distanciaRelativa: 0,
++                    dentroDoRaio: true,
++                    deviceInfo: { dispositivo: "Justificativa aprovada" },
++                    ip: "N/A",
++                    criadoEm: serverTimestamp(),
++                    origem: "justificativa_aprovada",
++                    justificativaId: item.id,
++                    dataHoraOriginal: dataHoraFinal,
++                });
++
++                // Cria um log (0 minutos) no banco_horas para registrar a aprova├º├úo
++                await addDoc(collection(db, "banco_horas"), {
++                    userId: item.userId,
++                    companyId: item.companyId,
++                    tipo: "CREDITO",
++                    minutos: 0,
++                    descricao: `${TIPO_LABEL[item.tipo] || item.tipo} corrigido ref. ${format(new Date(dataHoraFinal), "dd/MM/yyyy HH:mm")}`,
++                    origem: "JUSTIFICATIVA_APROVADA",
++                    justificativaId: item.id,
++                    criadoEm: serverTimestamp(),
++                    criadoPor: usuario.uid,
++                });
++            }
++
++            // Atualiza status da justificativa
+             await updateDoc(doc(db, "justificativas", item.id), {
+                 status: "aprovada",
+                 avaliadoPor: usuario.uid,
+                 avaliadoPorNome: perfil?.nome || usuario.email,
+                 avaliadoEm: serverTimestamp(),
+             });
+-            toast.success("Ponto aprovado e registrado com sucesso!");
++
++            toast.success("Justificativa aprovada com sucesso!");
+         } catch (e) {
+             console.error(e);
+             toast.error("Erro ao aprovar. Tente novamente.");
+diff --git a/src/components/colaborador/ModalJustificativa.jsx b/src/components/colaborador/ModalJustificativa.jsx
+index 6b6ffdd..7921c30 100644
+--- a/src/components/colaborador/ModalJustificativa.jsx
++++ b/src/components/colaborador/ModalJustificativa.jsx
+@@ -12,6 +12,7 @@ const TIPOS = [
+     { value: "INICIO_INTERVALO", label: "In├¡cio Intervalo" },
+     { value: "FIM_INTERVALO", label: "Fim Intervalo" },
+     { value: "SAIDA", label: "Sa├¡da" },
++    { value: "ABONO_FALTA", label: "Abono de Falta (Dia Inteiro)" },
+ ];
+ 
+ const TIPOS_ANEXO = [
+@@ -104,10 +105,14 @@ export default function ModalJustificativa({ aberto, onFechar }) {
+             toast.error("Descreva o motivo com pelo menos 10 caracteres.");
+             return;
+         }
+-        if (!dataHora) {
++        if (tipo !== "ABONO_FALTA" && !dataHora) {
+             toast.error("Informe a data e hor├írio do ponto esquecido.");
+             return;
+         }
++        if (tipo === "ABONO_FALTA" && !dataHora) {
++            toast.error("Informe a data da falta a ser abonada.");
++            return;
++        }
+         if (tipoAnexo !== "SEM_ANEXO" && !anexoBase64) {
+             toast.error("Voc├¬ informou um tipo de atestado, por favor anexe a imagem!");
+             return;
+@@ -173,7 +178,9 @@ export default function ModalJustificativa({ aberto, onFechar }) {
+                         ))}
+                     </ChipsRow>
+ 
+-                    <Label style={{ marginTop: 20 }}>Data e hor├írio do ponto</Label>
++                    <Label style={{ marginTop: 20 }}>
++                        {tipo === "ABONO_FALTA" ? "Data da falta (o hor├írio ser├í ignorado)" : "Data e hor├írio do ponto"}
++                    </Label>
+                     <Input
+                         type="datetime-local"
+                         value={dataHora}
+@@ -238,9 +245,9 @@ const Overlay = styled.div`
+     background: rgba(0,0,0,0.8);
+     z-index: 9000;
+     display: flex;
+-    align-items: flex-end;
++    align-items: center;
+     justify-content: center;
+-    padding: 0;
++    padding: 20px;
+     backdrop-filter: blur(4px);
+     animation: fadeIn 0.2s ease;
+     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@@ -249,9 +256,12 @@ const Overlay = styled.div`
+ const Modal = styled.div`
+     background: #1c1c1e;
+     border: 1px solid rgba(255,255,255,0.08);
+-    border-radius: 24px 24px 0 0;
++    border-radius: 24px;
+     width: 100%;
+     max-width: 540px;
++    max-height: 90vh;
++    display: flex;
++    flex-direction: column;
+     padding-bottom: env(safe-area-inset-bottom, 16px);
+     animation: slideUp 0.3s ease;
+     @keyframes slideUp {
+@@ -290,8 +300,8 @@ const Corpo = styled.div`
+     padding: 20px;
+     display: flex;
+     flex-direction: column;
+-    max-height: 70vh;
+     overflow-y: auto;
++    flex: 1;
+ 
+     &::-webkit-scrollbar { width: 6px; }
+     &::-webkit-scrollbar-thumb {
+@@ -355,6 +365,7 @@ const Textarea = styled.textarea`
+     font-family: inherit;
+     line-height: 1.6;
+     box-sizing: border-box;
++    height: 100px;
+     &:focus { border-color: #4facfe; }
+ `;
+ 
+@@ -380,6 +391,7 @@ const BtnEnviar = styled.button`
+     gap: 10px;
+     cursor: pointer;
+     transition: filter 0.2s;
++    flex-shrink: 0;
+     &:hover:not(:disabled) { filter: brightness(1.08); }
+     &:disabled { opacity: 0.5; cursor: not-allowed; }
+ `;
+diff --git a/src/utils/pontoUtils.js b/src/utils/pontoUtils.js
+index f17f4ba..4b45cca 100644
+--- a/src/utils/pontoUtils.js
++++ b/src/utils/pontoUtils.js
+@@ -29,7 +29,7 @@ export function formatarDuracao(totalMinutos) {
+  * Para um ├║nico funcion├írio e lista de pontos, calcula o resumo di├írio.
+  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
+  */
+-export function calcularResumoDiario(pontos, jornadas) {
++export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
+     // Array para mapear o .getDay() do JS para a nossa chave de jornadas
+     const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+ 
+@@ -83,6 +83,15 @@ export function calcularResumoDiario(pontos, jornadas) {
+         grupos[key].pontos.push({ ...p, dateObj: d });
+     });
+ 
++    // Garante que mesmo os dias abonados (sem ponto batido) apare├ºam no resumo.
++    diasAbonados.forEach((isoDate) => {
++        if (!grupos[isoDate]) {
++            // Cria um grupo vazio pro dia abonado, pois ele vai zero-esperado
++            const dLocal = new Date(`${isoDate}T12:00:00`);
++            grupos[isoDate] = { data: dLocal, pontos: [] };
++        }
++    });
++
+     return Object.entries(grupos).map(([dataKey, g]) => {
+         const pts = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
+         const entrada = pts.find((p) => p.type === "ENTRADA")?.dateObj;
+@@ -104,7 +113,13 @@ export function calcularResumoDiario(pontos, jornadas) {
+             status = "Sem Sa├¡da";
+         }
+ 
+-        const minutosEsperadosDia = extrairEsperadoParaDia(g.data);
++        let minutosEsperadosDia = extrairEsperadoParaDia(g.data);
++
++        // Se o dia est├í na lista de dias abonados (abono de falta justificado), o esperado zera
++        if (diasAbonados.includes(dataKey)) {
++            minutosEsperadosDia = 0;
++            status = "Abonado"; // Sinaliza o status
++        }
+ 
+         let diferenca = null;
+         if (saida && minutosEsperadosDia !== null) {
+diff --git a/test_abono.mjs b/test_abono.mjs
+new file mode 100644
+index 0000000..9615eaf
+--- /dev/null
++++ b/test_abono.mjs
+@@ -0,0 +1,7 @@
++import { calcularResumoDiario } from './src/utils/pontoUtils.js';
++try {
++    const result = calcularResumoDiario([], { segunda: { ativo: true, entrada: '08:00', saida: '18:00' } }, ['2026-02-28']);
++    console.log('Result:', JSON.stringify(result, null, 2));
++} catch (e) {
++    console.error('Error:', e);
++}
