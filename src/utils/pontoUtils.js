@@ -29,7 +29,7 @@ export function formatarDuracao(totalMinutos) {
  * Para um único funcionário e lista de pontos, calcula o resumo diário.
  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
  */
-export function calcularResumoDiario(pontos, jornadas) {
+export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
     // Array para mapear o .getDay() do JS para a nossa chave de jornadas
     const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
 
@@ -83,6 +83,15 @@ export function calcularResumoDiario(pontos, jornadas) {
         grupos[key].pontos.push({ ...p, dateObj: d });
     });
 
+    // Garante que mesmo os dias abonados (sem ponto batido) apareçam no resumo.
+    diasAbonados.forEach((isoDate) => {
+        if (!grupos[isoDate]) {
+            // Cria um grupo vazio pro dia abonado, pois ele vai zero-esperado
+            const dLocal = new Date(`${isoDate}T12:00:00`);
+            grupos[isoDate] = { data: dLocal, pontos: [] };
+        }
+    });
+
     return Object.entries(grupos).map(([dataKey, g]) => {
         const pts = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
         const entrada = pts.find((p) => p.type === "ENTRADA")?.dateObj;
@@ -104,7 +113,13 @@ export function calcularResumoDiario(pontos, jornadas) {
             status = "Sem Saída";
         }
 
-        const minutosEsperadosDia = extrairEsperadoParaDia(g.data);
+        let minutosEsperadosDia = extrairEsperadoParaDia(g.data);
+
+        // Se o dia está na lista de dias abonados (abono de falta justificado), o esperado zera
+        if (diasAbonados.includes(dataKey)) {
+            minutosEsperadosDia = 0;
+            status = "Abonado"; // Sinaliza o status
+        }
 
         let diferenca = null;
         if (saida && minutosEsperadosDia !== null) {

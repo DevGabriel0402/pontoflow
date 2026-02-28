@@ -12,6 +12,7 @@ const TIPOS = [
     { value: "INICIO_INTERVALO", label: "Início Intervalo" },
     { value: "FIM_INTERVALO", label: "Fim Intervalo" },
     { value: "SAIDA", label: "Saída" },
+    { value: "ABONO_FALTA", label: "Abono de Falta (Dia Inteiro)" },
 ];
 
 const TIPOS_ANEXO = [
@@ -104,8 +105,12 @@ export default function ModalJustificativa({ aberto, onFechar }) {
             toast.error("Descreva o motivo com pelo menos 10 caracteres.");
             return;
         }
-        if (!dataHora) {
+        if (tipo !== "ABONO_FALTA" && !dataHora) {
             toast.error("Informe a data e horário do ponto esquecido.");
+            return;
+        }
+        if (tipo === "ABONO_FALTA" && !dataHora) {
+            toast.error("Informe a data da falta a ser abonada.");
             return;
         }
         if (tipoAnexo !== "SEM_ANEXO" && !anexoBase64) {
@@ -173,7 +178,9 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                         ))}
                     </ChipsRow>
 
-                    <Label style={{ marginTop: 20 }}>Data e horário do ponto</Label>
+                    <Label style={{ marginTop: 20 }}>
+                        {tipo === "ABONO_FALTA" ? "Data da falta (o horário será ignorado)" : "Data e horário do ponto"}
+                    </Label>
                     <Input
                         type="datetime-local"
                         value={dataHora}
@@ -238,9 +245,9 @@ const Overlay = styled.div`
     background: rgba(0,0,0,0.8);
     z-index: 9000;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
-    padding: 0;
+    padding: 20px;
     backdrop-filter: blur(4px);
     animation: fadeIn 0.2s ease;
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -249,9 +256,12 @@ const Overlay = styled.div`
 const Modal = styled.div`
     background: #1c1c1e;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 24px 24px 0 0;
+    border-radius: 24px;
     width: 100%;
     max-width: 540px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     padding-bottom: env(safe-area-inset-bottom, 16px);
     animation: slideUp 0.3s ease;
     @keyframes slideUp {
@@ -290,8 +300,8 @@ const Corpo = styled.div`
     padding: 20px;
     display: flex;
     flex-direction: column;
-    max-height: 70vh;
     overflow-y: auto;
+    flex: 1;
 
     &::-webkit-scrollbar { width: 6px; }
     &::-webkit-scrollbar-thumb {
@@ -355,6 +365,7 @@ const Textarea = styled.textarea`
     font-family: inherit;
     line-height: 1.6;
     box-sizing: border-box;
+    height: 100px;
     &:focus { border-color: #4facfe; }
 `;
 
@@ -380,6 +391,7 @@ const BtnEnviar = styled.button`
     gap: 10px;
     cursor: pointer;
     transition: filter 0.2s;
+    flex-shrink: 0;
     &:hover:not(:disabled) { filter: brightness(1.08); }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;

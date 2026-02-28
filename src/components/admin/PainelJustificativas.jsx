@@ -20,6 +20,7 @@ const TIPO_LABEL = {
     INICIO_INTERVALO: "Início Intervalo",
     FIM_INTERVALO: "Fim Intervalo",
     SAIDA: "Saída",
+    ABONO_FALTA: "Abono de Falta (Dia Inteiro)",
 };
 
 const TIPO_ANEXO_LABEL = {
@@ -106,11 +107,10 @@ export default function PainelJustificativas() {
         setProcessando(item.id);
         try {
             let dataHoraFinal = item.dataHoraSolicitada;
+            const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
 
             // Se for justificativa de "FIM_INTERVALO", buscar o "INICIO_INTERVALO" correspondente do dia para cravar exata 1 hora depois
             if (item.tipo === "FIM_INTERVALO") {
-                const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
-
                 const q = query(
                     collection(db, "pontos"),
                     where("userId", "==", item.userId),
@@ -145,30 +145,66 @@ export default function PainelJustificativas() {
                 }
             }
 
-            // Cria o ponto retroativamente
-            await addDoc(collection(db, "pontos"), {
-                userId: item.userId,
-                userName: item.userName,
-                companyId: item.companyId,
-                type: item.tipo,
-                geolocation: { lat: 0, lng: 0 },
-                distanciaRelativa: 0,
-                dentroDoRaio: true,
-                deviceInfo: { dispositivo: "Justificativa aprovada" },
-                ip: "N/A",
-                criadoEm: serverTimestamp(),
-                origem: "justificativa_aprovada",
-                justificativaId: item.id,
-                dataHoraOriginal: dataHoraFinal,
-            });
-            // Atualiza status
+            if (item.tipo === "ABONO_FALTA") {
+                // Para abono, NÃO criamos o ponto (já que a pessoa não trabalhou).
+                // Inserimos um registro no banco de horas com 0 minutos. O utilitário
+                // de cálculo (pontoUtils) vai identificar a data desse abono
+                // e zerar as horas "Esperadas" para aquele dia.
+                const minutosAbono = 0;
+
+
+                await addDoc(collection(db, "banco_horas"), {
+                    userId: item.userId,
+                    companyId: item.companyId,
+                    tipo: "CREDITO",
+                    minutos: minutosAbono,
+                    descricao: `Abono de Falta ref. ${format(new Date(item.dataHoraSolicitada), "dd/MM/yyyy")}`,
+                    origem: "JUSTIFICATIVA_APROVADA",
+                    justificativaId: item.id,
+                    criadoEm: serverTimestamp(),
+                    criadoPor: usuario.uid,
+                });
+            } else {
+                // Cria o ponto retroativamente
+                await addDoc(collection(db, "pontos"), {
+                    userId: item.userId,
+                    userName: item.userName,
+                    companyId: item.companyId,
+                    type: item.tipo,
+                    geolocation: { lat: 0, lng: 0 },
+                    distanciaRelativa: 0,
+                    dentroDoRaio: true,
+                    deviceInfo: { dispositivo: "Justificativa aprovada" },
+                    ip: "N/A",
+                    criadoEm: serverTimestamp(),
+                    origem: "justificativa_aprovada",
+                    justificativaId: item.id,
+                    dataHoraOriginal: dataHoraFinal,
+                });
+
+                // Cria um log (0 minutos) no banco_horas para registrar a aprovação
+                await addDoc(collection(db, "banco_horas"), {
+                    userId: item.userId,
+                    companyId: item.companyId,
+                    tipo: "CREDITO",
+                    minutos: 0,
+                    descricao: `${TIPO_LABEL[item.tipo] || item.tipo} corrigido ref. ${format(new Date(dataHoraFinal), "dd/MM/yyyy HH:mm")}`,
+                    origem: "JUSTIFICATIVA_APROVADA",
+                    justificativaId: item.id,
+                    criadoEm: serverTimestamp(),
+                    criadoPor: usuario.uid,
+                });
+            }
+
+            // Atualiza status da justificativa
             await updateDoc(doc(db, "justificativas", item.id), {
                 status: "aprovada",
                 avaliadoPor: usuario.uid,
                 avaliadoPorNome: perfil?.nome || usuario.email,
                 avaliadoEm: serverTimestamp(),
             });
-            toast.success("Ponto aprovado e registrado com sucesso!");
+
+            toast.success("Justificativa aprovada com sucesso!");
         } catch (e) {
             console.error(e);
             toast.error("Erro ao aprovar. Tente novamente.");

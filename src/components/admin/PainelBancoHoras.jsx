@@ -21,6 +21,17 @@ import {
 
 import SeletorAcordeao from "../SeletorAcordeao";
 
+// Wrapper seguro contra "Invalid Date"
+function safeFormat(dateObj, fmtStr) {
+  if (!dateObj) return "—";
+  try {
+    return format(dateObj, fmtStr, { locale: ptBR });
+  } catch (e) {
+    console.error("SafeFormat Error:", e, dateObj);
+    return "Data Inv.";
+  }
+}
+
 // (Funções helpers movidas para src/utils/pontoUtils.js)
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -100,57 +111,73 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Para cada colaborador, calcula o resumo
   const resumoPorFunc = useMemo(() => {
     return colaboradores.map((f) => {
-      const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
-      const confJornada = f.jornadas || f.jornada;
-      const dias = calcularResumoDiario(pontosFunc, confJornada);
+      try {
+        const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
+        // Extract `diasAbonados` for this specific employee from `lancamentosNoPeriodo`
+        const abonosFunc = lancamentosNoPeriodo
+          .filter(l => l.userId === f.id && l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta"))
+          .map(l => {
+            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            if (match) {
+              return `${match[3]}-${match[2]}-${match[1]}`;
+            }
+            return null;
+          })
+          .filter(Boolean);
 
-      const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
-      const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
+        const dias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc);
 
-      const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
-      const somaManualMinutos = lancamentosNoPeriodo
-        .filter((l) => l.userId === f.id)
-        .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
-      const saldoTotal = somaAutoMinutos + somaManualMinutos;
+        const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
+        const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
 
-      const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
-      const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
+        const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
+        const somaManualMinutos = lancamentosNoPeriodo
+          .filter((l) => l.userId === f.id)
+          .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
+        const saldoTotal = somaAutoMinutos + somaManualMinutos;
 
-      // Calcular minutos de um dia (base Segunda) para converter horas -> dias
-      const jornadaMin = (() => {
-        if (f.jornadas?.segunda?.ativo) {
-          const ls = f.jornadas.segunda;
-          const i = horaParaMin(ls.entrada) || 0;
-          const fim = horaParaMin(ls.saida) || 0;
-          let pausa = ls.intervaloMin ?? 60;
-          if (ls.inicioIntervalo && ls.fimIntervalo) {
-            pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
+        const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
+        const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
+
+        // Calcular minutos de um dia (base Segunda) para converter horas -> dias
+        const jornadaMin = (() => {
+          if (f.jornadas?.segunda?.ativo) {
+            const ls = f.jornadas.segunda;
+            const i = horaParaMin(ls.entrada) || 0;
+            const fim = horaParaMin(ls.saida) || 0;
+            let pausa = ls.intervaloMin ?? 60;
+            if (ls.inicioIntervalo && ls.fimIntervalo) {
+              pausa = Math.max(0, (horaParaMin(ls.fimIntervalo) || 0) - (horaParaMin(ls.inicioIntervalo) || 0));
+            }
+            return Math.max(1, fim - i - pausa);
           }
-          return Math.max(1, fim - i - pausa);
-        }
-        if (f.jornada?.entrada && f.jornada?.saida) {
-          const ini = horaParaMin(f.jornada.entrada);
-          const fim = horaParaMin(f.jornada.saida);
-          const pausa = f.jornada.intervaloMin ?? 60;
-          return Math.max(1, fim - ini - pausa);
-        }
-        return 480; // fallback 8h
-      })();
+          if (f.jornada?.entrada && f.jornada?.saida) {
+            const ini = horaParaMin(f.jornada.entrada);
+            const fim = horaParaMin(f.jornada.saida);
+            const pausa = f.jornada.intervaloMin ?? 60;
+            return Math.max(1, fim - ini - pausa);
+          }
+          return 480; // fallback 8h
+        })();
 
-      const saldoTotalDias = saldoTotal / jornadaMin;
+        const saldoTotalDias = saldoTotal / jornadaMin;
 
-      return {
-        func: f,
-        dias,
-        totalTrabalhadoMinutos,
-        totalEsperadoMinutos,
-        somaAutoMinutos,
-        somaManualMinutos,
-        saldoTotal,
-        mediaTrabalhadaDia,
-        saldoTotalDias
-      };
-    });
+        return {
+          func: f,
+          dias,
+          totalTrabalhadoMinutos,
+          totalEsperadoMinutos,
+          somaAutoMinutos,
+          somaManualMinutos,
+          saldoTotal,
+          mediaTrabalhadaDia,
+          saldoTotalDias
+        };
+      } catch (err) {
+        console.error("ERRO GRAVE ao processar resumo de", f.nome, err);
+        return null; // Return null so we don't crash the whole app
+      }
+    }).filter(Boolean);
   }, [colaboradores, pontosNoPeriodo, lancamentosNoPeriodo]);
 
   // Meses para o seletor
@@ -409,11 +436,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                               <tbody>
                                 {dias.map((dia) => (
                                   <tr key={dia.dataKey}>
-                                    <td>{format(dia.data, "dd/MM/yyyy", { locale: ptBR })}</td>
-                                    <td>{dia.check.entrada ? format(dia.check.entrada, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.iniInt ? format(dia.check.iniInt, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.fimInt ? format(dia.check.fimInt, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.saida ? format(dia.check.saida, "HH:mm") : "—"}</td>
+                                    <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
+                                    <td>{dia.check.entrada ? safeFormat(dia.check.entrada, "HH:mm") : "—"}</td>
+                                    <td>{dia.check.iniInt ? safeFormat(dia.check.iniInt, "HH:mm") : "—"}</td>
+                                    <td>{dia.check.fimInt ? safeFormat(dia.check.fimInt, "HH:mm") : "—"}</td>
+                                    <td>{dia.check.saida ? safeFormat(dia.check.saida, "HH:mm") : "—"}</td>
                                     <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
                                     <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
                                     <td>
@@ -456,14 +483,14 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                     .map((l) => (
                                       <tr key={l.id}>
                                         <td>
-                                          <DifBadge $positivo={l.tipo === "CREDITO"}>
-                                            {l.tipo === "CREDITO" ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
-                                            {l.tipo === "CREDITO" ? "Crédito" : "Débito"}
+                                          <DifBadge $positivo={l.tipo === "CREDITO"} $neutro={l.minutos === 0}>
+                                            {l.minutos === 0 ? <FiClock size={12} /> : l.tipo === "CREDITO" ? <FiTrendingUp size={12} /> : <FiTrendingDown size={12} />}
+                                            {l.origem === "JUSTIFICATIVA_APROVADA" ? "Justificativa" : (l.tipo === "CREDITO" ? "Crédito" : "Débito")}
                                           </DifBadge>
                                         </td>
                                         <td>
-                                          <SaldoBadge $positivo={l.tipo === "CREDITO"}>
-                                            {l.tipo === "CREDITO" ? "+" : "-"}{formatarDuracao(l.minutos)}
+                                          <SaldoBadge $positivo={l.tipo === "CREDITO"} $neutro={l.minutos === 0}>
+                                            {l.minutos === 0 ? "" : (l.tipo === "CREDITO" ? "+" : "-")}{formatarDuracao(l.minutos)}
                                           </SaldoBadge>
                                         </td>
                                         <td style={{ fontSize: 12, color: "#aaa" }}>{l.descricao}</td>
