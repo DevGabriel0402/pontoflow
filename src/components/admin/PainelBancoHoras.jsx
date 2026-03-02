@@ -74,33 +74,32 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     return () => unsub();
   }, [perfil?.companyId]);
 
-  // Filtrar pontos no período selecionado
-  const pontosNoPeriodo = useMemo(() => {
-    const inicio = startOfMonth(new Date(anoSelecionado, mesSelecionado, 1));
-    const fim = endOfMonth(inicio);
+  // Data limite (fim do mês selecionado)
+  const fimDoPeriodo = useMemo(() => {
+    return endOfMonth(new Date(anoSelecionado, mesSelecionado, 1));
+  }, [anoSelecionado, mesSelecionado]);
+
+  // Filtrar pontos ATÉ o fim do período selecionado (acumulativo)
+  const pontosAtePeriodo = useMemo(() => {
     return (pontos || []).filter((p) => {
       const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : p.criadoEm ? new Date(p.criadoEm) : null;
       if (!d) return false;
-      return d >= inicio && d <= fim;
+      return d <= fimDoPeriodo;
     });
-  }, [pontos, mesSelecionado, anoSelecionado]);
+  }, [pontos, fimDoPeriodo]);
 
-  // Lançamentos manuais no período selecionado
-  const lancamentosNoPeriodo = useMemo(() => {
-    const inicio = startOfMonth(new Date(anoSelecionado, mesSelecionado, 1));
-    const fim = endOfMonth(inicio);
+  // Lançamentos manuais ATÉ o fim do período selecionado (acumulativo)
+  const lancamentosAtePeriodo = useMemo(() => {
     return lancamentos.filter((l) => {
-      // Se for um lançamento novo (ainda sem timestamp do servidor), 
-      // mostramos no mês atual se o sistema estiver no mês atual
       if (!l.criadoEm) {
-        return mesSelecionado === hoje.getMonth() && anoSelecionado === hoje.getFullYear();
+        // Se for novo, incluímos se o período selecionado for o atual ou futuro
+        return (new Date(anoSelecionado, mesSelecionado, 1)) >= startOfMonth(hoje);
       }
-
       const d = l.criadoEm?.toDate ? l.criadoEm.toDate() : null;
       if (!d) return false;
-      return d >= inicio && d <= fim;
+      return d <= fimDoPeriodo;
     });
-  }, [lancamentos, mesSelecionado, anoSelecionado, hoje]);
+  }, [lancamentos, fimDoPeriodo, hoje, anoSelecionado, mesSelecionado]);
 
   // Colaboradores (sem admins)
   const colaboradores = useMemo(
@@ -110,11 +109,14 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
 
   // Para cada colaborador, calcula o resumo
   const resumoPorFunc = useMemo(() => {
+    const inicioMes = startOfMonth(new Date(anoSelecionado, mesSelecionado, 1));
+
     return colaboradores.map((f) => {
       try {
-        const pontosFunc = pontosNoPeriodo.filter((p) => p.userId === f.id);
-        // Extract `diasAbonados` for this specific employee from `lancamentosNoPeriodo`
-        const abonosFunc = lancamentosNoPeriodo
+        const pontosFunc = pontosAtePeriodo.filter((p) => p.userId === f.id);
+
+        // Extrair todos os abonos até o fim do período
+        const abonosFunc = lancamentosAtePeriodo
           .filter(l => l.userId === f.id && l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta"))
           .map(l => {
             const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
@@ -125,16 +127,25 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           })
           .filter(Boolean);
 
-        const dias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc);
+        // Calcula o resumo histórico até o fim do período
+        const todosDias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc);
 
-        const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
-        const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
+        // Filtra apenas os dias do mês selecionado para exibição no acordeão
+        const dias = todosDias.filter(d => {
+          const dataDia = new Date(d.data);
+          return dataDia >= inicioMes && dataDia <= fimDoPeriodo;
+        });
 
-        const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
-        const somaManualMinutos = lancamentosNoPeriodo
+        // Totais Acumulados (Saldo Histórico)
+        const somaAutoMinutos = todosDias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
+        const somaManualMinutos = lancamentosAtePeriodo
           .filter((l) => l.userId === f.id)
           .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
         const saldoTotal = somaAutoMinutos + somaManualMinutos;
+
+        // Totais do Mês Selecionado (apenas para exibição se necessário, mas o principal é o acumulado)
+        const totalTrabalhadoMinutos = dias.reduce((acc, d) => acc + (d.minutosTrabalhados ?? 0), 0);
+        const totalEsperadoMinutos = dias.reduce((acc, d) => acc + (d.minutosEsperados ?? 0), 0);
 
         const diasUteis = dias.filter(d => d.minutosEsperados > 0).length;
         const mediaTrabalhadaDia = diasUteis > 0 ? Math.floor(totalTrabalhadoMinutos / diasUteis) : 0;
@@ -178,7 +189,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         return null; // Return null so we don't crash the whole app
       }
     }).filter(Boolean);
-  }, [colaboradores, pontosNoPeriodo, lancamentosNoPeriodo]);
+  }, [colaboradores, pontosAtePeriodo, lancamentosAtePeriodo, mesSelecionado, anoSelecionado, fimDoPeriodo]);
 
   // Meses para o seletor
   const meses = [
@@ -462,7 +473,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                           )}
 
                           {/* Ajustes manuais no período */}
-                          {lancamentosNoPeriodo.filter(l => l.userId === func.id).length > 0 && (
+                          {lancamentosAtePeriodo.filter(l => l.userId === func.id && l.criadoEm?.toDate && l.criadoEm.toDate() >= startOfMonth(new Date(anoSelecionado, mesSelecionado, 1))).length > 0 && (
                             <AjustesManualSection>
                               <DetalheHeader style={{ marginTop: 16 }}>
                                 <FiPlus size={14} />
@@ -478,8 +489,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {lancamentosNoPeriodo
-                                    .filter(l => l.userId === func.id)
+                                  {lancamentosAtePeriodo
+                                    .filter(l => l.userId === func.id && l.criadoEm?.toDate && l.criadoEm.toDate() >= startOfMonth(new Date(anoSelecionado, mesSelecionado, 1)))
                                     .map((l) => (
                                       <tr key={l.id}>
                                         <td>
