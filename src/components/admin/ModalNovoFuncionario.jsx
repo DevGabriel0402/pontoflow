@@ -14,6 +14,17 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
   const [carregando, setCarregando] = useState(false);
   const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
 
+  const FUNCOES_ADMIN = [
+    "Presidente",
+    "Vice Presidente",
+    "Coordenador(a)",
+    "Gerente",
+    "Diretor(a)",
+    "Secretário(a)",
+    "Consultor(a)",
+    "Outro"
+  ];
+
   // Jornada (Segunda a Domingo)
   const [jornadas, setJornadas] = useState({
     segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -145,7 +156,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
               </RoleSelector>
             </Campo>
 
-            {role === 'colaborador' && (
+            {role === 'colaborador' ? (
               <Campo>
                 <label>Função / Cargo</label>
                 <input
@@ -154,80 +165,97 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
                   placeholder="Ex: Professor, Secretário..."
                 />
               </Campo>
+            ) : (
+              <Campo>
+                <label>Função do Administrador</label>
+                <Select
+                  value={funcao}
+                  onChange={(e) => setFuncao(e.target.value)}
+                >
+                  <option value="">Selecione a função...</option>
+                  {FUNCOES_ADMIN.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </Select>
+              </Campo>
             )}
 
-            <Separador />
+            {role === 'colaborador' && (
+              <>
+                <Separador />
 
-            <Campo>
-              <label>Carga Horária Semanal</label>
-              <SeletorWrapper>
-                <SeletorAcordeao
-                  opcoes={[
-                    { value: "44 Horas", label: "44 Horas" },
-                    { value: "40 Horas", label: "40 Horas" },
-                    { value: "30 Horas", label: "30 Horas" },
-                    { value: "Livre", label: "Livre" }
-                  ]}
-                  value={cargaHorariaSemanal}
-                  onChange={setCargaHorariaSemanal}
-                />
-              </SeletorWrapper>
-            </Campo>
+                <Campo>
+                  <label>Carga Horária Semanal</label>
+                  <SeletorWrapper>
+                    <SeletorAcordeao
+                      opcoes={[
+                        { value: "44 Horas", label: "44 Horas" },
+                        { value: "40 Horas", label: "40 Horas" },
+                        { value: "30 Horas", label: "30 Horas" },
+                        { value: "Livre", label: "Livre" }
+                      ]}
+                      value={cargaHorariaSemanal}
+                      onChange={setCargaHorariaSemanal}
+                    />
+                  </SeletorWrapper>
+                </Campo>
 
-            <Separador />
+                <Separador />
 
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
-            <JornadaArea>
-              {diasSemanaInfo.map((dia) => {
-                const conf = jornadas[dia.key];
-                return (
-                  <DiaRow key={dia.key} $ativo={conf.ativo}>
-                    <DiaHeader>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={conf.ativo}
-                          onChange={(e) => setJornadas(pd => ({
-                            ...pd,
-                            [dia.key]: { ...pd[dia.key], ativo: e.target.checked }
-                          }))}
-                        />
-                        {dia.label}
-                      </label>
-                    </DiaHeader>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
+                <JornadaArea>
+                  {diasSemanaInfo.map((dia) => {
+                    const conf = jornadas[dia.key];
+                    return (
+                      <DiaRow key={dia.key} $ativo={conf.ativo}>
+                        <DiaHeader>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={conf.ativo}
+                              onChange={(e) => setJornadas(pd => ({
+                                ...pd,
+                                [dia.key]: { ...pd[dia.key], ativo: e.target.checked }
+                              }))}
+                            />
+                            {dia.label}
+                          </label>
+                        </DiaHeader>
 
-                    {conf.ativo && (
-                      <HorariosInputs>
-                        <InputSlim
-                          type="time"
-                          value={conf.entrada}
-                          title="Entrada"
-                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
-                        />
-                        <InputSlim
-                          type="time"
-                          value={conf.inicioIntervalo}
-                          title="Início Intervalo"
-                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
-                        />
-                        <InputSlim
-                          type="time"
-                          value={conf.fimIntervalo}
-                          title="Fim Intervalo"
-                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
-                        />
-                        <InputSlim
-                          type="time"
-                          value={conf.saida}
-                          title="Saída"
-                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
-                        />
-                      </HorariosInputs>
-                    )}
-                  </DiaRow>
-                );
-              })}
-            </JornadaArea>
+                        {conf.ativo && (
+                          <HorariosInputs>
+                            <InputSlim
+                              type="time"
+                              value={conf.entrada}
+                              title="Entrada"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
+                            />
+                            <InputSlim
+                              type="time"
+                              value={conf.inicioIntervalo}
+                              title="Início Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
+                            />
+                            <InputSlim
+                              type="time"
+                              value={conf.fimIntervalo}
+                              title="Fim Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
+                            />
+                            <InputSlim
+                              type="time"
+                              value={conf.saida}
+                              title="Saída"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                            />
+                          </HorariosInputs>
+                        )}
+                      </DiaRow>
+                    );
+                  })}
+                </JornadaArea>
+              </>
+            )}
 
             <Rodape>
               <BtnGhost type="button" onClick={fechar}>Cancelar</BtnGhost>
@@ -547,5 +575,21 @@ const InputSlim = styled.input`
   }
   &:focus {
     border-color: ${({ theme }) => theme.cores.azul};
+  }
+`;
+
+const Select = styled.select`
+  height: 44px;
+  padding: 0 12px;
+  border-radius: ${({ theme }) => theme.raio.lg};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  background: ${({ theme }) => theme.cores.superficie};
+  color: ${({ theme }) => theme.cores.texto};
+  outline: none;
+  cursor: pointer;
+
+  option {
+    background: ${({ theme }) => theme.cores.superficie2};
+    color: ${({ theme }) => theme.cores.texto};
   }
 `;

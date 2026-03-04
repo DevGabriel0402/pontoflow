@@ -6,7 +6,7 @@ import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase } from "react-icons/fi";
+import { FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -25,6 +25,8 @@ import { useAuth } from "../../contexts/AuthContexto";
 import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
 import PainelJustificativas from "../../components/admin/PainelJustificativas";
 import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
+import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
+import { usePonto } from "../../hooks/usePonto";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -57,9 +59,10 @@ function formatarData(ts) {
 
 export default function DashboardAdmin() {
   const navigate = useNavigate();
-  const { usuario, perfil } = useAuth();
+  const { usuario, perfil, logout } = useAuth();
   const { itens, carregando, erro } = useAdminPontos();
   const { config, nomePainel } = useConfig();
+  const { validacao, validarLocal } = usePonto();
 
   const [buscaNome, setBuscaNome] = React.useState("");
   const [tipo, setTipo] = React.useState("TODOS");
@@ -68,6 +71,7 @@ export default function DashboardAdmin() {
   const [mostrarToast, setMostrarToast] = React.useState(false);
   const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
   const [modalAberto, setModalAberto] = React.useState(false);
+  const [modalSenhaAberto, setModalSenhaAberto] = React.useState(false);
   const [funcEditando, setFuncEditando] = React.useState(null);
 
   // Lista de funcionários para a aba específica
@@ -81,6 +85,11 @@ export default function DashboardAdmin() {
   const [tempNomePainel, setTempNomePainel] = React.useState("");
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
+
+  // Validar local ao abrir o painel
+  React.useEffect(() => {
+    validarLocal();
+  }, [validarLocal]);
 
   // Carregar config inicial do Firestore de forma isolada por empresa
   React.useEffect(() => {
@@ -360,16 +369,10 @@ export default function DashboardAdmin() {
 
         <Nav>
           <NavItem $ativo={abaAtiva === "DASHBOARD"} onClick={() => setAbaAtiva("DASHBOARD")}>
-            <FiGrid /> <span>Dashboard</span>
-          </NavItem>
-          <NavItem $ativo={abaAtiva === "HISTORICO"} onClick={() => { setAbaAtiva("HISTORICO"); setTipo("TODOS"); }}>
-            <FiClock /> <span>Histórico de Pontos</span>
+            <FiGrid /> <span>Visão Geral</span>
           </NavItem>
           <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
             <FiUsers /> <span>Funcionários</span>
-          </NavItem>
-          <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
-            <FiSettings /> <span>Configurações</span>
           </NavItem>
           <NavItem $ativo={abaAtiva === "BANCO_HORAS"} onClick={() => setAbaAtiva("BANCO_HORAS")}>
             <FiDatabase /> <span>Banco de Horas</span>
@@ -377,114 +380,61 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "JUSTIFICATIVAS"} onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
             <FiMessageSquare /> <span>Justificativas</span>
           </NavItem>
+          <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
+            <FiSettings /> <span>Configurações</span>
+          </NavItem>
 
           <NavSeparador />
 
-          <NavItem onClick={() => navigate("/")}>
-            <FiArrowLeft /> <span>Bater Ponto</span>
+          <NavItem onClick={() => setModalSenhaAberto(true)}>
+            <FiLock /> <span>Trocar Senha</span>
           </NavItem>
+
+          <NavSeparador />
+
+          <NavItem onClick={logout} style={{ color: '#eb4d4b' }}>
+            <FiLogOut /> <span>Sair</span>
+          </NavItem>
+
+          <NavSeparador />
+
+          <StatusLocal>
+            <div className="label">Status da Sede</div>
+            <div className={`status ${validacao.ok ? 'online' : 'offline'}`}>
+              <FiMapPin />
+              {validacao.ok ? 'Você está na Sede' : 'Você está fora da Sede'}
+            </div>
+            {validacao.distance !== null && (
+              <div className="distancia">
+                Distância: {Math.round(validacao.distance)}m
+              </div>
+            )}
+          </StatusLocal>
         </Nav>
       </Sidebar>
 
       <ConteudoPrincipal>
         <BannerNovaAtualizacao />
+
+        {/* Indicador de Localização Mobile */}
+        <StatusLocalMobile className={validacao.ok ? 'online' : 'offline'}>
+          <div className="location-info">
+            <FiMapPin />
+            <span>{validacao.ok ? 'Na Sede' : 'Fora da Sede'}</span>
+            {validacao.distance !== null && <strong>{Math.round(validacao.distance)}m</strong>}
+          </div>
+          <button className="logout-btn" onClick={logout}>
+            <FiLogOut />
+            Sair
+          </button>
+        </StatusLocalMobile>
+
         {carregando && <LoadingGlobal />}
         {erro && <AvisoErro>{erro}</AvisoErro>}
 
         {!carregando && !erro && (
           <>
-            {abaAtiva === "HISTORICO" && (
-              <>
-                {/* Atalhos rápidos — visível só no mobile */}
-                <AtalhosMobile>
-                  <AtalhoBtn onClick={() => setAbaAtiva("BANCO_HORAS")}>
-                    <FiDatabase size={16} />
-                    Banco de Horas
-                  </AtalhoBtn>
-                  <AtalhoBtn onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
-                    <FiMessageSquare size={16} />
-                    Justificativas
-                  </AtalhoBtn>
-                </AtalhosMobile>
-
-                <Topo>
-                  <SeletorAcordeaoWrapper>
-                    <SeletorAcordeao
-                      opcoes={opcoesFuncionarios}
-                      value={buscaNome}
-                      onChange={(val) => setBuscaNome(val)}
-                    />
-                  </SeletorAcordeaoWrapper>
-
-                  <FiltroDataWrapper>
-                    <span>De:</span>
-                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} title="Data Início" />
-                  </FiltroDataWrapper>
-
-                  <FiltroDataWrapper>
-                    <span>Até:</span>
-                    <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} title="Data Fim" />
-                  </FiltroDataWrapper>
-
-                  <SeletorAcordeaoWrapper>
-                    <SeletorAcordeao
-                      opcoes={TIPOS}
-                      value={tipo}
-                      onChange={(val) => setTipo(val)}
-                    />
-                  </SeletorAcordeaoWrapper>
-
-                  <GrupoBotoesExportar>
-                    <BotaoExportar onClick={gerarPdf} disabled={filtrados.length === 0}>
-                      <FiFileText /> PDF
-                    </BotaoExportar>
-                    <BotaoExportar $csv onClick={handleExportarCsvHistorico} disabled={filtrados.length === 0}>
-                      <FiFile /> CSV
-                    </BotaoExportar>
-                  </GrupoBotoesExportar>
-                </Topo>
-
-                <TabelaContainer>
-                  <TabelaStyled>
-                    <thead>
-                      <tr>
-                        <th><FiCheckSquare /></th>
-                        <th>Funcionário</th>
-                        <th>Tipo</th>
-                        <th>Data/Hora</th>
-                        <th>Origem</th>
-                        <th>IP</th>
-                        <th>Localização</th>
-                        <th>Distância</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtrados.map((p) => (
-                        <tr key={p.id} className={!p.dentroDoRaio ? "row-alerta" : ""}>
-                          <td><input type="checkbox" /></td>
-                          <td>{p.userName || "—"}</td>
-                          <td>{formatarTipo(p.type)}</td>
-                          <td>{formatarData(p.dataHoraOriginal || p.criadoEm)}</td>
-                          <td>{p.origem === "offline_queue" ? "Offline" : "Online"}</td>
-                          <td style={{ fontSize: '12px', fontFamily: 'monospace', opacity: 0.8 }}>{p.ip || "—"}</td>
-                          <td>
-                            <LocalInfo>
-                              <FiMapPin className={p.dentroDoRaio ? "pin-ok" : "pin-alerta"} />
-                              {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
-                              {!p.dentroDoRaio && <FiAlertTriangle className="icon-alerta" />}
-                              <BtnVerMapa onClick={() => setPontoParaMapa(p)} title="Ver no Mapa">
-                                <FiMap size={14} />
-                              </BtnVerMapa>
-                            </LocalInfo>
-                          </td>
-                          <td>{typeof p.distanciaRelativa === "number" ? `${p.distanciaRelativa} m` : "X"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </TabelaStyled>
-                </TabelaContainer>
-              </>
-            )}
+            {/* Removida aba HISTORICO conforme solicitação */}
 
 
             {abaAtiva === "DASHBOARD" && (
@@ -794,6 +744,18 @@ export default function DashboardAdmin() {
                     </ConfigBox>
 
                     <ConfigBox>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <FiLock size={18} color="#fff" />
+                        <h4 style={{ margin: 0 }}>Segurança</h4>
+                      </div>
+                      <p>Mantenha sua conta protegida alterando sua senha regularmente.</p>
+                      <BotaoGhost onClick={() => setModalSenhaAberto(true)} style={{ width: '100%', justifyContent: 'center' }}>
+                        <FiLock size={16} />
+                        Trocar Minha Senha
+                      </BotaoGhost>
+                    </ConfigBox>
+
+                    <ConfigBox>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <FiSettings size={18} color="#fff" />
                         <h4 style={{ margin: 0 }}>Identidade do Painel</h4>
@@ -818,6 +780,21 @@ export default function DashboardAdmin() {
                         {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
                         Salvar Identidade
                       </Botao>
+                    </ConfigBox>
+
+                    <ConfigBox>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <FiLogOut size={18} color="#eb4d4b" />
+                        <h4 style={{ margin: 0, color: '#eb4d4b' }}>Sessão</h4>
+                      </div>
+                      <p>Encerrar sua sessão atual neste dispositivo.</p>
+                      <BotaoGhost
+                        onClick={logout}
+                        style={{ width: '100%', justifyContent: 'center', borderColor: 'rgba(235, 77, 75, 0.2)', color: '#eb4d4b' }}
+                      >
+                        <FiLogOut size={16} />
+                        Sair da Conta
+                      </BotaoGhost>
                     </ConfigBox>
                   </div>
                 </PainelConfig>
@@ -853,6 +830,12 @@ export default function DashboardAdmin() {
           aberto={!!funcEditando}
           funcionario={funcEditando}
           onFechar={() => setFuncEditando(null)}
+        />
+
+        <ModalTrocaSenha
+          aberto={modalSenhaAberto}
+          onFechar={() => setModalSenhaAberto(false)}
+          onSucesso={() => setModalSenhaAberto(false)}
         />
 
         <ModalMapaPonto
@@ -949,6 +932,43 @@ const NavSeparador = styled.div`
 height: 1px;
 background: rgba(255, 255, 255, 0.05);
 margin: 16px 0;
+`;
+
+const StatusLocal = styled.div`
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: auto;
+
+  .label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #8d8d99;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    
+    &.online { color: #2ecc71; }
+    &.offline { color: #f1c40f; }
+
+    svg { font-size: 16px; }
+  }
+
+  .distancia {
+    font-size: 11px;
+    color: #8d8d99;
+    margin-top: 4px;
+    font-weight: 600;
+  }
 `;
 
 const ConteudoPrincipal = styled.main`
@@ -1525,5 +1545,60 @@ const AtalhoBtn = styled.button`
 
   svg {
     color: #2f81f7;
+  }
+`;
+
+const StatusLocalMobile = styled.div`
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #19191b;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+
+  .location-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    &.online { color: #2ecc71; }
+    &.offline { color: #f1c40f; }
+
+    strong { 
+      font-size: 11px;
+      opacity: 0.7;
+      margin-left: 4px;
+    }
+  }
+
+  .logout-btn {
+    background: rgba(235, 77, 75, 0.1);
+    border: 1px solid rgba(235, 77, 75, 0.2);
+    color: #eb4d4b;
+    padding: 6px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:active {
+      transform: scale(0.95);
+      background: rgba(235, 77, 75, 0.2);
+    }
+  }
+
+  &.online .location-info { color: #2ecc71; }
+  &.offline .location-info { color: #f1c40f; }
+
+  @media (max-width: 900px) {
+    display: flex;
   }
 `;

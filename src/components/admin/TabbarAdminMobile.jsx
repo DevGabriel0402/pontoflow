@@ -1,15 +1,15 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiClock, FiUsers, FiSettings, FiArrowLeft } from "react-icons/fi";
+import { FiGrid, FiUsers, FiSettings, FiDatabase, FiMessageSquare } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
   const navigate = useNavigate();
   const abas = [
-    { id: "VOLTAR", label: "Ponto", icon: <FiArrowLeft size={20} />, action: () => navigate("/") },
     { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} /> },
-    { id: "HISTORICO", label: "Histórico", icon: <FiClock size={20} /> },
     { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} /> },
+    { id: "BANCO_HORAS", label: "Banco", icon: <FiDatabase size={20} /> },
+    { id: "JUSTIFICATIVAS", label: "Justif.", icon: <FiMessageSquare size={20} /> },
     { id: "CONFIG", label: "Config", icon: <FiSettings size={20} /> },
   ];
 
