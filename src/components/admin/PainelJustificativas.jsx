@@ -6,7 +6,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiCheck, FiX, FiUser, FiClock, FiMessageSquare, FiPaperclip, FiEdit, FiCalendar, FiExternalLink } from "react-icons/fi";
+import { FiCheck, FiX, FiUser, FiClock, FiMessageSquare, FiPaperclip, FiEdit, FiCalendar, FiExternalLink, FiDownload } from "react-icons/fi";
 import SeletorAcordeao from "../SeletorAcordeao";
 
 const STATUS_LABEL = {
@@ -417,10 +417,28 @@ export default function PainelJustificativas() {
             {/* Modal de visualização de anexo - Premium FullScreen */}
             {anexoVisualizando && (
                 <Overlay onClick={() => setAnexoVisualizando(null)}>
-                    <BtnFecharModal onClick={() => setAnexoVisualizando(null)}>
-                        <FiX size={32} />
-                        <span>Fechar</span>
-                    </BtnFecharModal>
+                    <AcoesModal>
+                        <BtnDownload
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const link = document.createElement('a');
+                                link.href = anexoVisualizando;
+                                link.download = `anexo-${Date.now()}.png`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                        >
+                            <FiDownload size={20} />
+                            <span>Baixar</span>
+                        </BtnDownload>
+
+                        <BtnFecharModal onClick={() => setAnexoVisualizando(null)}>
+                            <FiX size={32} />
+                            <span>Fechar</span>
+                        </BtnFecharModal>
+                    </AcoesModal>
+
                     <ModalContent onClick={e => e.stopPropagation()}>
                         <img src={anexoVisualizando} alt="Anexo" />
                     </ModalContent>
@@ -833,28 +851,76 @@ const ModalContent = styled.div`
 `;
 
 const BtnFecharModal = styled.button`
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(235, 77, 75, 0.15);
+    border: 1px solid rgba(235, 77, 75, 0.3);
     border-radius: 50px;
-    color: #fff;
-    padding: 8px 16px;
+    color: #eb4d4b;
+    padding: 8px 20px;
     display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
     font-weight: 700;
     transition: all 0.2s;
-    z-index: 100000;
+    backdrop-filter: blur(15px);
     
     &:hover { 
         background: #eb4d4b;
-        border-color: #eb4d4b;
+        color: #fff;
         transform: translateY(-2px);
     }
 
-    svg { width: 20px; height: 20px; }
+    svg { width: 18px; height: 18px; }
     span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    @media (max-width: 600px) {
+        padding: 8px 14px;
+        span { font-size: 11px; }
+    }
+`;
+
+const AcoesModal = styled.div`
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 16px;
+    z-index: 100000;
+    width: max-content;
+
+    @media (max-width: 600px) {
+        bottom: 20px;
+        gap: 12px;
+        width: 90%;
+        justify-content: center;
+    }
+`;
+
+const BtnDownload = styled.button`
+    background: rgba(79, 172, 254, 0.15);
+    border: 1px solid rgba(79, 172, 254, 0.3);
+    border-radius: 50px;
+    color: #4facfe;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    backdrop-filter: blur(15px);
+    transition: all 0.2s;
+    
+    &:hover { 
+        background: #4facfe;
+        color: #fff;
+        transform: translateY(-2px);
+    }
+
+    span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    @media (max-width: 600px) {
+        padding: 10px 14px;
+        
+    }
 `;
