@@ -20,9 +20,24 @@ export default function Login() {
     e.preventDefault();
     setCarregando(true);
     try {
-      await login(email, senha);
-      toast.success("Bem-vindo ao ClickPonto BH!");
-      navigate("/");
+      const user = await login(email, senha);
+
+      // Buscar perfil manualmente para redirecionamento imediato
+      const { doc, getDoc } = await import("firebase/firestore");
+      const { db } = await import("../../services/firebase");
+
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const perfilData = snap.exists() ? snap.data() : null;
+
+      toast.success("Bem-vindo ao PontoFlow!");
+
+      if (perfilData?.role === "admin") {
+        navigate("/admin");
+      } else if (perfilData?.role === "master") {
+        navigate("/master");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       toast.error("Falha no login. Verifique email e senha.");
       console.log(err);
