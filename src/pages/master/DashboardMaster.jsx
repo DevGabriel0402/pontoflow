@@ -477,6 +477,16 @@ const Sidebar = styled.aside`
     display: flex;
     flex-direction: column;
     padding: 24px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    overflow-y: auto;
+
+    @media (max-width: 900px) {
+        display: none;
+    }
 `;
 
 const Branding = styled.div`
@@ -531,8 +541,14 @@ const Conteudo = styled.main`
     flex-direction: column;
     gap: 32px;
     max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
+    margin: 0 auto 0 260px;
+    width: calc(100% - 260px);
+
+    @media (max-width: 900px) {
+        padding: 24px 16px;
+        margin: 0 auto;
+        width: 100%;
+    }
 `;
 
 const TituloSecao = styled.h2`

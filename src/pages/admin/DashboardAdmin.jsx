@@ -875,6 +875,12 @@ border-right: 1px solid rgba(255, 255, 255, 0.05);
 display: flex;
 flex-direction: column;
 padding: 24px;
+position: fixed;
+top: 0;
+left: 0;
+bottom: 0;
+z-index: 100;
+overflow-y: auto;
 
 @media (max-width: 900px) {
   display: none;
@@ -978,9 +984,11 @@ const ConteudoPrincipal = styled.main`
   flex-direction: column;
   gap: 24px;
   min-width: 0; /* Permite que o flex child encolha */
+  margin-left: 260px;
 
   @media (max-width: 900px) {
     padding: 20px 16px 100px;
+    margin-left: 0;
   }
 `;
 
