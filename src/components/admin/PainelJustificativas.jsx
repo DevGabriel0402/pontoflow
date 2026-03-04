@@ -62,8 +62,9 @@ export default function PainelJustificativas() {
     const [anoSelecionado, setAnoSelecionado] = React.useState(hoje.getFullYear());
     const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-    // View de Foto Modal
+    // View de Foto Modal (Full-screen)
     const [anexoVisualizando, setAnexoVisualizando] = React.useState(null);
+
 
     React.useEffect(() => {
         if (!usuario) return;
@@ -412,15 +413,17 @@ export default function PainelJustificativas() {
                 </Lista>
             )}
 
-            {/* Modal de visualização de anexo */}
+
+            {/* Modal de visualização de anexo - Premium FullScreen */}
             {anexoVisualizando && (
                 <Overlay onClick={() => setAnexoVisualizando(null)}>
-                    <ModalImg>
-                        <BtnFecharModal onClick={() => setAnexoVisualizando(null)}>
-                            <FiX size={24} />
-                        </BtnFecharModal>
-                        <img src={anexoVisualizando} alt="Atestado" />
-                    </ModalImg>
+                    <BtnFecharModal onClick={() => setAnexoVisualizando(null)}>
+                        <FiX size={32} />
+                        <span>Fechar</span>
+                    </BtnFecharModal>
+                    <ModalContent onClick={e => e.stopPropagation()}>
+                        <img src={anexoVisualizando} alt="Anexo" />
+                    </ModalContent>
                 </Overlay>
             )}
         </Container>
@@ -747,4 +750,111 @@ const BtnEditar = styled.button`
         opacity: 0.5; 
         cursor: not-allowed; 
     }
+`;
+
+const AnexoInfo = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(79,172,254,0.05);
+    border: 1px dashed rgba(79,172,254,0.3);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+
+    .resumo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #fff;
+        span { color: #8d8d99; }
+        strong { color: #4facfe; }
+    }
+`;
+
+const BtnVerAnexo = styled.button`
+    background: #4facfe20;
+    border: 1px solid #4facfe40;
+    border-radius: 8px;
+    color: #4facfe;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    &:hover { background: #4facfe30; }
+`;
+
+const Overlay = styled.div`
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 10, 12, 0.95);
+    backdrop-filter: blur(15px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+`;
+
+const ModalContent = styled.div`
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 20px;
+
+    img {
+        max-width: 95%;
+        max-height: 95%;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes scaleIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+`;
+
+const BtnFecharModal = styled.button`
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    color: #fff;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+    z-index: 100000;
+    
+    &:hover { 
+        background: #eb4d4b;
+        border-color: #eb4d4b;
+        transform: translateY(-2px);
+    }
+
+    svg { width: 20px; height: 20px; }
+    span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
 `;
