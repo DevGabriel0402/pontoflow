@@ -13,6 +13,7 @@ import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalNovoFuncionario from "../../components/admin/ModalNovoFuncionario";
 import ModalEditarFuncionario from "../../components/admin/ModalEditarFuncionario";
 import MapaConfig from "../../components/admin/MapaConfig";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 import { db } from "../../services/firebase";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
@@ -27,6 +28,7 @@ import PainelJustificativas from "../../components/admin/PainelJustificativas";
 import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import { usePonto } from "../../hooks/usePonto";
+import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -73,6 +75,7 @@ export default function DashboardAdmin() {
   const [modalAberto, setModalAberto] = React.useState(false);
   const [modalSenhaAberto, setModalSenhaAberto] = React.useState(false);
   const [funcEditando, setFuncEditando] = React.useState(null);
+  const [confirmarExclusao, setConfirmarExclusao] = React.useState({ aberto: false, func: null });
 
   // Lista de funcionários para a aba específica
   const { funcionarios, carregando: carregandoFuncs, erro: erroFuncs } = useAdminFuncionarios();
@@ -273,69 +276,39 @@ export default function DashboardAdmin() {
   }, [funcionarios]);
 
   const resumoJornada = React.useMemo(() => {
-    // 1. Agrupar por data e usuário
-    const grupos = {};
-
+    // Agrupar filtrados por usuário para processar com a utilidade
+    const gruposUser = {};
     filtrados.forEach(p => {
-      let d;
-      if (p.dataHoraOriginal) {
-        d = new Date(p.dataHoraOriginal);
-      } else {
-        d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
-      }
-      if (!d) return;
-
-      const dataKey = format(d, "yyyy-MM-dd");
-      const userKey = p.userId;
-      const key = `${dataKey}_${userKey}`;
-
-      if (!grupos[key]) {
-        grupos[key] = {
-          data: d,
-          userId: p.userId,
-          userName: p.userName,
-          pontos: []
-        };
-      }
-      grupos[key].pontos.push({ ...p, dateObj: d });
+      if (!gruposUser[p.userId]) gruposUser[p.userId] = [];
+      gruposUser[p.userId].push(p);
     });
 
-    // 2. Calcular cada grupo
-    return Object.values(grupos).map(g => {
-      const pontos = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
+    const todosResumos = [];
 
-      const entrada = pontos.find(p => p.type === "ENTRADA")?.dateObj;
-      const saida = pontos.find(p => p.type === "SAIDA")?.dateObj;
-      const iniInt = pontos.find(p => p.type === "INICIO_INTERVALO")?.dateObj;
-      const fimInt = pontos.find(p => p.type === "FIM_INTERVALO")?.dateObj;
+    Object.entries(gruposUser).forEach(([userId, pontosUser]) => {
+      const func = funcionarios.find(f => f.id === userId);
+      if (!func) return;
 
-      let minutosTrabalhados = 0;
-      let status = "Incompleto";
+      const resumosUser = calcularResumoDiario(
+        pontosUser,
+        func.jornadas || func.jornada,
+        [], // diasAbonados não carregados aqui, mas o dashboard foca em pontos batidos
+        func.cargaHorariaSemanal
+      );
 
-      if (entrada && saida) {
-        let total = differenceInMinutes(saida, entrada);
-        let intervalo = 0;
+      resumosUser.forEach(r => {
+        todosResumos.push({
+          ...r,
+          userId: func.id,
+          userName: func.nome,
+          totalMinutos: r.minutosTrabalhados,
+          totalFormatado: formatarDuracao(r.minutosTrabalhados)
+        });
+      });
+    });
 
-        if (iniInt && fimInt) {
-          intervalo = differenceInMinutes(fimInt, iniInt);
-        }
-
-        minutosTrabalhados = total - (intervalo > 0 ? intervalo : 0);
-        status = (iniInt && !fimInt) || (!iniInt && fimInt) ? "Intervalo Incompleto" : "Ok";
-      }
-
-      const horas = Math.floor(minutosTrabalhados / 60);
-      const minutos = minutosTrabalhados % 60;
-
-      return {
-        ...g,
-        totalMinutos: minutosTrabalhados,
-        totalFormatado: `${horas}h ${minutos}m`,
-        status,
-        check: { entrada, saida, iniInt, fimInt }
-      };
-    }).sort((a, b) => b.data - a.data);
-  }, [filtrados]);
+    return todosResumos.sort((a, b) => b.data - a.data);
+  }, [filtrados, funcionarios]);
 
   const totalHorasPeriodo = React.useMemo(() => {
     const totalMin = resumoJornada.reduce((acc, curr) => acc + curr.totalMinutos, 0);
@@ -345,9 +318,9 @@ export default function DashboardAdmin() {
   }, [resumoJornada]);
 
 
-  const handleDeletarFuncionario = async (funcionario) => {
-    const confirmar = window.confirm(`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${funcionario.nome}? Esta ação não pode ser desfeita.`);
-    if (!confirmar) return;
+  const handleDeletarFuncionario = async () => {
+    const funcionario = confirmarExclusao.func;
+    if (!funcionario) return;
 
     const tId = toast.loading("Excluindo funcionário...");
     try {
@@ -356,6 +329,8 @@ export default function DashboardAdmin() {
     } catch (e) {
       console.error(e);
       toast.error(e.message || "Erro ao excluir funcionário.", { id: tId });
+    } finally {
+      setConfirmarExclusao({ aberto: false, func: null });
     }
   };
 
@@ -630,13 +605,10 @@ export default function DashboardAdmin() {
                                   {f.ativo ? "Desativar" : "Ativar"}
                                 </BotaoAcao>
 
-                                <BotaoAcao
-                                  $danger
-                                  onClick={() => handleDeletarFuncionario(f)}
-                                  title="Excluir Permanentemente"
-                                >
+                                <BtnAcao $perigoso onClick={() => setConfirmarExclusao({ aberto: true, func: f })} title="Excluir funcionário">
                                   <FiTrash2 size={16} />
-                                </BotaoAcao>
+                                  <span>Excluir</span>
+                                </BtnAcao>
                               </div>
                             </td>
                           </tr>
@@ -842,10 +814,21 @@ export default function DashboardAdmin() {
           aberto={!!pontoParaMapa}
           ponto={pontoParaMapa}
           onFechar={() => setPontoParaMapa(null)}
+          userId={pontoParaMapa?.userId}
         />
 
         <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
       </ConteudoPrincipal>
+
+      <ModalConfirmacao
+        aberto={confirmarExclusao.aberto}
+        onFechar={() => setConfirmarExclusao({ aberto: false, func: null })}
+        onConfirmar={handleDeletarFuncionario}
+        titulo="Excluir Funcionário"
+        mensagem={`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${confirmarExclusao.func?.nome}? Esta ação não pode ser desfeita e todos os registros dele sumirão.`}
+        perigoso={true}
+        textoConfirmar="Excluir Permanentemente"
+      />
     </LayoutAdmin>
   );
 }
@@ -1608,5 +1591,28 @@ const StatusLocalMobile = styled.div`
 
   @media (max-width: 900px) {
     display: flex;
+  }
+`;
+
+const BtnAcao = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid ${props => props.$perigoso ? 'rgba(235, 77, 75, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.$perigoso ? 'rgba(235, 77, 75, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
+  color: ${props => props.$perigoso ? '#eb4d4b' : '#8d8d99'};
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+
+  &:hover {
+    background: ${props => props.$perigoso ? '#eb4d4b' : 'rgba(255, 255, 255, 0.1)'};
+    color: #fff;
+  }
+
+  svg {
+    flex-shrink: 0;
   }
 `;

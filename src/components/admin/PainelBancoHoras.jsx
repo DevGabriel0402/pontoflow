@@ -20,6 +20,7 @@ import {
 } from "../../utils/pontoUtils";
 
 import SeletorAcordeao from "../SeletorAcordeao";
+import ModalConfirmacao from "../ModalConfirmacao";
 
 // Wrapper seguro contra "Invalid Date"
 function safeFormat(dateObj, fmtStr) {
@@ -60,6 +61,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const [carregando, setCarregando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
+  // Modal Confirmação (Excluir ajuste)
+  const [confirmarExclusao, setConfirmarExclusao] = useState({ aberto: false, id: null });
+
   // Busca lançamentos manuais do Firestore
   useEffect(() => {
     if (!perfil?.companyId) return;
@@ -82,7 +86,13 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Filtrar pontos ATÉ o fim do período selecionado (acumulativo)
   const pontosAtePeriodo = useMemo(() => {
     return (pontos || []).filter((p) => {
-      const d = p.criadoEm?.toDate ? p.criadoEm.toDate() : p.criadoEm ? new Date(p.criadoEm) : null;
+      // Prioriza a data original do trabalho (retroativo) sobre a data de criação
+      let d;
+      if (p.dataHoraOriginal) {
+        d = new Date(p.dataHoraOriginal);
+      } else {
+        d = p.criadoEm?.toDate ? p.criadoEm.toDate() : (p.criadoEm ? new Date(p.criadoEm) : null);
+      }
       if (!d) return false;
       return d <= fimDoPeriodo;
     });
@@ -91,11 +101,18 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Lançamentos manuais ATÉ o fim do período selecionado (acumulativo)
   const lancamentosAtePeriodo = useMemo(() => {
     return lancamentos.filter((l) => {
-      if (!l.criadoEm) {
-        // Se for novo, incluímos se o período selecionado for o atual ou futuro
-        return (new Date(anoSelecionado, mesSelecionado, 1)) >= startOfMonth(hoje);
+      // Prioriza dataReferencia (ISO string YYYY-MM-DD) para abonos e ajustes retroativos
+      let d;
+      if (l.dataReferencia) {
+        // Usa meio-dia para evitar problemas de timezone na comparação <= fimDoPeriodo
+        d = new Date(`${l.dataReferencia}T12:00:00`);
+      } else {
+        if (!l.criadoEm) {
+          return (new Date(anoSelecionado, mesSelecionado, 1)) >= startOfMonth(hoje);
+        }
+        d = l.criadoEm?.toDate ? l.criadoEm.toDate() : null;
       }
-      const d = l.criadoEm?.toDate ? l.criadoEm.toDate() : null;
+
       if (!d) return false;
       return d <= fimDoPeriodo;
     });
@@ -128,7 +145,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           .filter(Boolean);
 
         // Calcula o resumo histórico até o fim do período
-        const todosDias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc);
+        const todosDias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc, f.cargaHorariaSemanal);
 
         // Filtra apenas os dias do mês selecionado para exibição no acordeão
         const dias = todosDias.filter(d => {
@@ -283,8 +300,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     }
   };
 
-  const handleExcluirLancamento = async (id) => {
-    if (!window.confirm("Certeza que deseja excluir este ajuste manual? Essa ação não pode ser desfeita e o banco de horas será recalculado.")) return;
+
+
+  const handleExcluirLancamento = async () => {
+    const id = confirmarExclusao.id;
+    if (!id) return;
 
     try {
       await deleteDoc(doc(db, "banco_horas", id));
@@ -292,6 +312,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     } catch (err) {
       console.error("Erro ao excluir ajuste:", err);
       toast.error("Erro ao excluir o ajuste.");
+    } finally {
+      setConfirmarExclusao({ aberto: false, id: null });
     }
   };
 
@@ -442,6 +464,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                   <th>Esperado</th>
                                   <th>Diferença</th>
                                   <th>Status</th>
+                                  <th style={{ width: 40 }}></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -466,6 +489,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         {dia.status}
                                       </StatusBadge>
                                     </td>
+                                    <td style={{ width: 40 }}></td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -508,7 +532,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         <td style={{ textAlign: "center" }}>
                                           <BtnAjusteLinha
                                             style={{ color: "#e74c3c", borderColor: "transparent", padding: 4 }}
-                                            onClick={(e) => { e.stopPropagation(); handleExcluirLancamento(l.id); }}
+                                            onClick={(e) => { e.stopPropagation(); setConfirmarExclusao({ aberto: true, id: l.id }); }}
                                             title="Excluir ajuste"
                                           >
                                             <FiTrash2 size={14} />
@@ -597,6 +621,16 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           </ModalBox>
         </Overlay>
       )}
+      {/* ── Modal de Confirmação ── */}
+      <ModalConfirmacao
+        aberto={confirmarExclusao.aberto}
+        onFechar={() => setConfirmarExclusao({ aberto: false, id: null })}
+        onConfirmar={handleExcluirLancamento}
+        titulo="Excluir Ajuste"
+        mensagem="Certeza que deseja excluir este ajuste manual? Essa ação não pode ser desfeita e o banco de horas será recalculado."
+        perigoso={true}
+        textoConfirmar="Excluir"
+      />
     </>
   );
 }

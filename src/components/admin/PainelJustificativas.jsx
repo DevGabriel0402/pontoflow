@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FiCheck, FiX, FiUser, FiClock, FiMessageSquare, FiPaperclip, FiEdit, FiCalendar, FiExternalLink, FiDownload } from "react-icons/fi";
 import SeletorAcordeao from "../SeletorAcordeao";
+import ModalConfirmacao from "../ModalConfirmacao";
 
 const STATUS_LABEL = {
     pendente: { label: "Pendente", cor: "#f39c12" },
@@ -54,6 +55,7 @@ export default function PainelJustificativas() {
     const [aba, setAba] = React.useState("pendente");
     const [rejeitandoId, setRejeitandoId] = React.useState(null);
     const [motivoRejeicao, setMotivoRejeicao] = React.useState("");
+    const [confirmarVoltarPendente, setConfirmarVoltarPendente] = React.useState({ aberto: false, item: null });
     const [processando, setProcessando] = React.useState(null);
 
     // Filtros de Data
@@ -107,91 +109,177 @@ export default function PainelJustificativas() {
     const handleAprovar = async (item) => {
         setProcessando(item.id);
         try {
-            let dataHoraFinal = item.dataHoraSolicitada;
             const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
+            const [datePart, timePart] = item.dataHoraSolicitada.split('T');
+            const [y, m, d] = datePart.split('-').map(Number);
+            const [hh, mm] = timePart.split(':').map(Number);
+            const dataObjBase = new Date(y, m - 1, d, hh, mm);
+            const diasSemana = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+            const diaNome = diasSemana[dataObjBase.getDay()];
 
-            // Se for justificativa de "FIM_INTERVALO", buscar o "INICIO_INTERVALO" correspondente do dia para cravar exata 1 hora depois
-            if (item.tipo === "FIM_INTERVALO") {
-                const q = query(
-                    collection(db, "pontos"),
-                    where("userId", "==", item.userId),
-                    where("type", "==", "INICIO_INTERVALO")
-                );
+            // Buscar dados do funcionário para pegar a jornada
+            const { getDoc, getDocs, deleteDoc } = await import("firebase/firestore");
+            const userSnap = await getDoc(doc(db, "users", item.userId));
+            const userDados = userSnap.exists() ? userSnap.data() : null;
 
-                const snap = await getDocs(q);
-                let inicioEncontrado = null;
+            let dataHoraFinal = item.dataHoraSolicitada;
+            let overrideMsg = "";
 
-                snap.docs.forEach(d => {
-                    const obj = d.data();
-                    const dLocal = obj.dataHoraOriginal
-                        ? obj.dataHoraOriginal.substring(0, 10)
-                        : (obj.criadoEm?.toDate ? format(obj.criadoEm.toDate(), "yyyy-MM-dd") : "");
+            if (userDados) {
+                const jornadas = userDados.jornadas || (userDados.jornada ? { padrao: userDados.jornada } : null);
+                let jornadaDoDia = null;
 
-                    if (dLocal === dateSolicitada) {
-                        inicioEncontrado = obj;
+                if (userDados.jornadas) {
+                    jornadaDoDia = userDados.jornadas[diaNome];
+                } else if (userDados.jornada) {
+                    const isFDS = diaNome === "domingo" || diaNome === "sabado";
+                    jornadaDoDia = isFDS ? null : userDados.jornada;
+                }
+
+                const isActive = jornadaDoDia && (jornadaDoDia.ativo !== false);
+
+                // PRIORIDADE 1: FIM_INTERVALO (Regra dos 20/60 min ou jornada)
+                if (item.tipo === "FIM_INTERVALO") {
+                    // Tenta achar o início do intervalo desse dia
+                    const qIni = query(
+                        collection(db, "pontos"),
+                        where("userId", "==", item.userId),
+                        where("type", "==", "INICIO_INTERVALO")
+                    );
+                    const snapIni = await getDocs(qIni);
+                    let inicioEncontrado = null;
+                    snapIni.docs.forEach(docSnap => {
+                        const p = docSnap.data();
+                        let dStr = "";
+                        if (p.dataHoraOriginal) dStr = p.dataHoraOriginal.substring(0, 10);
+                        else if (p.criadoEm?.toDate) dStr = format(p.criadoEm.toDate(), "yyyy-MM-dd");
+                        else if (p.criadoEm) dStr = new Date(p.criadoEm).toISOString().substring(0, 10);
+
+                        if (dStr === dateSolicitada) inicioEncontrado = p;
+                    });
+
+                    if (inicioEncontrado) {
+                        let pausaMinutos = 60;
+                        const carga = Number(userDados?.cargaHorariaSemanal || 44);
+
+                        if (carga <= 30) {
+                            // Para 30h, é SEMPRE 20 min se tiver início
+                            pausaMinutos = 20;
+                        } else {
+                            // Para 40/44h, tenta usar jornada se houver algo específico, senão 60
+                            if (isActive) {
+                                if (jornadaDoDia.inicioIntervalo && jornadaDoDia.fimIntervalo) {
+                                    const [h1, m1] = jornadaDoDia.inicioIntervalo.split(":").map(Number);
+                                    const [h2, m2] = jornadaDoDia.fimIntervalo.split(":").map(Number);
+                                    pausaMinutos = (h2 * 60 + m2) - (h1 * 60 + m1);
+                                } else if (jornadaDoDia.intervaloMin) {
+                                    pausaMinutos = Number(jornadaDoDia.intervaloMin);
+                                }
+                            }
+                        }
+
+                        // Cálculo robusto do objeto de data do início
+                        let dObjIni;
+                        if (inicioEncontrado.dataHoraOriginal) {
+                            dObjIni = new Date(inicioEncontrado.dataHoraOriginal);
+                        } else if (inicioEncontrado.criadoEm?.toDate) {
+                            dObjIni = inicioEncontrado.criadoEm.toDate();
+                        } else {
+                            dObjIni = new Date(inicioEncontrado.criadoEm);
+                        }
+
+                        const displayHoraIni = format(dObjIni, "HH:mm");
+
+                        const dObjFinal = new Date(dObjIni.getTime());
+                        dObjFinal.setMinutes(dObjFinal.getMinutes() + pausaMinutos);
+
+                        dataHoraFinal = format(dObjFinal, "yyyy-MM-dd'T'HH:mm");
+                        overrideMsg = `Fixado retorno em ${pausaMinutos}min após o início de intervalo (${displayHoraIni}).`;
+                    } else if (isActive && jornadaDoDia.fimIntervalo) {
+                        dataHoraFinal = `${dateSolicitada}T${jornadaDoDia.fimIntervalo}`;
+                        overrideMsg = `Fixado conforme jornada: ${jornadaDoDia.fimIntervalo}`;
                     }
-                });
-
-                if (inicioEncontrado) {
-                    const dataObj = inicioEncontrado.dataHoraOriginal
-                        ? new Date(inicioEncontrado.dataHoraOriginal)
-                        : inicioEncontrado.criadoEm.toDate();
-
-                    // Adiciona exatamente 1 hora
-                    dataObj.setHours(dataObj.getHours() + 1);
-                    dataHoraFinal = format(dataObj, "yyyy-MM-dd'T'HH:mm");
-                    toast.success("O sistema fixou o retorno em exatamente 1 hora após o intervalo.", { duration: 4000 });
-                } else {
-                    toast.error("Início do intervalo não encontrado neste dia. O horário solicitado na justificativa foi mantido.", { duration: 4500 });
+                }
+                // PRIORIDADE 2: ENTRADA / SAIDA (Sempre fixa na jornada se ativa)
+                else if ((item.tipo === "ENTRADA" || item.tipo === "SAIDA") && isActive) {
+                    const campo = item.tipo === "ENTRADA" ? "entrada" : "saida";
+                    if (jornadaDoDia[campo]) {
+                        dataHoraFinal = `${dateSolicitada}T${jornadaDoDia[campo]}`;
+                        overrideMsg = `Fixado conforme jornada: ${jornadaDoDia[campo]}`;
+                    }
+                }
+                // PRIORIDADE 3: INICIO_INTERVALO (Usa jornada se houver, senão mantém solicitado)
+                else if (item.tipo === "INICIO_INTERVALO" && isActive && jornadaDoDia.inicioIntervalo) {
+                    dataHoraFinal = `${dateSolicitada}T${jornadaDoDia.inicioIntervalo}`;
+                    overrideMsg = `Fixado conforme jornada: ${jornadaDoDia.inicioIntervalo}`;
                 }
             }
 
+            if (overrideMsg) {
+                toast.success(overrideMsg, { duration: 4000 });
+            }
+
             if (item.tipo === "ABONO_FALTA") {
-                // Para abono, NÃO criamos o ponto (já que a pessoa não trabalhou).
-                // Inserimos um registro no banco de horas com 0 minutos. O utilitário
-                // de cálculo (pontoUtils) vai identificar a data desse abono
-                // e zerar as horas "Esperadas" para aquele dia.
-                const minutosAbono = 0;
-
-
-                await addDoc(collection(db, "banco_horas"), {
-                    userId: item.userId,
-                    companyId: item.companyId,
-                    tipo: "CREDITO",
-                    minutos: minutosAbono,
-                    descricao: `Abono de Falta ref. ${format(new Date(item.dataHoraSolicitada), "dd/MM/yyyy")}`,
-                    origem: "JUSTIFICATIVA_APROVADA",
-                    justificativaId: item.id,
-                    criadoEm: serverTimestamp(),
-                    criadoPor: usuario.uid,
-                });
-            } else {
-                // Cria o ponto retroativamente
-                await addDoc(collection(db, "pontos"), {
-                    userId: item.userId,
-                    userName: item.userName,
-                    companyId: item.companyId,
-                    type: item.tipo,
-                    geolocation: { lat: 0, lng: 0 },
-                    distanciaRelativa: 0,
-                    dentroDoRaio: true,
-                    deviceInfo: { dispositivo: "Justificativa aprovada" },
-                    ip: "N/A",
-                    criadoEm: serverTimestamp(),
-                    origem: "justificativa_aprovada",
-                    justificativaId: item.id,
-                    dataHoraOriginal: dataHoraFinal,
-                });
-
-                // Cria um log (0 minutos) no banco_horas para registrar a aprovação
                 await addDoc(collection(db, "banco_horas"), {
                     userId: item.userId,
                     companyId: item.companyId,
                     tipo: "CREDITO",
                     minutos: 0,
+                    descricao: `Abono de Falta ref. ${format(new Date(item.dataHoraSolicitada), "dd/MM/yyyy")}`,
+                    origem: "JUSTIFICATIVA_APROVADA",
+                    justificativaId: item.id,
+                    dataReferencia: dateSolicitada,
+                    criadoEm: serverTimestamp(),
+                    criadoPor: usuario.uid,
+                });
+            } else {
+                // Antes de criar o ponto novo, remove qualquer ponto existente do mesmo tipo no mesmo dia
+                // para evitar duplicidade e confusão no cálculo/exibição
+                const qExistente = query(
+                    collection(db, "pontos"),
+                    where("userId", "==", item.userId),
+                    where("type", "==", item.tipo)
+                );
+                const snapExistente = await getDocs(qExistente);
+                const deletePromessas = [];
+                snapExistente.docs.forEach(docSnap => {
+                    const p = docSnap.data();
+                    const pDate = p.dataHoraOriginal ? p.dataHoraOriginal.substring(0, 10) : "";
+                    if (pDate === dateSolicitada) {
+                        deletePromessas.push(deleteDoc(doc(db, "pontos", docSnap.id)));
+                    }
+                });
+                if (deletePromessas.length > 0) await Promise.all(deletePromessas);
+
+                const companyIdFinal = item.companyId || userDados?.companyId || perfil?.companyId || usuario?.companyId;
+
+                // Cria o ponto corrigido
+                await addDoc(collection(db, "pontos"), {
+                    userId: item.userId,
+                    userName: item.userName || userDados?.nome || "Usuário",
+                    companyId: companyIdFinal,
+                    type: item.tipo,
+                    geolocation: { lat: 0, lng: 0 },
+                    distanciaRelativa: 0,
+                    dentroDoRaio: true,
+                    deviceInfo: { dispositivo: "Justificativa aprovada (Admin)" },
+                    ip: "N/A",
+                    criadoEm: serverTimestamp(),
+                    origem: "justificativa_aprovada",
+                    justificativaId: item.id,
+                    dataHoraOriginal: dataHoraFinal.includes('Z') ? dataHoraFinal : `${dataHoraFinal}:00`,
+                });
+
+                // Log no banco de horas
+                await addDoc(collection(db, "banco_horas"), {
+                    userId: item.userId,
+                    companyId: companyIdFinal,
+                    tipo: "CREDITO",
+                    minutos: 0,
                     descricao: `${TIPO_LABEL[item.tipo] || item.tipo} corrigido ref. ${format(new Date(dataHoraFinal), "dd/MM/yyyy HH:mm")}`,
                     origem: "JUSTIFICATIVA_APROVADA",
                     justificativaId: item.id,
+                    dataReferencia: dateSolicitada,
                     criadoEm: serverTimestamp(),
                     criadoPor: usuario.uid,
                 });
@@ -235,8 +323,10 @@ export default function PainelJustificativas() {
         }
     };
 
-    const handleVoltarPendente = async (item) => {
-        if (!window.confirm("Deseja voltar esta justificativa para Análise (Pendente)? O ponto será mantido (se foi aprovado) e precisará ser ajustado manualmente se necessário.")) return;
+    const handleVoltarPendente = async () => {
+        const item = confirmarVoltarPendente.item;
+        if (!item) return;
+
         setProcessando(item.id);
         try {
             await updateDoc(doc(db, "justificativas", item.id), {
@@ -252,6 +342,7 @@ export default function PainelJustificativas() {
             toast.error("Erro ao alterar o status.");
         } finally {
             setProcessando(null);
+            setConfirmarVoltarPendente({ aberto: false, item: null });
         }
     };
 
@@ -402,10 +493,14 @@ export default function PainelJustificativas() {
                                 )}
                                 {item.status !== "pendente" && (
                                     <AcoesSecundarias>
-                                        <BtnEditar onClick={() => handleVoltarPendente(item)} disabled={processando === item.id}>
-                                            <FiEdit size={13} />
-                                            Editar Status
-                                        </BtnEditar>
+                                        <BtnAcao
+                                            $remover
+                                            onClick={() => setConfirmarVoltarPendente({ aberto: true, item })}
+                                            title="Voltar para Pendente"
+                                        >
+                                            <FiEdit size={16} />
+                                            <span>Analisar</span>
+                                        </BtnAcao>
                                     </AcoesSecundarias>
                                 )}
                             </Card>
@@ -444,6 +539,16 @@ export default function PainelJustificativas() {
                     </ModalContent>
                 </Overlay>
             )}
+
+            <ModalConfirmacao
+                aberto={confirmarVoltarPendente.aberto}
+                onFechar={() => setConfirmarVoltarPendente({ aberto: false, item: null })}
+                onConfirmar={handleVoltarPendente}
+                titulo="Reverter Status"
+                mensagem="Deseja voltar esta justificativa para Análise (Pendente)? O ponto será mantido (se foi aprovado) e precisará ser ajustado manualmente se necessário."
+                textoConfirmar="Sim, Voltar"
+                textoCancelar="Cancelar"
+            />
         </Container>
     );
 }
@@ -923,4 +1028,25 @@ const BtnDownload = styled.button`
         padding: 10px 14px;
         
     }
+`;
+
+const BtnAcao = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid ${props => props.$perigoso ? 'rgba(235, 77, 75, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+    background: ${props => props.$perigoso ? 'rgba(235, 77, 75, 0.1)' : 'rgba(255, 255, 255, 0.05)'};
+    color: ${props => props.$perigoso ? '#eb4d4b' : '#8d8d99'};
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+
+    &:hover {
+        background: ${props => props.$perigoso ? '#eb4d4b' : 'rgba(255, 255, 255, 0.1)'};
+        color: #fff;
+    }
+
+    svg { flex-shrink: 0; }
 `;

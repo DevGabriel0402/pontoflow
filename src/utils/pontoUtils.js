@@ -29,9 +29,10 @@ export function formatarDuracao(totalMinutos) {
  * Para um único funcionário e lista de pontos, calcula o resumo diário.
  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
  */
-export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
+export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaHorariaSemanal = 44) {
     // Array para mapear o .getDay() do JS para a nossa chave de jornadas
     const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+    const carga = Number(cargaHorariaSemanal || 44);
 
     const extrairEsperadoParaDia = (dataObj) => {
         if (!jornadas) return null; // Sem configuração nenhuma
@@ -55,14 +56,17 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
         const fim = horaParaMin(jDia.saida);
         if (ini === null || fim === null) return 0;
 
-        // Pega a duração real do intervalo definido na jornada (ex: 13:00 - 12:00 = 60)
-        let pausaMin = jDia.intervaloMin ?? 60; // fallback pra legado
+        // Padrão de pausa: 20 min para <= 30h, 60 min para > 30h
+        let pausaMin = carga <= 30 ? 20 : 60;
+
         if (jDia.inicioIntervalo && jDia.fimIntervalo) {
             const pIni = horaParaMin(jDia.inicioIntervalo);
             const pFim = horaParaMin(jDia.fimIntervalo);
             if (pIni !== null && pFim !== null) {
                 pausaMin = Math.max(0, pFim - pIni);
             }
+        } else if (jDia.intervaloMin) {
+            pausaMin = Number(jDia.intervaloMin);
         }
 
         return Math.max(0, fim - ini - pausaMin);
@@ -86,7 +90,6 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
     // Garante que mesmo os dias abonados (sem ponto batido) apareçam no resumo.
     diasAbonados.forEach((isoDate) => {
         if (!grupos[isoDate]) {
-            // Cria um grupo vazio pro dia abonado, pois ele vai zero-esperado
             const dLocal = new Date(`${isoDate}T12:00:00`);
             grupos[isoDate] = { data: dLocal, pontos: [] };
         }
@@ -94,17 +97,39 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
 
     return Object.entries(grupos).map(([dataKey, g]) => {
         const pts = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
-        const entrada = pts.find((p) => p.type === "ENTRADA")?.dateObj;
-        const saida = pts.find((p) => p.type === "SAIDA")?.dateObj;
-        const iniInt = pts.find((p) => p.type === "INICIO_INTERVALO")?.dateObj;
-        const fimInt = pts.find((p) => p.type === "FIM_INTERVALO")?.dateObj;
+        const entrada = pts.filter((p) => p.type === "ENTRADA").pop()?.dateObj;
+        const saida = pts.filter((p) => p.type === "SAIDA").pop()?.dateObj;
+        const iniInt = pts.filter((p) => p.type === "INICIO_INTERVALO").pop()?.dateObj;
+        const fimInt = pts.filter((p) => p.type === "FIM_INTERVALO").pop()?.dateObj;
 
         let minutosTrabalhados = 0;
         let status = "Incompleto";
 
         if (entrada && saida) {
             const total = differenceInMinutes(saida, entrada);
-            const intervalo = iniInt && fimInt ? differenceInMinutes(fimInt, iniInt) : 0;
+
+            // PADRONIZAÇÃO DO INTERVALO: 
+            // Se tem início de intervalo, usamos a pausa padrão (20min para 30h, 60min para 44h)
+            // ou a pausa específica da jornada se houver.
+            let intervalo = 0;
+            if (iniInt) {
+                intervalo = carga <= 30 ? 20 : 60;
+
+                // Tenta pegar da jornada do dia se houver configuração específica
+                const index = g.data.getDay();
+                const diaStr = mapDias[index];
+                const jDia = jornadas?.[diaStr] || jornadas;
+                if (jDia?.inicioIntervalo && jDia?.fimIntervalo) {
+                    const pIni = horaParaMin(jDia.inicioIntervalo);
+                    const pFim = horaParaMin(jDia.fimIntervalo);
+                    if (pIni !== null && pFim !== null) {
+                        intervalo = Math.max(0, pFim - pIni);
+                    }
+                } else if (jDia?.intervaloMin) {
+                    intervalo = Number(jDia.intervaloMin);
+                }
+            }
+
             minutosTrabalhados = Math.max(0, total - intervalo);
             if (!iniInt && !fimInt) status = "Ok";
             else if (iniInt && fimInt) status = "Ok";
@@ -115,17 +140,16 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
 
         let minutosEsperadosDia = extrairEsperadoParaDia(g.data);
 
-        // Se o dia está na lista de dias abonados (abono de falta justificado), o esperado zera
         if (diasAbonados.includes(dataKey)) {
             minutosEsperadosDia = 0;
-            status = "Abonado"; // Sinaliza o status
+            status = "Abonado";
         }
 
         let diferenca = null;
         if (saida && minutosEsperadosDia !== null) {
             diferenca = minutosTrabalhados - minutosEsperadosDia;
         } else if (!saida && minutosEsperadosDia !== null) {
-            diferenca = 0; // Só atualiza o saldo de horas quando o horário de saída for batido
+            diferenca = 0;
         }
 
         return {
@@ -139,3 +163,4 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = []) {
         };
     });
 }
+
