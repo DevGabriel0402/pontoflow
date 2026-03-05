@@ -49,7 +49,7 @@ function formatarTs(ts) {
     } catch { return "—"; }
 }
 
-export default function PainelJustificativas() {
+export default function PainelJustificativas({ funcionarios = [] }) {
     const { perfil, usuario } = useAuth();
     const [itens, setItens] = React.useState([]);
     const [aba, setAba] = React.useState("pendente");
@@ -66,6 +66,9 @@ export default function PainelJustificativas() {
 
     // View de Foto Modal (Full-screen)
     const [anexoVisualizando, setAnexoVisualizando] = React.useState(null);
+
+    // Filtro por Funcionário
+    const [idFuncSelecionado, setIdFuncSelecionado] = React.useState("todos");
 
 
     React.useEffect(() => {
@@ -91,20 +94,25 @@ export default function PainelJustificativas() {
     }, [usuario, perfil?.companyId]);
 
 
-    // Filtragem local por mês e ano
-    const itensFiltradosPorData = React.useMemo(() => {
+    // Filtragem local por mês, ano e funcionário
+    const itensFiltradosLocal = React.useMemo(() => {
         return itens.filter(item => {
+            // 1. Filtro de Data
             const dateStr = item.dataHoraSolicitada || "";
             if (!dateStr || dateStr.length < 7) return true; // fallback
-            // dataHoraSolicitada = "YYYY-MM-DDTHH:mm"
             const anoloc = parseInt(dateStr.substring(0, 4));
             const mesloc = parseInt(dateStr.substring(5, 7)) - 1; // 0-indexed
-            return anoloc === anoSelecionado && mesloc === mesSelecionado;
-        });
-    }, [itens, mesSelecionado, anoSelecionado]);
+            const bateData = anoloc === anoSelecionado && mesloc === mesSelecionado;
 
-    const pendentes = itensFiltradosPorData.filter(i => i.status === "pendente");
-    const filtrados = itensFiltradosPorData.filter(i => i.status === aba);
+            // 2. Filtro de Funcionário
+            const bateFunc = idFuncSelecionado === "todos" || item.userId === idFuncSelecionado;
+
+            return bateData && bateFunc;
+        });
+    }, [itens, mesSelecionado, anoSelecionado, idFuncSelecionado]);
+
+    const pendentes = itensFiltradosLocal.filter(i => i.status === "pendente");
+    const filtrados = itensFiltradosLocal.filter(i => i.status === aba);
 
     const handleAprovar = async (item) => {
         setProcessando(item.id);
@@ -377,6 +385,22 @@ export default function PainelJustificativas() {
                         onChange={(val) => setAnoSelecionado(Number(val))}
                     />
                 </SeletorWrapper>
+
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ color: '#8d8d99', fontSize: 13, fontWeight: 600 }}>Funcionário:</div>
+                    <SeletorWrapper $wide>
+                        <SeletorAcordeao
+                            opcoes={[
+                                { value: "todos", label: "Todos" },
+                                ...funcionarios
+                                    .filter(f => f.role !== "admin")
+                                    .map(f => ({ value: f.id, label: f.nome }))
+                            ]}
+                            value={idFuncSelecionado}
+                            onChange={(val) => setIdFuncSelecionado(val)}
+                        />
+                    </SeletorWrapper>
+                </div>
             </FiltrosBar>
 
             {filtrados.length === 0 ? (
@@ -574,25 +598,10 @@ const FiltrosBar = styled.div`
     flex-wrap: wrap;
 `;
 
-const SelectFiltro = styled.select`
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    outline: none;
-    cursor: pointer;
-    min-width: 120px;
 
-    option {
-        background: #1e1e24;
-        color: #fff;
-    }
-`;
 
 const SeletorWrapper = styled.div`
-  width: ${({ $small }) => $small ? "100px" : "150px"};
+  width: ${({ $small, $wide }) => ($small ? "100px" : $wide ? "250px" : "150px")};
   
   @media (max-width: 600px) {
     width: 100%;

@@ -10,6 +10,7 @@ import LoadingGlobal from "../../components/LoadingGlobal";
 import { useMasterCompanies } from "../../hooks/useMasterCompanies";
 import { useAuth } from "../../contexts/AuthContexto";
 import ModalNovaEmpresa from "../../components/master/ModalNovaEmpresa";
+import TabbarMasterMobile from "../../components/master/TabbarMasterMobile";
 
 export default function DashboardMaster() {
     const navigate = useNavigate();
@@ -456,6 +457,11 @@ export default function DashboardMaster() {
                 aberto={modalAberto}
                 onFechar={() => setModalAberto(false)}
                 empresa={empresaEditando}
+            />
+
+            <TabbarMasterMobile
+                abaAtiva={abaAtiva}
+                setAbaAtiva={setAbaAtiva}
             />
         </Layout>
     );

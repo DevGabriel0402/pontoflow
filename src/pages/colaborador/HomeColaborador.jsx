@@ -9,7 +9,7 @@ import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefres
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
-import { startOfToday, isAfter, isWeekend } from "date-fns";
+import { startOfToday, isSameDay, isWeekend } from "date-fns";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
@@ -29,6 +29,7 @@ const TIPOS = {
  * Helper para pegar a data do ponto 
  */
 function getDataPonto(p) {
+  if (p?.dataHoraOriginal) return new Date(p.dataHoraOriginal);
   if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
   if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
   if (p?.criadoEm) return new Date(p.criadoEm);
@@ -56,7 +57,7 @@ export default function HomeColaborador() {
 
   // ✅ Verifica pontos batidos HOJE (incluindo fila offline)
   const tiposFeitosHoje = React.useMemo(() => {
-    const hoje = startOfToday();
+    const hoje = new Date();
     const fila = obterFila().filter(p => p.userId === usuario?.uid);
 
     // Mescla histórico do Firestore + Fila Offline
@@ -66,7 +67,7 @@ export default function HomeColaborador() {
     const feitos = todos
       .filter(p => {
         const d = getDataPonto(p);
-        return d && isAfter(d, hoje);
+        return d && isSameDay(d, hoje);
       })
       .map(p => p.type);
 
@@ -79,10 +80,10 @@ export default function HomeColaborador() {
 
   // ✅ Filtra pontos de hoje para a lista de histórico
   const pontosHoje = React.useMemo(() => {
-    const hoje = startOfToday();
+    const hoje = new Date();
     return historico.filter(p => {
       const d = getDataPonto(p);
-      return d && isAfter(d, hoje);
+      return d && isSameDay(d, hoje);
     });
   }, [historico]);
 

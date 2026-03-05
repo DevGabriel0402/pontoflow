@@ -107,5 +107,11 @@ service cloud.firestore {
                               (hasRole('admin') && belongsTo(resource.data.companyId));
     }
 
+    // Coleção de Changelog (Notas de Atualização)
+    match /changelog/{entryId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
   }
 }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { format } from "date-fns";
+import { useConfig } from "../contexts/ConfigContexto";
 import { calcularResumoDiario, horaParaMin } from "../utils/pontoUtils";
 
 /**
@@ -41,10 +43,24 @@ export function useSaldoBancoHoras(userId, perfil) {
         return () => unsub();
     }, [userId, perfil?.companyId]);
 
+    const { config } = useConfig();
+    const feriados = config?.feriados || [];
+
     const saldo = useMemo(() => {
-        if (!perfil) return { saldoHoras: 0, saldoDias: 0 };
+        const dataCriacao = perfil.criadoEm?.toDate ? perfil.criadoEm.toDate() : (perfil.criadoEm ? new Date(perfil.criadoEm) : new Date(2025, 0, 1));
+        const periodoInicio = format(dataCriacao, "yyyy-MM-dd");
+        const periodoFim = format(new Date(), "yyyy-MM-dd");
+
         const confJornada = perfil.jornadas || perfil.jornada;
-        const dias = calcularResumoDiario(pontos, confJornada);
+        const dias = calcularResumoDiario(
+            pontos,
+            confJornada,
+            [],
+            perfil.cargaHorariaSemanal,
+            periodoInicio,
+            periodoFim,
+            feriados
+        );
 
         // Saldo automático (pontos vs jornada)
         const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);

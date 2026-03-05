@@ -3,14 +3,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import {
-  collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, deleteDoc, doc
+  collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, updateDoc
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
-import { format, differenceInMinutes, startOfMonth, endOfMonth } from "date-fns";
+import { useConfig } from "../../contexts/ConfigContexto";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWeekend, startOfToday, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiPlus, FiMinus, FiX, FiClock, FiChevronDown, FiChevronRight, FiCalendar, FiAlertTriangle, FiCheckCircle, FiTrendingUp, FiTrendingDown, FiFile, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter, FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2, FiRefreshCw, FiFile } from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
   horaParaMin,
@@ -18,9 +19,11 @@ import {
   formatarDuracao,
   calcularResumoDiario
 } from "../../utils/pontoUtils";
+import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 
 import SeletorAcordeao from "../SeletorAcordeao";
 import ModalConfirmacao from "../ModalConfirmacao";
+import ModalEditarPonto from "./ModalEditarPonto";
 
 // Wrapper seguro contra "Invalid Date"
 function safeFormat(dateObj, fmtStr) {
@@ -38,7 +41,9 @@ function safeFormat(dateObj, fmtStr) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function PainelBancoHoras({ funcionarios, pontos }) {
-  const { perfil } = useAuth();
+  const { perfil, usuario, isSuperAdmin } = useAuth();
+  const { config } = useConfig();
+  const feriados = config?.feriados || [];
 
   // Período: mês/ano
   const hoje = new Date();
@@ -53,6 +58,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
 
   // Modal ajuste manual
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalEditPontoAberto, setModalEditPontoAberto] = useState(false);
+  const [dadosEditPonto, setDadosEditPonto] = useState(null);
   const [funcSelecionado, setFuncSelecionado] = useState(null);
   const [tipo, setTipo] = useState("CREDITO");
   const [horas, setHoras] = useState("");
@@ -145,13 +152,37 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           .filter(Boolean);
 
         // Calcula o resumo histórico até o fim do período
-        const todosDias = calcularResumoDiario(pontosFunc, f.jornadas || f.jornada, abonosFunc, f.cargaHorariaSemanal);
+        // Para o saldo total, passamos desde o início (criadoEm) até o fim do período selecionado
+        const dataCriacao = f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1));
+        const periodoInicioGeral = format(dataCriacao, "yyyy-MM-dd");
+        const periodoFimGeral = format(fimDoPeriodo, "yyyy-MM-dd");
 
-        // Filtra apenas os dias do mês selecionado para exibição no acordeão
-        const dias = todosDias.filter(d => {
-          const dataDia = new Date(d.data);
-          return dataDia >= inicioMes && dataDia <= fimDoPeriodo;
-        });
+        const todosDias = calcularResumoDiario(
+          pontosFunc,
+          f.jornadas || f.jornada,
+          abonosFunc,
+          f.cargaHorariaSemanal,
+          periodoInicioGeral,
+          periodoFimGeral,
+          feriados
+        );
+
+        // 30 dias corridos (rolling) para o detalhamento
+        const periodoFimMes = format(hoje, "yyyy-MM-dd");
+        const hojeDate = new Date();
+        const trintaDiasAtras = new Date();
+        trintaDiasAtras.setDate(hojeDate.getDate() - 29);
+        const periodoInicioMes = format(trintaDiasAtras, "yyyy-MM-dd");
+
+        const dias = calcularResumoDiario(
+          pontosFunc,
+          f.jornadas || f.jornada,
+          abonosFunc,
+          f.cargaHorariaSemanal,
+          periodoInicioMes,
+          periodoFimMes,
+          feriados
+        ).sort((a, b) => b.data - a.data);
 
         // Totais Acumulados (Saldo Histórico)
         const somaAutoMinutos = todosDias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
@@ -489,7 +520,27 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         {dia.status}
                                       </StatusBadge>
                                     </td>
-                                    <td style={{ width: 40 }}></td>
+                                    <td style={{ width: 40 }}>
+                                      {isSuperAdmin && (
+                                        <BtnIconeTabela
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDadosEditPonto({
+                                              userId: func.id,
+                                              userName: func.nome,
+                                              data: dia.data,
+                                              dataKey: dia.dataKey,
+                                              check: dia.check || {},
+                                              pontos: dia.pontosOriginal || []
+                                            });
+                                            setModalEditPontoAberto(true);
+                                          }}
+                                          title="Editar batidas do dia"
+                                        >
+                                          <FiEdit2 size={14} />
+                                        </BtnIconeTabela>
+                                      )}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -631,6 +682,17 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         perigoso={true}
         textoConfirmar="Excluir"
       />
+
+      {/* ── Modal de Edição de Ponto (Master) ── */}
+      {modalEditPontoAberto && dadosEditPonto && (
+        <ModalEditarPonto
+          aberto={modalEditPontoAberto}
+          onFechar={() => { setModalEditPontoAberto(false); setDadosEditPonto(null); }}
+          registro={dadosEditPonto}
+          userId={dadosEditPonto.userId}
+          companyId={perfil?.companyId}
+        />
+      )}
     </>
   );
 }
@@ -1102,4 +1164,22 @@ const BtnPrimary = styled.button`
   font-weight: 700;
   cursor: pointer;
   opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
+`;
+
+const BtnIconeTabela = styled.button`
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: #2f81f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(47,129,247,0.15);
+    border-color: #2f81f7;
+  }
 `;

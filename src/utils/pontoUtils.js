@@ -29,12 +29,15 @@ export function formatarDuracao(totalMinutos) {
  * Para um único funcionário e lista de pontos, calcula o resumo diário.
  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
  */
-export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaHorariaSemanal = 44) {
+export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaHorariaSemanal = 44, periodoInicio = null, periodoFim = null, feriados = []) {
     // Array para mapear o .getDay() do JS para a nossa chave de jornadas
     const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
     const carga = Number(cargaHorariaSemanal || 44);
 
     const extrairEsperadoParaDia = (dataObj) => {
+        const key = format(dataObj, "yyyy-MM-dd");
+        if (feriados.includes(key)) return 0; // Feriado = esperado 0
+
         if (!jornadas) return null; // Sem configuração nenhuma
 
         let jDia = null;
@@ -87,6 +90,19 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         grupos[key].pontos.push({ ...p, dateObj: d });
     });
 
+    // Se houver um período definido, garante que TODOS os dias do período estejam no objeto 'grupos'
+    if (periodoInicio && periodoFim) {
+        let atual = new Date(`${periodoInicio}T12:00:00`);
+        const fim = new Date(`${periodoFim}T12:00:00`);
+        while (atual <= fim) {
+            const key = format(atual, "yyyy-MM-dd");
+            if (!grupos[key]) {
+                grupos[key] = { data: new Date(atual), pontos: [] };
+            }
+            atual.setDate(atual.getDate() + 1);
+        }
+    }
+
     // Garante que mesmo os dias abonados (sem ponto batido) apareçam no resumo.
     diasAbonados.forEach((isoDate) => {
         if (!grupos[isoDate]) {
@@ -104,6 +120,8 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
 
         let minutosTrabalhados = 0;
         let status = "Incompleto";
+
+        const hojeKey = format(new Date(), "yyyy-MM-dd");
 
         if (entrada && saida) {
             const total = differenceInMinutes(saida, entrada);
@@ -136,6 +154,11 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             else status = "Intervalo Incompleto";
         } else if (entrada && !saida) {
             status = "Sem Saída";
+        } else if (!entrada && !saida) {
+            if (feriados.includes(dataKey)) status = "Feriado";
+            else if (dataKey > hojeKey) status = "Futuro";
+            else if (dataKey === hojeKey) status = "Hoje";
+            else status = "Falta";
         }
 
         let minutosEsperadosDia = extrairEsperadoParaDia(g.data);
@@ -145,11 +168,18 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             status = "Abonado";
         }
 
-        let diferenca = null;
+        let diferenca = 0;
         if (saida && minutosEsperadosDia !== null) {
             diferenca = minutosTrabalhados - minutosEsperadosDia;
-        } else if (!saida && minutosEsperadosDia !== null) {
-            diferenca = 0;
+        } else if (!saida && status === "Falta" && minutosEsperadosDia > 0) {
+            // REGRA DE DESCONTO AUTOMÁTICO SOLICITADA PELO USUÁRIO:
+            // 44h -> 9h (540 min)
+            // 40h -> 8h (480 min)
+            // 30h -> 5h40min (340 min)
+            if (carga >= 44) diferenca = -540;
+            else if (carga >= 40) diferenca = -480;
+            else if (carga >= 30) diferenca = -340;
+            else diferenca = -minutosEsperadosDia; // Fallback para outras cargas
         }
 
         return {
@@ -160,7 +190,27 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             diferenca,
             status,
             check: { entrada, saida, iniInt, fimInt },
+            pontosOriginal: pts,
         };
+    }).filter(d => {
+        const hojeKey = format(new Date(), "yyyy-MM-dd");
+        const implatacaoKey = "2026-02-27";
+
+        // 0. Esconder dias anteriores à implantação
+        if (d.dataKey < implatacaoKey) return false;
+
+        // 1. Esconder dias futuros
+        if (d.dataKey > hojeKey) return false;
+
+        // 2. Esconder finais de semana ou folgas SEM ponto batido e SEM horas esperadas
+        const temPonto = !!d.check.entrada;
+        const temEsperado = d.minutosEsperados > 0;
+
+        // Se não era pra trabalhar e não trabalhou, retira da lista
+        // Isso remove feriados sem ponto e finais de semana sem ponto
+        if (!temEsperado && !temPonto) return false;
+
+        return true;
     });
 }
 

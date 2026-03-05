@@ -10,12 +10,12 @@ const TOAST_ID = "manutencao-toast";
 
 export default function BannerManutencao() {
     const { modoManutencao } = useSaasConfig();
-    const { usuario, logout } = useAuth();
+    const { usuario, logout, isAdmin } = useAuth();
     const location = useLocation();
 
     const naLoginPage = location.pathname === "/login";
     const naMasterPage = location.pathname.startsWith("/master");
-    const rotaIsenta = naLoginPage || naMasterPage;
+    const rotaIsenta = naLoginPage || naMasterPage || isAdmin;
 
     // Efeito: toast persistente quando estiver no /login
     React.useEffect(() => {

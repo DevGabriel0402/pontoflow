@@ -6,7 +6,10 @@ import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
-import { FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut } from "react-icons/fi";
+import {
+  FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
+  FiShield
+} from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
@@ -62,14 +65,19 @@ function formatarData(ts) {
 export default function DashboardAdmin() {
   const navigate = useNavigate();
   const { usuario, perfil, logout } = useAuth();
+  const isSuperAdmin = perfil?.isSuperAdmin === true;
   const { itens, carregando, erro } = useAdminPontos();
   const { config, nomePainel } = useConfig();
   const { validacao, validarLocal } = usePonto();
 
   const [buscaNome, setBuscaNome] = React.useState("");
   const [tipo, setTipo] = React.useState("TODOS");
-  const [dataInicio, setDataInicio] = React.useState("");
-  const [dataFim, setDataFim] = React.useState("");
+  const [dataInicio, setDataInicio] = React.useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return format(d, "yyyy-MM-dd");
+  });
+  const [dataFim, setDataFim] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [mostrarToast, setMostrarToast] = React.useState(false);
   const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
   const [modalAberto, setModalAberto] = React.useState(false);
@@ -276,24 +284,29 @@ export default function DashboardAdmin() {
   }, [funcionarios]);
 
   const resumoJornada = React.useMemo(() => {
-    // Agrupar filtrados por usuário para processar com a utilidade
-    const gruposUser = {};
-    filtrados.forEach(p => {
-      if (!gruposUser[p.userId]) gruposUser[p.userId] = [];
-      gruposUser[p.userId].push(p);
-    });
+    // 1. Determinar quais funcionários processar
+    const funcsInteresse = (funcionarios || []).filter(f => f.role !== 'admin' && f.ativo !== false);
+
+    const funcsProcessar = buscaNome
+      ? funcsInteresse.filter(f => f.id === buscaNome)
+      : funcsInteresse;
 
     const todosResumos = [];
 
-    Object.entries(gruposUser).forEach(([userId, pontosUser]) => {
-      const func = funcionarios.find(f => f.id === userId);
-      if (!func) return;
+    // 2. Calcular para cada um
+    funcsProcessar.forEach(func => {
+      // Filtrar pontos deste usuário para passar para o cálculo
+      const pontosUser = itens.filter(p => p.userId === func.id);
 
+      const feriados = config?.feriados || [];
       const resumosUser = calcularResumoDiario(
         pontosUser,
         func.jornadas || func.jornada,
-        [], // diasAbonados não carregados aqui, mas o dashboard foca em pontos batidos
-        func.cargaHorariaSemanal
+        [], // abonos não carregados aqui por enquanto
+        func.cargaHorariaSemanal,
+        dataInicio,
+        dataFim,
+        feriados
       );
 
       resumosUser.forEach(r => {
@@ -307,8 +320,9 @@ export default function DashboardAdmin() {
       });
     });
 
+    // 3. Ordenar por data decrescente (mais recente primeiro)
     return todosResumos.sort((a, b) => b.data - a.data);
-  }, [filtrados, funcionarios]);
+  }, [itens, funcionarios, buscaNome, dataInicio, dataFim, config]);
 
   const totalHorasPeriodo = React.useMemo(() => {
     const totalMin = resumoJornada.reduce((acc, curr) => acc + curr.totalMinutos, 0);
@@ -358,6 +372,15 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
             <FiSettings /> <span>Configurações</span>
           </NavItem>
+
+          {isSuperAdmin && (
+            <>
+              <NavSeparador />
+              <NavItem onClick={() => navigate("/master")} style={{ color: '#2f81f7' }}>
+                <FiShield /> <span>Painel Master</span>
+              </NavItem>
+            </>
+          )}
 
           <NavSeparador />
 
@@ -464,7 +487,7 @@ export default function DashboardAdmin() {
                     <ResumoHeader>
                       <div className="resumo-info">
                         <h3>Resumo de Jornada</h3>
-                        <p>Detalhamento diário por colaborador</p>
+                        <p>Detalhamento Diário — Últimos 30 Dias (Atualizado)</p>
                       </div>
                     </ResumoHeader>
                     <TabelaStyled>
@@ -782,7 +805,7 @@ export default function DashboardAdmin() {
                 <Topo>
                   <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>Justificativas de Ponto</h2>
                 </Topo>
-                <PainelJustificativas />
+                <PainelJustificativas funcionarios={funcionarios} />
               </>
             )}
 
