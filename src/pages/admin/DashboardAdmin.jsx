@@ -51,10 +51,18 @@ function formatarTipo(tipo) {
   return map[tipo] || tipo;
 }
 
-function formatarData(ts) {
-  if (!ts) return "—";
+function getDataPonto(p) {
+  if (p?.dataHoraOriginal) return new Date(p.dataHoraOriginal);
+  if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
+  if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
+  if (p?.criadoEm) return new Date(p.criadoEm);
+  return null;
+}
+
+function formatarData(p) {
+  const d = getDataPonto(p);
+  if (!d) return "—";
   try {
-    const d = ts?.toDate ? ts.toDate() : new Date(ts);
     if (isNaN(d.getTime())) return "Data Inválida";
     return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
   } catch (e) {
@@ -208,7 +216,7 @@ export default function DashboardAdmin() {
     const dados = filtrados.map(p => ({
       funcionario: p.userName || "—",
       tipo: formatarTipo(p.type),
-      data: formatarData(p.criadoEm),
+      data: formatarData(p),
       origem: p.origem === "offline_queue" ? "Offline" : "Online",
       ip: p.ip || "—",
       status: p.dentroDoRaio ? "Dentro do Raio" : "Fora do Raio",

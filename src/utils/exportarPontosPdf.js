@@ -4,9 +4,15 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-function formatarData(ts) {
-    if (!ts) return "-";
-    const d = ts?.toDate ? ts.toDate() : new Date(ts);
+function formatarData(p) {
+    if (!p) return "-";
+    let d;
+    if (p.dataHoraOriginal) {
+        d = new Date(p.dataHoraOriginal);
+    } else {
+        const ts = p.criadoEm;
+        d = ts?.toDate ? ts.toDate() : new Date(ts);
+    }
     return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR });
 }
 
@@ -70,7 +76,7 @@ export function exportarPontosPdf(pontos, meta = {}) {
     const body = pontos.map((p) => [
         limparTexto(p.userName || p.userId),
         formatarTipo(p.type),
-        formatarData(p.criadoEm),
+        formatarData(p),
         limparTexto(p.ip || "-"),
         typeof p.distanciaRelativa === "number" ? String(p.distanciaRelativa) : "-",
         p.dentroDoRaio === false ? "FORA" : "OK",

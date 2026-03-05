@@ -38,6 +38,7 @@ function formatarTipo(tipo) {
  * - senão criadoEm (Firestore Timestamp)
  */
 function getDataPreferida(p) {
+  if (p?.dataHoraOriginal) return new Date(p.dataHoraOriginal);
   if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
   if (p?.criadoEm?.toDate) return p.criadoEm.toDate();
   if (p?.criadoEm) return new Date(p.criadoEm);
