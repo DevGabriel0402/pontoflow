@@ -242,30 +242,47 @@ export default function ModalJustificativa({ aberto, onFechar }) {
 const Overlay = styled.div`
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.85);
     z-index: 9000;
     display: flex;
-    align-items: center;
+    align-items: flex-end; /* Bottom sheet on mobile */
     justify-content: center;
-    padding: 20px;
     backdrop-filter: blur(4px);
     animation: fadeIn 0.2s ease;
+    
+    @media (min-width: 600px) {
+        align-items: center;
+        padding: 20px;
+    }
+
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 `;
 
 const Modal = styled.div`
     background: #1c1c1e;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 24px;
+    border-radius: 24px 24px 0 0;
     width: 100%;
     max-width: 540px;
-    max-height: 90vh;
+    max-height: 92vh;
     display: flex;
     flex-direction: column;
-    padding-bottom: env(safe-area-inset-bottom, 16px);
-    animation: slideUp 0.3s ease;
-    @keyframes slideUp {
-        from { transform: translateY(80px); opacity: 0; }
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    animation: slideUpMobile 0.4s cubic-bezier(0, 0.55, 0.45, 1);
+
+    @media (min-width: 600px) {
+        border-radius: 24px;
+        max-height: 90vh;
+        animation: slideUpDesktop 0.3s ease-out;
+    }
+
+    @keyframes slideUpMobile {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    @keyframes slideUpDesktop {
+        from { transform: translateY(30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
     }
 `;

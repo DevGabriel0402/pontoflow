@@ -70,7 +70,7 @@ export default function Historico() {
   const { pendentes, online, sincronizando, syncAgora } = useSync();
 
   const [tipo, setTipo] = React.useState("TODOS");
-  const [aba, setAba] = React.useState("SEMANA"); // MUDADO: padrão para SEMANA
+  const [aba, setAba] = React.useState("SEMANA");
   const [dataInicio, setDataInicio] = React.useState("");
   const [dataFim, setDataFim] = React.useState("");
   const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
@@ -277,10 +277,10 @@ export default function Historico() {
           </BotaoSincronizar>
         )}
 
-        <BotaoJustificar onClick={() => setModalJustificativaAberto(true)}>
-          <FiPlusCircle size={18} />
-          Justificar ponto esquecido
-        </BotaoJustificar>
+        <BotaoJustificarFAB onClick={() => setModalJustificativaAberto(true)} title="Justificar ponto">
+          <FiPlusCircle size={28} />
+          <span>Justificar</span>
+        </BotaoJustificarFAB>
       </Corpo>
 
       <ModalJustificativa
@@ -519,26 +519,46 @@ const BotaoRecarregar = styled.button`
   cursor: pointer;
 `;
 
-const BotaoJustificar = styled.button`
-  width: 100%;
-  margin-top: 20px;
-  height: 48px;
-  background: transparent;
-  border: 1.5px dashed rgba(79,172,254,0.4);
-  border-radius: 14px;
-  color: #4facfe;
+const BotaoJustificarFAB = styled.button`
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  height: 56px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  border: 0;
+  border-radius: 28px;
+  color: #111;
+  font-weight: 800;
   font-size: 14px;
-  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4);
+  transition: all 0.2s ease;
+  z-index: 99;
+  letter-spacing: 0.3px;
 
   &:hover {
-    background: rgba(79,172,254,0.08);
-    border-color: #4facfe;
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 10px 28px rgba(79, 172, 254, 0.5);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 600px) {
+    span { display: none; }
+    width: 56px;
+    padding: 0;
+    justify-content: center;
+    bottom: 90px;
   }
 `;
+
+
 

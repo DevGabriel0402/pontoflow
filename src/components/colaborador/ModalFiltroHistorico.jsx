@@ -41,8 +41,8 @@ export default function ModalFiltroHistorico({
           <Label>Tipo de Registro</Label>
           <SeletorAcordeao
             opcoes={TIPOS}
-            selecionado={tipo}
-            aoSelecionar={setTipo}
+            value={tipo}
+            onChange={setTipo}
           />
 
           <Espaco />
@@ -86,28 +86,39 @@ const Overlay = styled.div`
   display: flex;
   align-items: flex-end; /* Mobile friendly */
   justify-content: center;
+  animation: fadeIn 0.2s ease;
   
   @media (min-width: 600px) {
     align-items: center;
+    padding: 20px;
   }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 `;
 
 const Modal = styled.div`
   background: #1c1c1e;
   width: 100%;
   max-width: 500px;
-  border-radius: 20px 20px 0 0;
+  border-radius: 24px 24px 0 0;
   padding: 24px;
-  animation: slideInUp 0.3s ease-out;
+  padding-bottom: env(safe-area-inset-bottom, 24px);
+  animation: slideInUp 0.4s cubic-bezier(0, 0.55, 0.45, 1);
 
   @media (min-width: 600px) {
-    border-radius: 16px;
+    border-radius: 20px;
     margin: 20px;
+    animation: slideUpDesktop 0.3s ease-out;
   }
 
   @keyframes slideInUp {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
+  }
+
+  @keyframes slideUpDesktop {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
   }
 `;
 
