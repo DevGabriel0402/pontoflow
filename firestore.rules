@@ -19,7 +19,8 @@ service cloud.firestore {
 
     function hasRole(role) {
       let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isAuthenticated() && exists(path) && get(path).data.get('role', '') == role;
+      let docData = get(path).data;
+      return isAuthenticated() && exists(path) && docData.get('role', '') == role && docData.get('ativo', true) == true;
     }
 
     function belongsTo(companyId) {

@@ -1,32 +1,33 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiBriefcase, FiSettings, FiLogOut } from "react-icons/fi";
+import { FiGrid, FiBriefcase, FiSettings, FiLogOut, FiLock } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContexto";
 
 export default function TabbarMasterMobile({ abaAtiva, setAbaAtiva }) {
-    const { logout } = useAuth();
+  const { logout } = useAuth();
 
-    const abas = [
-        { id: "DASHBOARD", label: "Global", icon: <FiGrid size={20} /> },
-        { id: "EMPRESAS", label: "Empresas", icon: <FiBriefcase size={20} /> },
-        { id: "CONFIG", label: "SaaS", icon: <FiSettings size={20} /> },
-        { id: "SAIR", label: "Sair", icon: <FiLogOut size={20} />, action: logout },
-    ];
+  const abas = [
+    { id: "DASHBOARD", label: "Global", icon: <FiGrid size={20} /> },
+    { id: "EMPRESAS", label: "Empresas", icon: <FiBriefcase size={20} /> },
+    { id: "ADMINS", label: "Admins", icon: <FiLock size={20} /> },
+    { id: "CONFIG", label: "SaaS", icon: <FiSettings size={20} /> },
+    { id: "SAIR", label: "Sair", icon: <FiLogOut size={20} />, action: logout },
+  ];
 
-    return (
-        <Barra>
-            {abas.map((aba) => (
-                <Item
-                    key={aba.id}
-                    $ativo={abaAtiva === aba.id}
-                    onClick={() => aba.action ? aba.action() : setAbaAtiva(aba.id)}
-                >
-                    {aba.icon}
-                    <span>{aba.label}</span>
-                </Item>
-            ))}
-        </Barra>
-    );
+  return (
+    <Barra>
+      {abas.map((aba) => (
+        <Item
+          key={aba.id}
+          $ativo={abaAtiva === aba.id}
+          onClick={() => aba.action ? aba.action() : setAbaAtiva(aba.id)}
+        >
+          {aba.icon}
+          <span>{aba.label}</span>
+        </Item>
+      ))}
+    </Barra>
+  );
 }
 
 const Barra = styled.nav`

@@ -11,6 +11,7 @@ import { useMasterCompanies } from "../../hooks/useMasterCompanies";
 import { useAuth } from "../../contexts/AuthContexto";
 import ModalNovaEmpresa from "../../components/master/ModalNovaEmpresa";
 import TabbarMasterMobile from "../../components/master/TabbarMasterMobile";
+import AbaAdminsMaster from "../../components/master/AbaAdminsMaster";
 
 export default function DashboardMaster() {
     const navigate = useNavigate();
@@ -173,6 +174,9 @@ export default function DashboardMaster() {
                     </NavItem>
                     <NavItem $ativo={abaAtiva === "EMPRESAS"} onClick={() => setAbaAtiva("EMPRESAS")}>
                         <FiBriefcase /> <span>Empresas</span>
+                    </NavItem>
+                    <NavItem $ativo={abaAtiva === "ADMINS"} onClick={() => setAbaAtiva("ADMINS")}>
+                        <FiLock /> <span>Administradores</span>
                     </NavItem>
                     <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
                         <FiSettings /> <span>Configurações SaaS</span>
@@ -451,6 +455,8 @@ export default function DashboardMaster() {
                         </TabelaContainer>
                     </>
                 )}
+
+                {abaAtiva === "ADMINS" && <AbaAdminsMaster />}
             </Conteudo>
 
             <ModalNovaEmpresa
