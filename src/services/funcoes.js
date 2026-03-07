@@ -5,11 +5,11 @@ import { auth } from "./firebase";
 const functions = getFunctions(undefined, "southamerica-east1");
 // ⚠️ ajuste a região se sua function estiver em outra (ou remova o 2º param pra default)
 
-export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role, jornada }) => {
+export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role, jornadas, cargaHorariaSemanal, matricula }) => {
     // garante que auth está pronto
     if (!auth.currentUser) throw new Error("Usuário não autenticado.");
     const call = httpsCallable(functions, "criarFuncionario");
-    const res = await call({ nome, email, dataNascimento, role, jornada });
+    const res = await call({ nome, email, dataNascimento, role, jornadas, cargaHorariaSemanal, matricula });
     return res.data;
 };
 
@@ -34,9 +34,19 @@ export const corrigirCompanyFn = async () => {
     return res.data;
 };
 
-export const trocarSenhaPrimeiroAcessoFn = async (novaSenha) => {
+// Helper function to simplify callable function calls
+const chamar = async (functionsInstance, functionName, data) => {
     if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functions, "trocarSenhaPrimeiroAcesso");
-    const res = await call({ novaSenha });
+    const call = httpsCallable(functionsInstance, functionName);
+    const res = await call(data);
+    return res.data;
+};
+
+export const trocarSenhaPrimeiroAcessoFn = (dados) => chamar(functions, "trocarSenhaPrimeiroAcesso", dados);
+
+// Login por matrícula NÃO exige auth.currentUser (é chamado antes de autenticar)
+export const loginPorMatriculaFn = async (dados) => {
+    const call = httpsCallable(functions, "loginPorMatricula");
+    const res = await call(dados);
     return res.data;
 };

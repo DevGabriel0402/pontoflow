@@ -32,6 +32,7 @@ import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
+import { maskMatricula } from "../../utils/mascaras";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -72,10 +73,17 @@ function formatarData(p) {
 
 export default function DashboardAdmin() {
   const navigate = useNavigate();
-  const { usuario, perfil, logout } = useAuth();
+  const { usuario, perfil, logout, temModulo, empresaConfig } = useAuth();
+  const corPrimaria = empresaConfig?.config?.visual?.corPrimaria || "var(--cor-primaria, #2f81f7)";
+  const logoUrl = empresaConfig?.config?.visual?.logoUrl || "/icons/pwa-512x512.png";
   const isSuperAdmin = perfil?.isSuperAdmin === true;
   const { itens, carregando, erro } = useAdminPontos();
   const { config, nomePainel } = useConfig();
+  const temPonto = (id) => {
+    // Se não houver config ou pontosAtivos, mostra tudo (fallback legacy)
+    if (!config?.regras?.pontosAtivos) return true;
+    return config.regras.pontosAtivos.includes(id);
+  };
   const { validacao, validarLocal } = usePonto();
 
   const [buscaNome, setBuscaNome] = React.useState("");
@@ -206,7 +214,8 @@ export default function DashboardAdmin() {
     exportarResumoPdf(resumoJornada, {
       empresa: nomePainel,
       periodo,
-      totalGeral: totalHorasPeriodo
+      totalGeral: totalHorasPeriodo,
+      pontosAtivos: config?.regras?.pontosAtivos
     });
 
     setMostrarToast(true);
@@ -233,6 +242,17 @@ export default function DashboardAdmin() {
   };
 
   const handleExportarCsvResumo = () => {
+    const colunas = ["Funcionário", "Data"];
+    const chaves = ["funcionario", "data"];
+
+    if (temPonto('entrada')) { colunas.push("Entrada"); chaves.push("entrada"); }
+    if (temPonto('intervalo_saida')) { colunas.push("Iní. Int"); chaves.push("iniInt"); }
+    if (temPonto('intervalo_entrada')) { colunas.push("Fim Int"); chaves.push("fimInt"); }
+    if (temPonto('saida')) { colunas.push("Saída"); chaves.push("saida"); }
+
+    colunas.push("Total", "Status");
+    chaves.push("total", "status");
+
     const dados = resumoJornada.map(j => ({
       funcionario: j.userName || "—",
       data: format(j.data, "dd/MM/yyyy"),
@@ -246,8 +266,8 @@ export default function DashboardAdmin() {
 
     exportarParaCsv({
       dados,
-      colunas: ["Funcionário", "Data", "Entrada", "Iní. Int", "Fim Int", "Saída", "Total", "Status"],
-      chaves: ["funcionario", "data", "entrada", "iniInt", "fimInt", "saida", "total", "status"],
+      colunas,
+      chaves,
       nomeArquivo: `resumo_jornada_${format(new Date(), "yyyy-MM-dd")}.csv`
     });
     toast.success("Resumo exportado em CSV!");
@@ -307,6 +327,7 @@ export default function DashboardAdmin() {
       const pontosUser = itens.filter(p => p.userId === func.id);
 
       const feriados = config?.feriados || [];
+      const dataCriacao = func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null);
       const resumosUser = calcularResumoDiario(
         pontosUser,
         func.jornadas || func.jornada,
@@ -314,7 +335,8 @@ export default function DashboardAdmin() {
         func.cargaHorariaSemanal,
         dataInicio,
         dataFim,
-        feriados
+        feriados,
+        dataCriacao
       );
 
       resumosUser.forEach(r => {
@@ -357,10 +379,10 @@ export default function DashboardAdmin() {
   };
 
   return (
-    <LayoutAdmin>
+    <LayoutAdmin style={{ "--cor-primaria": corPrimaria }}>
       <Sidebar>
         <Branding>
-          <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
+          <Logo src={logoUrl} alt={nomePainel} />
           {nomePainel}
         </Branding>
 
@@ -371,12 +393,19 @@ export default function DashboardAdmin() {
           <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
             <FiUsers /> <span>Funcionários</span>
           </NavItem>
-          <NavItem $ativo={abaAtiva === "BANCO_HORAS"} onClick={() => setAbaAtiva("BANCO_HORAS")}>
-            <FiDatabase /> <span>Banco de Horas</span>
-          </NavItem>
-          <NavItem $ativo={abaAtiva === "JUSTIFICATIVAS"} onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
-            <FiMessageSquare /> <span>Justificativas</span>
-          </NavItem>
+
+          {temModulo('bancoHoras') && (
+            <NavItem $ativo={abaAtiva === "BANCO_HORAS"} onClick={() => setAbaAtiva("BANCO_HORAS")}>
+              <FiDatabase /> <span>Banco de Horas</span>
+            </NavItem>
+          )}
+
+          {temModulo('justificativas') && (
+            <NavItem $ativo={abaAtiva === "JUSTIFICATIVAS"} onClick={() => setAbaAtiva("JUSTIFICATIVAS")}>
+              <FiMessageSquare /> <span>Justificativas</span>
+            </NavItem>
+          )}
+
           <NavItem $ativo={abaAtiva === "CONFIG"} onClick={() => setAbaAtiva("CONFIG")}>
             <FiSettings /> <span>Configurações</span>
           </NavItem>
@@ -384,7 +413,7 @@ export default function DashboardAdmin() {
           {isSuperAdmin && (
             <>
               <NavSeparador />
-              <NavItem onClick={() => navigate("/master")} style={{ color: '#2f81f7' }}>
+              <NavItem onClick={() => navigate("/master")} style={{ color: 'var(--cor-primaria, #2f81f7)' }}>
                 <FiShield /> <span>Painel Master</span>
               </NavItem>
             </>
@@ -482,12 +511,16 @@ export default function DashboardAdmin() {
                     </FiltroDataWrapper>
 
                     <GrupoBotoesExportar>
-                      <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
-                        <FiFileText /> Resumo PDF
-                      </BotaoExportar>
-                      <BotaoExportar $csv onClick={handleExportarCsvResumo} disabled={resumoJornada.length === 0}>
-                        <FiFile /> Resumo CSV
-                      </BotaoExportar>
+                      {temModulo('relatorios') && (
+                        <>
+                          <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
+                            <FiFileText /> Resumo PDF
+                          </BotaoExportar>
+                          <BotaoExportar $csv onClick={handleExportarCsvResumo} disabled={resumoJornada.length === 0}>
+                            <FiFile /> Resumo CSV
+                          </BotaoExportar>
+                        </>
+                      )}
                     </GrupoBotoesExportar>
                   </Topo>
 
@@ -503,10 +536,10 @@ export default function DashboardAdmin() {
                         <tr>
                           <th>Funcionário</th>
                           <th>Data</th>
-                          <th>Entrada</th>
-                          <th>Início Intervalo</th>
-                          <th>Fim Intervalo</th>
-                          <th>Saída</th>
+                          {temPonto('entrada') && <th>Entrada</th>}
+                          {temPonto('intervalo_saida') && <th>Início Intervalo</th>}
+                          {temPonto('intervalo_entrada') && <th>Fim Intervalo</th>}
+                          {temPonto('saida') && <th>Saída</th>}
                           <th>Total Trabalhado</th>
                           <th>Status</th>
                         </tr>
@@ -516,10 +549,10 @@ export default function DashboardAdmin() {
                           <tr key={`${j.userId}-${format(j.data, 'yyyy-MM-dd')}-${index}`}>
                             <td>{j.userName || "—"}</td>
                             <td>{format(j.data, 'dd/MM/yyyy')}</td>
-                            <td>{j.check.entrada ? format(j.check.entrada, 'HH:mm') : '—'}</td>
-                            <td>{j.check.iniInt ? format(j.check.iniInt, 'HH:mm') : '—'}</td>
-                            <td>{j.check.fimInt ? format(j.check.fimInt, 'HH:mm') : '—'}</td>
-                            <td>{j.check.saida ? format(j.check.saida, 'HH:mm') : '—'}</td>
+                            {temPonto('entrada') && <td>{j.check.entrada ? format(j.check.entrada, 'HH:mm') : '—'}</td>}
+                            {temPonto('intervalo_saida') && <td>{j.check.iniInt ? format(j.check.iniInt, 'HH:mm') : '—'}</td>}
+                            {temPonto('intervalo_entrada') && <td>{j.check.fimInt ? format(j.check.fimInt, 'HH:mm') : '—'}</td>}
+                            {temPonto('saida') && <td>{j.check.saida ? format(j.check.saida, 'HH:mm') : '—'}</td>}
                             <td>{j.totalFormatado}</td>
                             <td>
                               <StatusBadge $ativo={j.status === "Ok"}>
@@ -582,6 +615,7 @@ export default function DashboardAdmin() {
                       <tr>
                         <th>Status</th>
                         <th>Nome</th>
+                        <th>Matrícula</th>
                         <th>Email</th>
                         <th>Jornada</th>
                         <th>Cargo</th>
@@ -590,7 +624,6 @@ export default function DashboardAdmin() {
                     </thead>
                     <tbody>
                       {funcionarios
-                        .filter(f => f.role !== 'admin')
                         .filter(f =>
                           f.nome?.toLowerCase().includes(buscaFunc.toLowerCase()) ||
                           f.email?.toLowerCase().includes(buscaFunc.toLowerCase())
@@ -604,6 +637,7 @@ export default function DashboardAdmin() {
                               </StatusBadge>
                             </td>
                             <td>{f.nome}</td>
+                            <td style={{ fontSize: 13, fontWeight: 700, color: 'var(--cor-primaria)' }}>{maskMatricula(f.matricula) || "—"}</td>
                             <td>{f.email}</td>
                             <td style={{ fontSize: 12, whiteSpace: 'nowrap', fontWeight: 600, color: '#e1e1e6' }}>
                               {f.cargaHorariaSemanal
@@ -614,9 +648,9 @@ export default function DashboardAdmin() {
                               }
                             </td>
                             <td>
-                              {f.role === 'admin'
-                                ? 'Administrador'
-                                : f.funcao ? f.funcao : 'Colaborador'
+                              {f.funcao
+                                ? f.funcao
+                                : f.role === 'admin' ? 'Administrador' : 'Colaborador'
                               }
                             </td>
                             <td>
@@ -1168,7 +1202,7 @@ const ResumoHeader = styled.div`
     p {
       font-size: 13px;
       color: #8d8d99;
-      strong { color: #2f81f7; }
+      strong { color: var(--cor-primaria, #2f81f7); }
     }
   }
 
@@ -1262,7 +1296,7 @@ const TabelaStyled = styled.table`
   input[type="checkbox"] {
     width: 16px;
     height: 16px;
-    accent-color: #2f81f7;
+    accent-color: var(--cor-primaria, #2f81f7);
     cursor: pointer;
   }
 `;
@@ -1280,7 +1314,7 @@ gap: 8px;
 const Botao = styled.button`
 height: 44px;
 padding: 0 20px;
-background: #2f81f7;
+background: var(--cor-primaria, #2f81f7);
 color: #fff;
 border: 0;
 border-radius: 8px;
@@ -1312,7 +1346,7 @@ transition: all 0.2s;
 
   &:hover {
   background: rgba(255, 255, 255, 0.05);
-  border - color: #2f81f7;
+  border - color: var(--cor-primaria, #2f81f7);
 }
 `;
 
@@ -1386,7 +1420,7 @@ const ConfigBox = styled.div`
     flex: 1;
       
       &:focus {
-      border-color: #2f81f7;
+      border-color: var(--cor-primaria, #2f81f7);
     }
   }
 
@@ -1431,7 +1465,7 @@ const ConfigBox = styled.div`
         width: 100%;
         
         &:focus {
-          border-color: #2f81f7;
+          border-color: var(--cor-primaria, #2f81f7);
         }
       }
     }
@@ -1442,7 +1476,7 @@ const AvisoInfo = styled.div`
 padding: 20px;
 background: rgba(47, 129, 247, 0.1);
 border-radius: 8px;
-color: #2f81f7;
+color: var(--cor-primaria, #2f81f7);
 `;
 
 const AvisoErro = styled.div`
@@ -1509,7 +1543,7 @@ const BotaoAcao = styled.button`
 
   &:hover {
     color: #fff;
-    border-color: ${({ $danger }) => $danger ? "#eb4d4b" : "#2f81f7"};
+    border-color: ${({ $danger }) => $danger ? "#eb4d4b" : "var(--cor-primaria, #2f81f7)"};
     background: ${({ $danger }) => $danger ? "rgba(235, 77, 75, 0.1)" : "rgba(47, 129, 247, 0.1)"};
   }
 `;
@@ -1517,7 +1551,7 @@ const BotaoAcao = styled.button`
 const BtnVerMapa = styled.button`
   background: rgba(47, 129, 247, 0.1);
   border: 1px solid rgba(47, 129, 247, 0.2);
-  color: #2f81f7;
+  color: var(--cor-primaria, #2f81f7);
   padding: 4px 8px;
   border-radius: 6px;
   display: flex;
@@ -1528,7 +1562,7 @@ const BtnVerMapa = styled.button`
   margin-left: auto;
 
   &:hover {
-    background: #2f81f7;
+    background: var(--cor-primaria, #2f81f7);
     color: #fff;
   }
 `;
@@ -1566,7 +1600,7 @@ const AtalhoBtn = styled.button`
   }
 
   svg {
-    color: #2f81f7;
+    color: var(--cor-primaria, #2f81f7);
   }
 `;
 

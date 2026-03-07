@@ -5,14 +5,23 @@ import { FiEdit2, FiX } from "react-icons/fi";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import SeletorAcordeao from "../SeletorAcordeao";
+import { useConfig } from "../../contexts/ConfigContexto";
+import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
 
 export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }) {
+  const { config } = useConfig();
+
+  const temPonto = (id) => {
+    if (!config?.regras?.pontosAtivos) return true;
+    return config.regras.pontosAtivos.includes(id);
+  };
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
   const [funcao, setFuncao] = useState("");
   const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
+  const [matricula, setMatricula] = useState("");
 
   const FUNCOES_ADMIN = [
     "Presidente",
@@ -22,6 +31,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
     "Diretor(a)",
     "Secretário(a)",
     "Consultor(a)",
+    "Desenvolvedor(a)",
     "Outro"
   ];
 
@@ -57,6 +67,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
       setRole(funcionario.role || "colaborador");
       setFuncao(funcionario.funcao || "");
       setCargaHorariaSemanal(funcionario.cargaHorariaSemanal || "44 Horas");
+      setMatricula(maskMatricula(funcionario.matricula || ""));
 
       if (funcionario.jornadas) {
         setJornadas(funcionario.jornadas);
@@ -93,9 +104,10 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
         nome: nome.trim(),
         dataNascimento,
         role,
-        funcao: role === "colaborador" ? funcao.trim() : null,
+        funcao: funcao.trim() || null,
         jornadas,
         cargaHorariaSemanal,
+        matricula: unmaskMatricula(matricula),
       });
       toast.success("Funcionário atualizado!");
       onFechar();
@@ -136,6 +148,16 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
           <Campo>
             <label>Data de Nascimento</label>
             <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+          </Campo>
+
+          <Campo>
+            <label>Matrícula / ID do Funcionário {config?.regras?.loginPorMatricula && <span style={{ color: '#eb4d4b' }}>*</span>}</label>
+            <input
+              value={matricula}
+              onChange={(e) => setMatricula(maskMatricula(e.target.value))}
+              placeholder="0000000-0"
+              required={config?.regras?.loginPorMatricula}
+            />
           </Campo>
 
           <Campo>
@@ -224,30 +246,38 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
 
                       {conf.ativo && (
                         <HorariosInputs>
-                          <InputSlim
-                            type="time"
-                            value={conf.entrada}
-                            title="Entrada"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
-                          />
-                          <InputSlim
-                            type="time"
-                            value={conf.inicioIntervalo}
-                            title="Início Intervalo"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
-                          />
-                          <InputSlim
-                            type="time"
-                            value={conf.fimIntervalo}
-                            title="Fim Intervalo"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
-                          />
-                          <InputSlim
-                            type="time"
-                            value={conf.saida}
-                            title="Saída"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
-                          />
+                          {temPonto('entrada') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.entrada}
+                              title="Entrada"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
+                            />
+                          )}
+                          {temPonto('intervalo_saida') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.inicioIntervalo}
+                              title="Início Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
+                            />
+                          )}
+                          {temPonto('intervalo_entrada') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.fimIntervalo}
+                              title="Fim Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
+                            />
+                          )}
+                          {temPonto('saida') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.saida}
+                              title="Saída"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                            />
+                          )}
                         </HorariosInputs>
                       )}
                     </DiaRow>

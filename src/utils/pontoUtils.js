@@ -29,7 +29,7 @@ export function formatarDuracao(totalMinutos) {
  * Para um único funcionário e lista de pontos, calcula o resumo diário.
  * Retorna array de { dataKey, data, minutosTrabalhados, minutosEsperados, diferenca, status }
  */
-export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaHorariaSemanal = 44, periodoInicio = null, periodoFim = null, feriados = []) {
+export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaHorariaSemanal = 44, periodoInicio = null, periodoFim = null, feriados = [], dataCriacao = null) {
     // Array para mapear o .getDay() do JS para a nossa chave de jornadas
     const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
     const carga = Number(cargaHorariaSemanal || 44);
@@ -194,10 +194,10 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         };
     }).filter(d => {
         const hojeKey = format(new Date(), "yyyy-MM-dd");
-        const implatacaoKey = "2026-02-27";
 
-        // 0. Esconder dias anteriores à implantação
-        if (d.dataKey < implatacaoKey) return false;
+        // 0. Esconder dias anteriores à criação do funcionário (ou data de implantação como fallback)
+        const inicioKey = dataCriacao ? format(dataCriacao, "yyyy-MM-dd") : "2026-02-27";
+        if (d.dataKey < inicioKey) return false;
 
         // 1. Esconder dias futuros
         if (d.dataKey > hojeKey) return false;

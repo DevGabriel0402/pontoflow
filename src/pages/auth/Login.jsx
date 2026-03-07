@@ -1,10 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
+import SeletorAcordeao from "../../components/SeletorAcordeao";
+import { loginPorMatriculaFn } from "../../services/funcoes";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { db, auth } from "../../services/firebase";
+import { signInWithCustomToken } from "firebase/auth";
+import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
 
 export default function Login() {
   const { login } = useAuth();
@@ -13,34 +19,112 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [slug, setSlug] = useState("");
+  const [matricula, setMatricula] = useState("");
+  const [modo, setModo] = useState("email"); // "email" ou "matricula"
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [empresas, setEmpresas] = useState([]);
+  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
+
+  useEffect(() => {
+    const buscarEmpresas = async () => {
+      if (modo !== "matricula") return;
+
+      setCarregandoEmpresas(true);
+      try {
+        let snap;
+        try {
+          // Tenta buscar apenas empresas que permitem login por matrícula (lado servidor)
+          const q = query(
+            collection(db, "companies"),
+            where("config.regras.loginPorMatricula", "==", true)
+          );
+          snap = await getDocs(q);
+        } catch (permerr) {
+          console.warn("Filtro no servidor falhou (possível erro de permissão), buscando todas como fallback.", permerr);
+          // Fallback: Busca todas as empresas e filtra no frontend
+          snap = await getDocs(collection(db, "companies"));
+        }
+
+        const lista = snap.docs
+          .map(doc => ({
+            id: doc.id,
+            nome: doc.data().nomeFantasia || doc.data().nome || doc.id,
+            permitido: doc.data().config?.regras?.loginPorMatricula === true
+          }))
+          .filter(emp => emp.permitido);
+
+        setEmpresas(lista);
+        if (lista.length > 0 && !slug) {
+          setSlug(lista[0].id);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar empresas:", err);
+        // Se ambos falharem, mostramos erro ao usuário
+        if (modo === "matricula") {
+          toast.error("Erro de permissão ao listar empresas. Verifique as regras do Firestore.");
+        }
+      } finally {
+        setCarregandoEmpresas(false);
+      }
+    };
+
+    buscarEmpresas();
+  }, [modo, slug]); // slug aqui para não resetar se mudar modo, mas buscarEmpresas tem proteção
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (carregando) return;
+
     setCarregando(true);
+    let userRecord = null;
+
     try {
-      const user = await login(email, senha);
+      if (modo === "matricula") {
+        if (!slug || !matricula) {
+          toast.error("Selecione sua empresa e informe a matrícula.");
+          setCarregando(false);
+          return;
+        }
 
-      // Buscar perfil manualmente para redirecionamento imediato
-      const { doc, getDoc } = await import("firebase/firestore");
-      const { db } = await import("../../services/firebase");
+        // Fluxo de login sem senha via Cloud Function (Custom Token)
+        const res = await loginPorMatriculaFn({
+          companyId: slug,
+          matricula: unmaskMatricula(matricula)
+        });
 
-      const snap = await getDoc(doc(db, "users", user.uid));
+        if (!res || !res.token) {
+          throw new Error("Token de acesso não gerado.");
+        }
+
+        const cred = await signInWithCustomToken(auth, res.token);
+        userRecord = cred.user;
+
+        // Saudação personalizada para login por matrícula
+        const nomeFunc = res.nome || "Colaborador";
+        toast.success(`Olá, ${nomeFunc}! 👋`);
+      } else {
+        // Fluxo normal via Firebase Auth (Email/Senha)
+        userRecord = await login(email, senha);
+        toast.success("Bem-vindo ao PontoFlow!");
+      }
+
+      if (!userRecord) {
+        throw new Error("Falha na identificação do usuário.");
+      }
+
+      // Buscar perfil para redirecionamento
+      const snap = await getDoc(doc(db, "users", userRecord.uid));
       const perfilData = snap.exists() ? snap.data() : null;
 
-      toast.success("Bem-vindo ao PontoFlow!");
+      if (perfilData?.role === "admin") navigate("/admin");
+      else if (perfilData?.role === "master") navigate("/master");
+      else navigate("/");
 
-      if (perfilData?.role === "admin") {
-        navigate("/admin");
-      } else if (perfilData?.role === "master") {
-        navigate("/master");
-      } else {
-        navigate("/");
-      }
     } catch (err) {
-      toast.error("Falha no login. Verifique email e senha.");
-      console.log(err);
+      console.error("Erro no login:", err);
+      toast.error("Acesso negado. Verifique seus dados.");
     } finally {
       setCarregando(false);
     }
@@ -51,30 +135,77 @@ export default function Login() {
       <Card>
         <Topo>
           <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
-          <h1>ClickPonto BH</h1>
+          <h1>PontoFlow</h1>
         </Topo>
 
-        <Sub>Faça login para registar seu ponto.</Sub>
+        <Sub>Sua plataforma de gestão de ponto inteligente.</Sub>
+
+        <SeletorModo>
+          <button
+            type="button"
+            className={modo === 'email' ? 'active' : ''}
+            onClick={() => setModo('email')}
+          >
+            Email
+          </button>
+          <button
+            type="button"
+            className={modo === 'matricula' ? 'active' : ''}
+            onClick={() => setModo('matricula')}
+          >
+            Matrícula
+          </button>
+        </SeletorModo>
 
         <Form onSubmit={handleSubmit}>
-          <label>Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+          {modo === "email" ? (
+            <>
+              <label>Seu Email</label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                placeholder="email@exemplo.com"
+                required
+              />
 
-          <label>Senha</label>
-          <InputSenhaWrapper>
-            <input
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              type={mostrarSenha ? "text" : "password"}
-            />
-            <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
-              {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-            </button>
-          </InputSenhaWrapper>
+              <label>Sua Senha</label>
+              <InputSenhaWrapper>
+                <input
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  type={mostrarSenha ? "text" : "password"}
+                  placeholder="********"
+                  required
+                />
+                <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
+                  {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </button>
+              </InputSenhaWrapper>
+            </>
+          ) : (
+            <>
+              <SeletorAcordeao
+                label="Empresa"
+                opcoes={empresas.map(e => ({ value: e.id, label: e.nome }))}
+                value={slug}
+                onChange={setSlug}
+                carregando={carregandoEmpresas}
+              />
+
+              <label style={{ marginTop: '10px' }}>Número da Matrícula</label>
+              <input
+                value={matricula}
+                onChange={(e) => setMatricula(maskMatricula(e.target.value))}
+                placeholder="0000000-0"
+                required
+              />
+            </>
+          )}
 
           <Botao disabled={carregando}>
             <FiLogIn size={18} />
-            {carregando ? "Entrando..." : "Entrar"}
+            {carregando ? "Autenticando..." : "Entrar"}
           </Botao>
         </Form>
       </Card>
@@ -84,64 +215,109 @@ export default function Login() {
 
 const Tela = styled.div`
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   background: ${({ theme }) => theme.cores.fundo};
 `;
 
 const Card = styled.div`
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   background: ${({ theme }) => theme.cores.superficie2};
   border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: ${({ theme }) => theme.raio.xl};
-  padding: 18px;
+  padding: 24px;
   box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const Topo = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 8px;
 
   h1 {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
+    font-weight: 800;
   }
 `;
 
 const Logo = styled.img`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   object-fit: contain;
 `;
 
 const Sub = styled.p`
-  margin: 10px 0 16px;
+  margin: 0 0 24px;
   color: ${({ theme }) => theme.cores.texto2};
-  font-size: 13px;
+  font-size: 14px;
+`;
+
+const SeletorModo = styled.div`
+  display: flex;
+  background: ${({ theme }) => theme.cores.superficie};
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.raio.lg};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  gap: 4px;
+  margin-bottom: 24px;
+
+  button {
+    flex: 1;
+    height: 40px;
+    border: 0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    color: ${({ theme }) => theme.cores.texto2};
+
+    &.active {
+      background: ${({ theme }) => theme.cores.azul};
+      color: #fff;
+    }
+
+    &:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 
   label {
     font-size: 12px;
+    font-weight: 600;
     color: ${({ theme }) => theme.cores.texto2};
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   input {
-    height: 44px;
-    padding: 0 12px;
+    height: 48px;
+    padding: 0 14px;
     border-radius: ${({ theme }) => theme.raio.lg};
     border: 1px solid ${({ theme }) => theme.cores.borda};
     background: ${({ theme }) => theme.cores.superficie};
     color: ${({ theme }) => theme.cores.texto};
     outline: none;
+    font-family: inherit;
+    font-size: 15px;
+    transition: border-color 0.2s;
+
+    &:focus {
+      border-color: ${({ theme }) => theme.cores.azul};
+    }
   }
 `;
 
@@ -157,7 +333,7 @@ const InputSenhaWrapper = styled.div`
 
   button {
     position: absolute;
-    right: 12px;
+    right: 8px;
     background: transparent;
     border: 0;
     color: ${({ theme }) => theme.cores.texto2};
@@ -165,8 +341,9 @@ const InputSenhaWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
-    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
 
     &:hover {
       background: rgba(255, 255, 255, 0.05);
@@ -176,17 +353,32 @@ const InputSenhaWrapper = styled.div`
 `;
 
 const Botao = styled.button`
-  margin-top: 8px;
-  height: 46px;
+  margin-top: 12px;
+  height: 50px;
   border: 0;
   border-radius: ${({ theme }) => theme.raio.lg};
   background: ${({ theme }) => theme.cores.azul};
   color: #fff;
+  font-size: 16px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.2s;
 
-  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
 `;

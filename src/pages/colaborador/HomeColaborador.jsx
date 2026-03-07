@@ -37,8 +37,11 @@ function getDataPonto(p) {
 }
 
 export default function HomeColaborador() {
-  const { usuario, perfil, isAdmin, logout, recarregarPerfil } = useAuth();
+  const { usuario, perfil, isAdmin, logout, recarregarPerfil, temModulo, empresaConfig } = useAuth();
   const { hora, data } = useClock();
+
+  const corPrimaria = empresaConfig?.config?.visual?.corPrimaria || "#4facfe";
+  const logoUrl = empresaConfig?.config?.visual?.logoUrl || "/icons/pwa-512x512.png";
   const { pendentes, online, sincronizando, syncAgora } = useSync();
   const { itens: historico, carregando: carregandoHist } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
@@ -74,9 +77,21 @@ export default function HomeColaborador() {
     return new Set(feitos);
   }, [historico, pendentes, usuario?.uid]);
 
+  // ✅ Filtra quais tipos de ponto a empresa utiliza
+  const tiposAtivos = React.useMemo(() => {
+    const config = empresaConfig?.config?.regras?.pontosAtivos || ['entrada', 'saida'];
+    const mapa = {
+      'entrada': TIPOS.ENTRADA,
+      'intervalo_saida': TIPOS.INICIO_INTERVALO,
+      'intervalo_entrada': TIPOS.FIM_INTERVALO,
+      'saida': TIPOS.SAIDA
+    };
+    return config.map(c => mapa[c]).filter(Boolean);
+  }, [empresaConfig]);
+
   const todosConcluidos = React.useMemo(() => {
-    return Object.values(TIPOS).every(t => tiposFeitosHoje.has(t));
-  }, [tiposFeitosHoje]);
+    return tiposAtivos.every(t => tiposFeitosHoje.has(t));
+  }, [tiposFeitosHoje, tiposAtivos]);
 
   // ✅ Filtra pontos de hoje para a lista de histórico
   const pontosHoje = React.useMemo(() => {
@@ -89,7 +104,7 @@ export default function HomeColaborador() {
 
   const statusTexto = React.useMemo(() => {
     if (!checou) return "Validando localização...";
-    if (validacao.ok) return "Localização Validada: Escola Municipal Senador Levindo Coelho";
+    if (validacao.ok) return `Localização Validada: ${empresaConfig?.nome || "Sede"}`;
     if (validacao.ok === false)
       return `Fora do raio permitido (${validacao.distance}m)`;
     return "Localização não verificada";
@@ -140,8 +155,13 @@ export default function HomeColaborador() {
   const bloqueado = React.useMemo(() => {
     // colaborador bloqueia fora do raio ou fim de semana; admin não bloqueia
     if (isAdmin) return false;
-    return (checou && validacao.ok === false) || ehFimDeSemana;
-  }, [isAdmin, checou, validacao.ok, ehFimDeSemana]);
+
+    // Regra personalizada: se a empresa não exige geolocalização, não bloqueia
+    const exigirGeo = empresaConfig?.config?.regras?.exigirGeo !== false;
+    const foraDoRaio = checou && validacao.ok === false;
+
+    return (exigirGeo && foraDoRaio) || ehFimDeSemana;
+  }, [isAdmin, checou, validacao.ok, ehFimDeSemana, empresaConfig]);
 
   const handle = async (tipo) => {
     if (permissaoGPS === "denied") {
@@ -164,7 +184,7 @@ export default function HomeColaborador() {
     }
   };
 
-  const handleAbrirFace = () => {
+  const handleConfirmar = () => {
     if (!tipoSelecionado) {
       toast.error("Selecione o tipo de ponto antes de continuar.");
       return;
@@ -173,7 +193,12 @@ export default function HomeColaborador() {
       toast.error("Você está fora do raio permitido.");
       return;
     }
-    setModalFaceAberto(true);
+
+    if (temModulo('face')) {
+      setModalFaceAberto(true);
+    } else {
+      handle(tipoSelecionado);
+    }
   };
 
   const handleSucessoFace = async () => {
@@ -217,10 +242,10 @@ export default function HomeColaborador() {
 
   return (
     <Tela>
-      <Topo>
+      <Topo style={{ "--cor-primaria": corPrimaria }}>
         <Marca>
-          <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
-          <span>ClickPonto</span>
+          <Logo src={logoUrl} alt={empresaConfig?.nome || "PontoFlow"} />
+          <span>{empresaConfig?.nome || "ClickPonto"}</span>
         </Marca>
 
         <AcoesTopo>
@@ -247,32 +272,43 @@ export default function HomeColaborador() {
       </Topo>
 
       <Conteudo>
-        <SeloSeguranca>
-          <FiShield size={16} />
-          <span>Geofence Ativo</span>
-        </SeloSeguranca>
+        <BadgesWrapper>
+          <SeloSeguranca>
+            <FiShield size={14} />
+            <span>Geofence Ativo</span>
+          </SeloSeguranca>
+
+          {empresaConfig?.config?.regras?.cargaHorariaSemanal && (
+            <BadgeMeta>
+              <FiClock size={14} />
+              <span>Carga: {empresaConfig?.config?.regras?.cargaHorariaSemanal}h</span>
+            </BadgeMeta>
+          )}
+        </BadgesWrapper>
 
         <Relogio>{hora}</Relogio>
         <Data>{data}</Data>
 
-        <ContainerSaldo>
-          <HeaderSaldo>
-            <LabelSaldo>Meu Banco de Horas</LabelSaldo>
-            <BotaoSyncSaldo onClick={() => window.location.reload(true)}>
-              <FiRefreshCw size={12} /> Sincronizar
-            </BotaoSyncSaldo>
-          </HeaderSaldo>
-          <GradeSaldo>
-            <BoxSaldo $positivo={saldoMinutos >= 0}>
-              <ValorSaldo $positivo={saldoMinutos >= 0}>{formatarSaldo(saldoMinutos)}</ValorSaldo>
-              <SubSaldo>Saldo em Horas</SubSaldo>
-            </BoxSaldo>
-            <BoxSaldo $positivo={saldoMinutos >= 0}>
-              <ValorSaldo $positivo={saldoMinutos >= 0}>{saldoMinutos >= 0 ? "+" : ""}{saldoDias.toFixed(1)}d</ValorSaldo>
-              <SubSaldo>Saldo em Dias</SubSaldo>
-            </BoxSaldo>
-          </GradeSaldo>
-        </ContainerSaldo>
+        {temModulo('bancoHoras') && (
+          <ContainerSaldo>
+            <HeaderSaldo>
+              <LabelSaldo>Meu Banco de Horas</LabelSaldo>
+              <BotaoSyncSaldo onClick={() => window.location.reload(true)}>
+                <FiRefreshCw size={12} /> Sincronizar
+              </BotaoSyncSaldo>
+            </HeaderSaldo>
+            <GradeSaldo>
+              <BoxSaldo $positivo={saldoMinutos >= 0}>
+                <ValorSaldo $positivo={saldoMinutos >= 0}>{formatarSaldo(saldoMinutos)}</ValorSaldo>
+                <SubSaldo>Saldo em Horas</SubSaldo>
+              </BoxSaldo>
+              <BoxSaldo $positivo={saldoMinutos >= 0}>
+                <ValorSaldo $positivo={saldoMinutos >= 0}>{saldoMinutos >= 0 ? "+" : ""}{saldoDias.toFixed(1)}d</ValorSaldo>
+                <SubSaldo>Saldo em Dias</SubSaldo>
+              </BoxSaldo>
+            </GradeSaldo>
+          </ContainerSaldo>
+        )}
 
         <Status>
           <PontoStatus $ok={validacao.ok === true} $bad={validacao.ok === false} />
@@ -280,29 +316,32 @@ export default function HomeColaborador() {
         </Status>
 
         <ChipsGrid>
-          {Object.entries({
-            ENTRADA: "Entrada",
-            INICIO_INTERVALO: "Início Intervalo",
-            FIM_INTERVALO: "Fim Intervalo",
-            SAIDA: "Saída",
-          }).map(([key, label]) => (
-            <Chip
-              key={key}
-              $selecionado={tipoSelecionado === key}
-              $feito={tiposFeitosHoje.has(key)}
-              onClick={() => !tiposFeitosHoje.has(key) && setTipoSelecionado(key)}
-            >
-              {tiposFeitosHoje.has(key) ? `✓ ${label}` : label}
-            </Chip>
-          ))}
+          {[
+            { key: TIPOS.ENTRADA, label: "Entrada" },
+            { key: TIPOS.INICIO_INTERVALO, label: "Início Intervalo" },
+            { key: TIPOS.FIM_INTERVALO, label: "Fim Intervalo" },
+            { key: TIPOS.SAIDA, label: "Saída" },
+          ]
+            .filter(t => tiposAtivos.includes(t.key))
+            .map(({ key, label }) => (
+              <Chip
+                key={key}
+                $selecionado={tipoSelecionado === key}
+                $feito={tiposFeitosHoje.has(key)}
+                onClick={() => !tiposFeitosHoje.has(key) && setTipoSelecionado(key)}
+              >
+                {tiposFeitosHoje.has(key) ? `✓ ${label}` : label}
+              </Chip>
+            ))}
         </ChipsGrid>
 
         <BotaoFace
-          onClick={handleAbrirFace}
+          onClick={handleConfirmar}
           disabled={!tipoSelecionado || bloqueado || carregandoGeo}
+          style={{ background: `linear-gradient(135deg, ${corPrimaria}, ${corPrimaria}dd)` }}
         >
-          <FiCamera />
-          Confirmar com Reconhecimento Facial
+          {temModulo('face') ? <FiCamera /> : <FiClock />}
+          {temModulo('face') ? "Confirmar com Reconhecimento Facial" : "Confirmar Registro de Ponto"}
         </BotaoFace>
 
         {ehFimDeSemana && (
@@ -480,6 +519,12 @@ const Conteudo = styled.main`
   align-items: center;
 `;
 
+const BadgesWrapper = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
 const SeloSeguranca = styled.div`
   display: inline-flex;
   align-items: center;
@@ -490,6 +535,20 @@ const SeloSeguranca = styled.div`
   border: 1px solid ${({ theme }) => theme.cores.borda};
   color: ${({ theme }) => theme.cores.texto2};
   font-size: 12px;
+
+  svg {
+    color: #2ecc71;
+  }
+`;
+
+const BadgeMeta = styled(SeloSeguranca)`
+  background: ${({ theme }) => theme.cores.azul}15;
+  border-color: ${({ theme }) => theme.cores.azul}33;
+  color: ${({ theme }) => theme.cores.azul};
+
+  svg {
+    color: ${({ theme }) => theme.cores.azul};
+  }
 `;
 
 const ContainerSaldo = styled.div`

@@ -47,7 +47,7 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
         );
     }
 
-    const { nome, email, dataNascimento, role, jornadas, jornada, cargaHorariaSemanal, funcao } = request.data || {};
+    const { nome, email, dataNascimento, role, jornadas, jornada, cargaHorariaSemanal, funcao, matricula } = request.data || {};
     if (!nome || !email || !dataNascimento) {
         throw new HttpsError("invalid-argument", "Nome, email e data de nascimento são obrigatórios.");
     }
@@ -94,8 +94,12 @@ exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, 
             userData.cargaHorariaSemanal = cargaHorariaSemanal;
         }
 
-        if (userData.role === 'colaborador' && funcao) {
+        if (funcao) {
             userData.funcao = funcao;
+        }
+
+        if (matricula) {
+            userData.matricula = String(matricula).trim();
         }
 
         if (jornadas) {
@@ -346,5 +350,63 @@ exports.trocarSenhaPrimeiroAcesso = onCall({ region: "southamerica-east1", cors:
     } catch (error) {
         console.error("Erro ao trocar senha no primeiro acesso:", error);
         throw new HttpsError("internal", error.message || "Erro ao trocar senha.");
+    }
+});
+
+/**
+ * Login por Matrícula (Sem Senha)
+ * Gera um Custom Token se a matrícula for válida para a empresa.
+ */
+exports.loginPorMatricula = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+    const { companyId, matricula } = request.data || {};
+
+    if (!companyId || !matricula) {
+        throw new HttpsError("invalid-argument", "CompanyId e Matrícula são obrigatórios.");
+    }
+
+    try {
+        // 1. Verificar se a empresa permite login por matrícula
+        const companyDoc = await admin.firestore().doc(`companies/${companyId}`).get();
+        if (!companyDoc.exists) {
+            throw new HttpsError("not-found", "Empresa não encontrada.");
+        }
+
+        const companyData = companyDoc.data();
+        if (!companyData.config?.regras?.loginPorMatricula) {
+            throw new HttpsError("permission-denied", "Esta empresa não permite login por matrícula.");
+        }
+
+        // 2. Buscar o usuário pela matrícula nesta empresa
+        const userSnap = await admin.firestore()
+            .collection("users")
+            .where("companyId", "==", companyId)
+            .where("matricula", "==", String(matricula).trim())
+            .limit(1)
+            .get();
+
+        if (userSnap.empty) {
+            throw new HttpsError("not-found", "Funcionário não encontrado com esta matrícula nesta empresa.");
+        }
+
+        const userDoc = userSnap.docs[0];
+        const userData = userDoc.data();
+
+        if (userData.ativo === false) {
+            throw new HttpsError("permission-denied", "Este perfil está inativo.");
+        }
+
+        // 3. Se primeiroAcesso, desmarcar (matrícula não exige troca de senha)
+        if (userData.primeiroAcesso === true) {
+            await admin.firestore().doc(`users/${userDoc.id}`).update({ primeiroAcesso: false });
+        }
+
+        // 4. Gerar Custom Token para o UID do usuário
+        const customToken = await admin.auth().createCustomToken(userDoc.id);
+
+        return { token: customToken, nome: userData.nome || "" };
+    } catch (error) {
+        console.error("Erro no loginPorMatricula:", error);
+        if (error instanceof HttpsError) throw error;
+        throw new HttpsError("internal", "Erro interno ao processar login.");
     }
 });

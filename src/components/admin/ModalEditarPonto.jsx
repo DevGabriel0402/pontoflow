@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { FiX, FiClock, FiSave, FiAlertCircle } from "react-icons/fi";
-import { doc, updateDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { FiX, FiClock, FiSave, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
+import { doc, updateDoc, setDoc, collection, query, where, getDocs, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
+import { useConfig } from "../../contexts/ConfigContexto";
 
 export default function ModalEditarPonto({ aberto, onFechar, registro, userId, companyId }) {
+    const { config } = useConfig();
+    const temPonto = (id) => {
+        if (!config?.regras?.pontosAtivos) return true;
+        return config.regras.pontosAtivos.includes(id);
+    };
     const [horarios, setHorarios] = useState({
         entrada: "",
         iniInt: "",
@@ -14,6 +20,8 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
         saida: ""
     });
     const [salvando, setSalvando] = useState(false);
+    const [abonado, setAbonado] = useState(false);
+    const [abonoDocId, setAbonoDocId] = useState(null);
 
     useEffect(() => {
         if (registro && aberto) {
@@ -23,8 +31,60 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                 fimInt: registro.check.fimInt ? format(registro.check.fimInt, "HH:mm") : "",
                 saida: registro.check.saida ? format(registro.check.saida, "HH:mm") : ""
             });
+
+            // Verificar se já existe abono para este dia
+            const checkAbono = async () => {
+                try {
+                    const snap = await getDocs(query(
+                        collection(db, "banco_horas"),
+                        where("userId", "==", userId),
+                        where("origem", "==", "ABONO_MANUAL"),
+                        where("dataReferencia", "==", registro.dataKey)
+                    ));
+                    if (!snap.empty) {
+                        setAbonado(true);
+                        setAbonoDocId(snap.docs[0].id);
+                    } else {
+                        setAbonado(false);
+                        setAbonoDocId(null);
+                    }
+                } catch (e) {
+                    console.error("Erro ao verificar abono:", e);
+                }
+            };
+            checkAbono();
         }
-    }, [registro, aberto]);
+    }, [registro, aberto, userId]);
+
+    const handleToggleAbono = async () => {
+        try {
+            if (abonado && abonoDocId) {
+                // Remover abono
+                await deleteDoc(doc(db, "banco_horas", abonoDocId));
+                setAbonado(false);
+                setAbonoDocId(null);
+                toast.success("Abono removido.");
+            } else {
+                // Criar abono
+                const ref = await addDoc(collection(db, "banco_horas"), {
+                    userId,
+                    companyId,
+                    tipo: "CREDITO",
+                    minutos: 0,
+                    descricao: `Abono de Falta - ${format(registro.data, "dd/MM/yyyy")}`,
+                    origem: "ABONO_MANUAL",
+                    dataReferencia: registro.dataKey,
+                    criadoEm: serverTimestamp()
+                });
+                setAbonado(true);
+                setAbonoDocId(ref.id);
+                toast.success("Dia abonado com sucesso!");
+            }
+        } catch (err) {
+            console.error("Erro ao alternar abono:", err);
+            toast.error("Erro ao alterar abono.");
+        }
+    };
 
     if (!aberto || !registro) return null;
 
@@ -114,38 +174,46 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
 
                 <Form onSubmit={handleSalvar}>
                     <Grid>
-                        <Campo>
-                            <label>Entrada</label>
-                            <input
-                                type="time"
-                                value={horarios.entrada}
-                                onChange={e => setHorarios({ ...horarios, entrada: e.target.value })}
-                            />
-                        </Campo>
-                        <Campo>
-                            <label>Saída</label>
-                            <input
-                                type="time"
-                                value={horarios.saida}
-                                onChange={e => setHorarios({ ...horarios, saida: e.target.value })}
-                            />
-                        </Campo>
-                        <Campo>
-                            <label>Início Intervalo</label>
-                            <input
-                                type="time"
-                                value={horarios.iniInt}
-                                onChange={e => setHorarios({ ...horarios, iniInt: e.target.value })}
-                            />
-                        </Campo>
-                        <Campo>
-                            <label>Fim Intervalo</label>
-                            <input
-                                type="time"
-                                value={horarios.fimInt}
-                                onChange={e => setHorarios({ ...horarios, fimInt: e.target.value })}
-                            />
-                        </Campo>
+                        {temPonto('entrada') && (
+                            <Campo>
+                                <label>Entrada</label>
+                                <input
+                                    type="time"
+                                    value={horarios.entrada}
+                                    onChange={e => setHorarios({ ...horarios, entrada: e.target.value })}
+                                />
+                            </Campo>
+                        )}
+                        {temPonto('saida') && (
+                            <Campo>
+                                <label>Saída</label>
+                                <input
+                                    type="time"
+                                    value={horarios.saida}
+                                    onChange={e => setHorarios({ ...horarios, saida: e.target.value })}
+                                />
+                            </Campo>
+                        )}
+                        {temPonto('intervalo_saida') && (
+                            <Campo>
+                                <label>Início Intervalo</label>
+                                <input
+                                    type="time"
+                                    value={horarios.iniInt}
+                                    onChange={e => setHorarios({ ...horarios, iniInt: e.target.value })}
+                                />
+                            </Campo>
+                        )}
+                        {temPonto('intervalo_entrada') && (
+                            <Campo>
+                                <label>Fim Intervalo</label>
+                                <input
+                                    type="time"
+                                    value={horarios.fimInt}
+                                    onChange={e => setHorarios({ ...horarios, fimInt: e.target.value })}
+                                />
+                            </Campo>
+                        )}
                     </Grid>
 
                     <Rodape>
@@ -292,4 +360,44 @@ const BtnGhost = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   &:hover { background: rgba(255,255,255,0.05); color: #fff; }
+`;
+
+const AbonoToggle = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border: 1px solid ${({ $ativo }) => $ativo ? 'rgba(46,204,113,0.3)' : 'rgba(255,255,255,0.1)'};
+  background: ${({ $ativo }) => $ativo ? 'rgba(46,204,113,0.08)' : 'rgba(255,255,255,0.02)'};
+  color: ${({ $ativo }) => $ativo ? '#2ecc71' : '#8d8d99'};
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+
+  svg { flex-shrink: 0; }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: ${({ $ativo }) => $ativo ? '#2ecc71' : '#e1e1e6'};
+  }
+
+  span {
+    font-size: 12px;
+    color: ${({ $ativo }) => $ativo ? 'rgba(46,204,113,0.7)' : '#8d8d99'};
+  }
+
+  &:hover {
+    border-color: ${({ $ativo }) => $ativo ? 'rgba(46,204,113,0.5)' : 'rgba(255,255,255,0.2)'};
+    background: ${({ $ativo }) => $ativo ? 'rgba(46,204,113,0.12)' : 'rgba(255,255,255,0.05)'};
+  }
 `;

@@ -1,20 +1,24 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiUsers, FiSettings, FiDatabase, FiMessageSquare } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { FiGrid, FiUsers, FiDatabase, FiMessageSquare, FiSettings } from "react-icons/fi";
+import { useAuth } from "../../contexts/AuthContexto";
 
 export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
   const navigate = useNavigate();
+  const { temModulo, empresaConfig } = useAuth();
+  const corPrimaria = empresaConfig?.config?.visual?.corPrimaria || "#4facfe";
+
   const abas = [
-    { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} /> },
-    { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} /> },
-    { id: "BANCO_HORAS", label: "Banco", icon: <FiDatabase size={20} /> },
-    { id: "JUSTIFICATIVAS", label: "Justif.", icon: <FiMessageSquare size={20} /> },
-    { id: "CONFIG", label: "Config", icon: <FiSettings size={20} /> },
-  ];
+    { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} />, habilitado: true },
+    { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} />, habilitado: true },
+    { id: "BANCO_HORAS", label: "Banco", icon: <FiDatabase size={20} />, habilitado: temModulo('bancoHoras') },
+    { id: "JUSTIFICATIVAS", label: "Justif.", icon: <FiMessageSquare size={20} />, habilitado: temModulo('justificativas') },
+    { id: "CONFIG", label: "Config", icon: <FiSettings size={20} />, habilitado: true },
+  ].filter(a => a.habilitado);
 
   return (
-    <Barra>
+    <Barra $cols={abas.length} style={{ "--cor-primaria": corPrimaria }}>
       {abas.map((aba) => (
         <Item
           key={aba.id}
@@ -43,7 +47,7 @@ const Barra = styled.nav`
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(${props => props.$cols || 5}, 1fr);
   padding: 0 10px;
   z-index: 999;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -63,7 +67,7 @@ const Item = styled.button`
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
-  color: ${({ $ativo }) => $ativo ? "#4facfe" : "rgba(255, 255, 255, 0.45)"};
+  color: ${({ $ativo }) => $ativo ? "var(--cor-primaria, #4facfe)" : "rgba(255, 255, 255, 0.45)"};
   cursor: pointer;
   transition: all 0.2s ease;
 

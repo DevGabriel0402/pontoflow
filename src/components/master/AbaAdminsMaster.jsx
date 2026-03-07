@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
-import { FiSearch, FiEdit2, FiLock, FiUnlock, FiMail, FiRefreshCw } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiLock, FiUnlock, FiMail, FiRefreshCw, FiToggleLeft, FiToggleRight } from "react-icons/fi";
 import { db, auth } from "../../services/firebase";
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -60,6 +60,18 @@ export default function AbaAdminsMaster() {
         }
     };
 
+    const handleToggleEditarDia = async (admin) => {
+        const novoValor = !admin.podeEditarDia;
+        try {
+            await updateDoc(doc(db, "users", admin.id), { podeEditarDia: novoValor });
+            setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, podeEditarDia: novoValor } : a));
+            toast.success(`Permissão de editar dia ${novoValor ? "ativada" : "desativada"} para ${admin.nome}!`);
+        } catch (e) {
+            console.error(e);
+            toast.error("Erro ao alterar permissão.");
+        }
+    };
+
     const filtrados = React.useMemo(() => {
         return admins.filter(a =>
             a.nome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -98,6 +110,7 @@ export default function AbaAdminsMaster() {
                             <th>Administrador</th>
                             <th>Contato</th>
                             <th>Empresa</th>
+                            <th>Editar Dia</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -105,7 +118,7 @@ export default function AbaAdminsMaster() {
                     <tbody>
                         {filtrados.length === 0 ? (
                             <tr>
-                                <td colSpan="5" style={{ textAlign: "center", color: "#8d8d99" }}>Nenhum administrador encontrado.</td>
+                                <td colSpan="6" style={{ textAlign: "center", color: "#8d8d99" }}>Nenhum administrador encontrado.</td>
                             </tr>
                         ) : (
                             filtrados.map(admin => (
@@ -123,6 +136,15 @@ export default function AbaAdminsMaster() {
                                     </td>
                                     <td>
                                         <EmpresaBadge>{getNomeEmpresa(admin.companyId)}</EmpresaBadge>
+                                    </td>
+                                    <td>
+                                        <ToggleBtn
+                                            onClick={() => handleToggleEditarDia(admin)}
+                                            $ativo={!!admin.podeEditarDia}
+                                            title={admin.podeEditarDia ? "Desativar edição de dia" : "Ativar edição de dia"}
+                                        >
+                                            {admin.podeEditarDia ? <FiToggleRight size={22} /> : <FiToggleLeft size={22} />}
+                                        </ToggleBtn>
                                     </td>
                                     <td>
                                         <StatusBadge $ativo={admin.ativo !== false}>
@@ -321,5 +343,21 @@ const BotaoIcone = styled.button`
         background: ${props => props.$danger ? "rgba(235, 77, 75, 0.1)" : "rgba(255, 255, 255, 0.05)"};
         border-color: ${props => props.$danger ? "#eb4d4b" : "#2f81f7"};
         color: ${props => props.$danger ? "#eb4d4b" : "#fff"};
+    }
+`;
+
+const ToggleBtn = styled.button`
+    background: transparent;
+    border: 0;
+    color: ${props => props.$ativo ? "#2ecc71" : "#8d8d99"};
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+        background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.1)" : "rgba(255, 255, 255, 0.05)"};
     }
 `;

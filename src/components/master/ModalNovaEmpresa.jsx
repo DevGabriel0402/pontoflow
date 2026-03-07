@@ -26,7 +26,25 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
             nomePainel: "",
             raioM: 100, // Raio padrão menor para maior precisão
             lat: "",
-            lng: ""
+            lng: "",
+            modulos: {
+                face: true,
+                geo: true,
+                justificativas: true,
+                bancoHoras: true,
+                relatorios: true
+            },
+            regras: {
+                exigirFace: true,
+                exigirGeo: true,
+                loginPorMatricula: false,
+                pontosAtivos: ['entrada', 'saida'], // Padrão básico
+                cargaHorariaSemanal: ""
+            },
+            visual: {
+                corPrimaria: "#2f81f7",
+                logoUrl: ""
+            }
         },
         admin: {
             nome: "",
@@ -86,7 +104,22 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                     raioM: 100,
                     lat: "",
                     lng: "",
+                    modulos: { face: true, geo: true, justificativas: true, bancoHoras: true, relatorios: true },
+                    regras: {
+                        exigirFace: true,
+                        exigirGeo: true,
+                        loginPorMatricula: false,
+                        pontosAtivos: ['entrada', 'saida'],
+                        cargaHorariaSemanal: "",
+                        ...(empresa.config?.regras || {})
+                    },
+                    visual: { corPrimaria: "#2f81f7", logoUrl: "" },
                     ...(empresa.config || {})
+                },
+                admin: {
+                    nome: "",
+                    email: "",
+                    dataNascimento: ""
                 }
             });
         } else {
@@ -107,7 +140,16 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                     nomePainel: "",
                     raioM: 100,
                     lat: "",
-                    lng: ""
+                    lng: "",
+                    modulos: { face: true, geo: true, justificativas: true, bancoHoras: true, relatorios: true },
+                    regras: {
+                        exigirFace: true,
+                        exigirGeo: true,
+                        loginPorMatricula: false,
+                        pontosAtivos: ['entrada', 'saida'],
+                        cargaHorariaSemanal: ""
+                    },
+                    visual: { corPrimaria: "#2f81f7", logoUrl: "" }
                 },
                 admin: {
                     nome: "",
@@ -365,15 +407,15 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                         <Secao>
                             <TituloSecao>Dados Cadastrais</TituloSecao>
                             <InputGroup>
-                                <label>ID Único (Slug)</label>
+                                <label>Código da Empresa (Slug)</label>
                                 <input
-                                    placeholder="ex: empresa-central"
+                                    placeholder="ex: minha-empresa"
                                     value={dados.id}
                                     onChange={e => setDados({ ...dados, id: e.target.value })}
                                     disabled={!!empresa}
                                     required
                                 />
-                                <small>Este ID será usado no banco de dados.</small>
+                                <small>Este código será usado pelos funcionários para fazer login e no banco de dados.</small>
                             </InputGroup>
 
                             <InputRow>
@@ -419,8 +461,7 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                     <InputGroup>
                                         <label>Nome Completo do Admin</label>
                                         <input
-                                            placeholder="Responsável pela conta"
-                                            value={dados.admin.nome}
+                                            value={dados.admin?.nome || ""}
                                             onChange={e => setDados({ ...dados, admin: { ...dados.admin, nome: e.target.value } })}
                                             required={!empresa}
                                         />
@@ -431,7 +472,7 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                             <input
                                                 type="email"
                                                 placeholder="admin@empresa.com"
-                                                value={dados.admin.email}
+                                                value={dados.admin?.email || ""}
                                                 onChange={e => setDados({ ...dados, admin: { ...dados.admin, email: e.target.value } })}
                                                 required={!empresa}
                                             />
@@ -440,7 +481,7 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                             <label>Data de Nascimento</label>
                                             <input
                                                 type="date"
-                                                value={dados.admin.dataNascimento}
+                                                value={dados.admin?.dataNascimento || ""}
                                                 onChange={e => setDados({ ...dados, admin: { ...dados.admin, dataNascimento: e.target.value } })}
                                                 required={!empresa}
                                             />
@@ -614,6 +655,207 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                 />
                                 <small>Cada empresa possui seu próprio raio de bloqueio.</small>
                             </InputGroup>
+                        </Secao>
+
+                        <Separador />
+
+                        <Secao>
+                            <TituloSecao>Módulos Ativos (SaaS)</TituloSecao>
+                            <GridConfig>
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.modulos?.face}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, face: !dados.config.modulos?.face } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Reconhecimento Facial
+                                    </label>
+                                    <small>Exige foto do colaborador ao bater o ponto.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.modulos?.geo}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, geo: !dados.config.modulos?.geo } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Geolocalização
+                                    </label>
+                                    <small>Valida a posição GPS do colaborador.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.modulos?.justificativas}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, justificativas: !dados.config.modulos?.justificativas } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Justificativas
+                                    </label>
+                                    <small>Permite que colaboradores enviem atestados/justificativas.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.modulos?.bancoHoras}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, bancoHoras: !dados.config.modulos?.bancoHoras } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Banco de Horas
+                                    </label>
+                                    <small>Cálculo automático de saldo de horas positivas/negativas.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.modulos?.relatorios}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, relatorios: !dados.config.modulos?.relatorios } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Relatórios PDF/CSV
+                                    </label>
+                                    <small>Permite exportar dados para contabilidade.</small>
+                                </ToggleWrapper>
+                            </GridConfig>
+                        </Secao>
+
+                        <Separador />
+
+                        <Secao>
+                            <TituloSecao>Regras de Negócio & Visual</TituloSecao>
+                            <GridConfig>
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.regras?.exigirFace}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, regras: { ...dados.config.regras, exigirFace: !dados.config.regras?.exigirFace } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Bloquear se Face Falhar
+                                    </label>
+                                    <small>Impede o registro se o rosto não for reconhecido.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.regras?.exigirGeo}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, regras: { ...dados.config.regras, exigirGeo: !dados.config.regras?.exigirGeo } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Bloquear Fora do Raio
+                                    </label>
+                                    <small>Impede o registro se o GPS estiver fora da sede.</small>
+                                </ToggleWrapper>
+
+                                <ToggleWrapper>
+                                    <label>
+                                        <ToggleSwitch
+                                            $ativo={dados.config.regras?.loginPorMatricula}
+                                            onClick={() => setDados({ ...dados, config: { ...dados.config, regras: { ...dados.config.regras, loginPorMatricula: !dados.config.regras?.loginPorMatricula } } })}
+                                        >
+                                            <span />
+                                        </ToggleSwitch>
+                                        Login por Matrícula
+                                    </label>
+                                    <small>Permite entrar usando Código + Matrícula em vez de e-mail.</small>
+                                </ToggleWrapper>
+                            </GridConfig>
+
+                            <SeparadorMini />
+                            <TituloSubSecao>Configuração de Jornada (Opcional)</TituloSubSecao>
+                            <InputRow style={{ marginTop: '8px' }}>
+                                <InputGroup>
+                                    <label>Carga Horária Semanal (Horas)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="ex: 44"
+                                        value={dados.config.regras?.cargaHorariaSemanal || ""}
+                                        onChange={e => setDados({
+                                            ...dados,
+                                            config: {
+                                                ...dados.config,
+                                                regras: { ...dados.config.regras, cargaHorariaSemanal: e.target.value }
+                                            }
+                                        })}
+                                    />
+                                </InputGroup>
+                            </InputRow>
+
+                            <label style={{ display: 'block', marginTop: '16px', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold', color: 'var(--texto2)' }}>
+                                Pontos a serem registrados:
+                            </label>
+                            <GridConfig>
+                                {[
+                                    { id: 'entrada', label: 'Entrada' },
+                                    { id: 'intervalo_saida', label: 'Início Intervalo' },
+                                    { id: 'intervalo_entrada', label: 'Fim Intervalo' },
+                                    { id: 'saida', label: 'Saída' }
+                                ].map(ponto => (
+                                    <ToggleWrapper key={ponto.id}>
+                                        <label>
+                                            <ToggleSwitch
+                                                $ativo={dados.config.regras?.pontosAtivos?.includes(ponto.id)}
+                                                onClick={() => {
+                                                    const atuais = dados.config.regras?.pontosAtivos || [];
+                                                    const novos = atuais.includes(ponto.id)
+                                                        ? atuais.filter(a => a !== ponto.id)
+                                                        : [...atuais, ponto.id];
+                                                    setDados({
+                                                        ...dados,
+                                                        config: {
+                                                            ...dados.config,
+                                                            regras: { ...dados.config.regras, pontosAtivos: novos }
+                                                        }
+                                                    });
+                                                }}
+                                            >
+                                                <span />
+                                            </ToggleSwitch>
+                                            {ponto.label}
+                                        </label>
+                                    </ToggleWrapper>
+                                ))}
+                            </GridConfig>
+
+                            <InputRow style={{ marginTop: '16px' }}>
+                                <InputGroup>
+                                    <label>Cor Primária (Hex)</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="color"
+                                            value={dados.config.visual?.corPrimaria || "#2f81f7"}
+                                            onChange={e => setDados({ ...dados, config: { ...dados.config, visual: { ...dados.config.visual, corPrimaria: e.target.value } } })}
+                                            style={{ width: '44px', padding: '4px', cursor: 'pointer' }}
+                                        />
+                                        <input
+                                            placeholder="#2f81f7"
+                                            value={dados.config.visual?.corPrimaria}
+                                            onChange={e => setDados({ ...dados, config: { ...dados.config, visual: { ...dados.config.visual, corPrimaria: e.target.value } } })}
+                                        />
+                                    </div>
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>URL do Logo Personalizado</label>
+                                    <input
+                                        placeholder="https://..."
+                                        value={dados.config.visual?.logoUrl}
+                                        onChange={e => setDados({ ...dados, config: { ...dados.config, visual: { ...dados.config.visual, logoUrl: e.target.value } } })}
+                                    />
+                                </InputGroup>
+                            </InputRow>
                         </Secao>
                     </ScrollArea>
 
@@ -823,3 +1065,73 @@ const MapaWrapper = styled.div`
         text-align: center;
     }
 `;
+
+const GridConfig = styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    @media (max-width: 600px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const ToggleWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    small {
+        font-size: 12px;
+        color: #8d8d99;
+        line-height: 1.4;
+    }
+`;
+
+const ToggleSwitch = styled.div`
+    width: 40px;
+    height: 20px;
+    border-radius: 10px;
+    background: ${props => props.$ativo ? "#2f81f7" : "rgba(255,255,255,0.1)"};
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+
+    span {
+        position: absolute;
+        top: 2px;
+        left: ${props => props.$ativo ? "22px" : "2px"};
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.2s;
+    }
+`;
+
+const SeparadorMini = styled.div`
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 8px 0;
+`;
+
+const TituloSubSecao = styled.h5`
+    font-size: 11px;
+    font-weight: 800;
+    color: #8d8d99;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+`;
+

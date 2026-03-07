@@ -43,6 +43,10 @@ service cloud.firestore {
       allow write: if request.auth.uid == userId && 
                       request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['nome', 'email', 'telefone', 'fotoUrl', 'primeiroAcesso', 'fotoBase64', 'faceDescriptor', 'senhaAlteradaEm', 'atualizadoEm']);
+      
+      // Admin pode atualizar dados de funcionários da mesma empresa
+      allow update: if hasRole('admin') && belongsTo(resource.data.companyId);
+      
       allow write: if isSuperAdmin();
     }
 
@@ -66,12 +70,12 @@ service cloud.firestore {
 
     // Coleção de Empresas
     match /companies/{companyId} {
-      allow read: if isSuperAdmin() || belongsTo(companyId);
-      // SuperAdmin pode escrever qualquer coisa.
-      // Admin pode atualizar apenas a configuração da própria empresa.
+      allow read, list: if true; // Permitido para check de login (slug/config)
       allow write: if isSuperAdmin();
       allow update: if hasRole('admin') && belongsTo(companyId);
     }
+
+
 
     // Coleção de Configurações Globais (Legacy)
     match /settings/{settingId} {

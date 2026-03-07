@@ -2,12 +2,15 @@ import React from "react";
 import styled from "styled-components";
 import { NavLink } from "react-router-dom";
 import { FiHome, FiClock, FiShield } from "react-icons/fi";
+import { useAuth } from "../contexts/AuthContexto";
 
 export default function TabbarMobile({ mostrarAdmin }) {
+  const { empresaConfig } = useAuth();
+  const corPrimaria = empresaConfig?.config?.visual?.corPrimaria || "#2f81f7";
   const cols = mostrarAdmin ? 3 : 2;
 
   return (
-    <Barra $cols={cols}>
+    <Barra $cols={cols} style={{ "--cor-primaria": corPrimaria }}>
       <Item to="/" end>
         <FiHome size={18} />
         <span>Home</span>
@@ -66,7 +69,7 @@ const Item = styled(NavLink)`
   cursor: pointer;
 
   &.active {
-    color: ${({ theme }) => theme.cores.azul};
+    color: var(--cor-primaria, ${({ theme }) => theme.cores.azul});
   }
 `;
 

@@ -44,31 +44,40 @@ export function exportarResumoPdf(resumo, meta = {}) {
     doc.rect(14, 38, 182, 10, "F");
     doc.text(`TOTAL TRABALHADO NO PERÍODO: ${totalGeral}`, 18, 44.5);
 
+    const pontosAtivos = meta.pontosAtivos || ['entrada', 'intervalo_saida', 'intervalo_entrada', 'saida'];
+    const temPonto = (id) => pontosAtivos.includes(id);
+
     // Tabela
-    const head = [[
-        "Funcionário",
-        "Data",
-        "Entrada",
-        "Intervalo",
-        "Saída",
-        "Total",
-        "Status"
-    ]];
+    const headRow = ["Funcionário", "Data"];
+    if (temPonto('entrada')) headRow.push("Entrada");
+    if (temPonto('intervalo_saida') || temPonto('intervalo_entrada')) headRow.push("Intervalo");
+    if (temPonto('saida')) headRow.push("Saída");
+    headRow.push("Total", "Status");
+
+    const head = [headRow];
 
     const body = resumo.map((r) => {
-        const intervalo = r.check.iniInt && r.check.fimInt
-            ? `${formatarHora(r.check.iniInt)} - ${formatarHora(r.check.fimInt)}`
-            : r.check.iniInt || r.check.fimInt ? "Incomp." : "N/A";
+        const row = [r.userName || r.userId, formatarDataSimples(r.data)];
 
-        return [
-            r.userName || r.userId,
-            formatarDataSimples(r.data),
-            formatarHora(r.check.entrada),
-            intervalo,
-            formatarHora(r.check.saida),
-            r.totalFormatado,
-            r.status
-        ];
+        if (temPonto('entrada')) {
+            row.push(formatarHora(r.check.entrada));
+        }
+
+        if (temPonto('intervalo_saida') || temPonto('intervalo_entrada')) {
+            const intervalo = r.check.iniInt && r.check.fimInt
+                ? `${formatarHora(r.check.iniInt)} - ${formatarHora(r.check.fimInt)}`
+                : r.check.iniInt || r.check.fimInt ? "Incomp." : "N/A";
+            row.push(intervalo);
+        }
+
+        if (temPonto('saida')) {
+            row.push(formatarHora(r.check.saida));
+        }
+
+        row.push(r.totalFormatado);
+        row.push(r.status);
+
+        return row;
     });
 
     autoTable(doc, {

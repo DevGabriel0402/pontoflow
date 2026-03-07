@@ -8,6 +8,7 @@ const AuthContexto = createContext(null);
 export function AuthProvider({ children }) {
     const [usuario, setUsuario] = React.useState(null);
     const [perfil, setPerfil] = React.useState(null); // { nome, role, ... }
+    const [empresaConfig, setEmpresaConfig] = React.useState(null); // Dados da empresa (módulos, regras)
     const [carregando, setCarregando] = React.useState(true);
 
     React.useEffect(() => {
@@ -18,9 +19,24 @@ export function AuthProvider({ children }) {
                 if (user) {
                     const ref = doc(db, "users", user.uid);
                     const snap = await getDoc(ref);
-                    setPerfil(snap.exists() ? snap.data() : null);
+                    if (snap.exists()) {
+                        const perfilData = snap.data();
+                        setPerfil(perfilData);
+
+                        // Busca config da empresa se houver companyId
+                        if (perfilData.companyId) {
+                            const compSnap = await getDoc(doc(db, "companies", perfilData.companyId));
+                            setEmpresaConfig(compSnap.exists() ? compSnap.data() : null);
+                        } else {
+                            setEmpresaConfig(null);
+                        }
+                    } else {
+                        setPerfil(null);
+                        setEmpresaConfig(null);
+                    }
                 } else {
                     setPerfil(null);
+                    setEmpresaConfig(null);
                 }
             } catch (err) {
                 console.error("Erro ao carregar perfil:", err);
@@ -46,16 +62,43 @@ export function AuthProvider({ children }) {
         if (usuario) {
             const ref = doc(db, "users", usuario.uid);
             const snap = await getDoc(ref);
-            setPerfil(snap.exists() ? snap.data() : null);
+            if (snap.exists()) {
+                const perfilData = snap.data();
+                setPerfil(perfilData);
+                if (perfilData.companyId) {
+                    const compSnap = await getDoc(doc(db, "companies", perfilData.companyId));
+                    setEmpresaConfig(compSnap.exists() ? compSnap.data() : null);
+                }
+            }
         }
     };
 
     const isAdmin = perfil?.role === "admin";
     const isSuperAdmin = perfil?.isSuperAdmin === true;
 
+    // Helper para checar módulos ativos
+    const temModulo = (modulo) => {
+        // Se for Master, libera tudo por padrão ou checa a lógica
+        if (isSuperAdmin) return true;
+        // Se não tiver config, assume tudo habilitado (retrocompatibilidade)
+        if (!empresaConfig?.config?.modulos) return true;
+        return !!empresaConfig.config.modulos[modulo];
+    };
+
     const value = React.useMemo(
-        () => ({ usuario, perfil, isAdmin, isSuperAdmin, carregando, login, logout, recarregarPerfil }),
-        [usuario, perfil, isAdmin, isSuperAdmin, carregando]
+        () => ({
+            usuario,
+            perfil,
+            empresaConfig,
+            isAdmin,
+            isSuperAdmin,
+            carregando,
+            login,
+            logout,
+            recarregarPerfil,
+            temModulo
+        }),
+        [usuario, perfil, empresaConfig, isAdmin, isSuperAdmin, carregando]
     );
 
     return <AuthContexto.Provider value={value}>{children}</AuthContexto.Provider>;

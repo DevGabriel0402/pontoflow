@@ -8,13 +8,14 @@ import { FiChevronDown } from "react-icons/fi";
  * @param {string} value - Valor selecionado
  * @param {function} onChange - Callback ao mudar
  */
-export default function SeletorAcordeao({ label, opcoes, value, onChange }) {
+export default function SeletorAcordeao({ label, opcoes, value, onChange, carregando = false }) {
   const [aberto, setAberto] = React.useState(false);
 
   const selecionado = React.useMemo(() => {
-    if (!opcoes || !Array.isArray(opcoes) || opcoes.length === 0) return { label: "Selecione...", value: "" };
+    if (carregando) return { label: "Carregando empresas...", value: "" };
+    if (!opcoes || !Array.isArray(opcoes) || opcoes.length === 0) return { label: "Nenhuma empresa disponível", value: "" };
     return opcoes.find((o) => o.value === value) || opcoes[0];
-  }, [opcoes, value]);
+  }, [opcoes, value, carregando]);
 
   const handleSelect = (val) => {
     onChange(val);
@@ -26,9 +27,9 @@ export default function SeletorAcordeao({ label, opcoes, value, onChange }) {
       {label && <Label>{label}</Label>}
 
       <Wrapper>
-        <Header $aberto={aberto} onClick={() => setAberto(!aberto)}>
+        <Header $aberto={aberto} onClick={() => !carregando && setAberto(!aberto)} $carregando={carregando}>
           <span>{selecionado.label}</span>
-          <FiChevronDown size={18} />
+          {!carregando && <FiChevronDown size={18} />}
         </Header>
 
         <Lista $aberto={aberto}>
@@ -76,9 +77,10 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  cursor: pointer;
+  cursor: ${({ $carregando }) => $carregando ? "wait" : "pointer"};
   transition: all 0.2s ease;
   box-shadow: ${({ theme, $aberto }) => $aberto ? `0 0 0 3px ${theme.cores.azul}22` : "none"};
+  opacity: ${({ $carregando }) => $carregando ? 0.7 : 1};
 
   svg {
     transition: transform 0.2s ease;

@@ -4,15 +4,26 @@ import { toast } from "react-hot-toast";
 import { FiUserPlus, FiX, FiCopy } from "react-icons/fi";
 import { criarFuncionarioFn } from "../../services/funcoes";
 import SeletorAcordeao from "../SeletorAcordeao";
-
+import { useConfig } from "../../contexts/ConfigContexto";
+import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
 export default function ModalNovoFuncionario({ aberto, onFechar }) {
+  const { config } = useConfig();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
   const [funcao, setFuncao] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState("44 Horas");
+
+  // Inicializa com a carga da empresa se disponível
+  const cargaPadrao = config?.regras?.cargaHorariaSemanal ? `${config.regras.cargaHorariaSemanal} Horas` : "44 Horas";
+  const [cargaHorariaSemanal, setCargaHorariaSemanal] = useState(cargaPadrao);
+  const [matricula, setMatricula] = useState("");
+
+  const temPonto = (id) => {
+    if (!config?.regras?.pontosAtivos) return true;
+    return config.regras.pontosAtivos.includes(id);
+  };
 
   const FUNCOES_ADMIN = [
     "Presidente",
@@ -22,6 +33,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     "Diretor(a)",
     "Secretário(a)",
     "Consultor(a)",
+    "Desenvolvedor(a)",
     "Outro"
   ];
 
@@ -54,7 +66,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
     setDataNascimento("");
     setRole("colaborador");
     setFuncao("");
-    setCargaHorariaSemanal("44 Horas");
+    setCargaHorariaSemanal(cargaPadrao);
     setJornadas({
       segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
       terca: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -65,6 +77,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
       domingo: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
     });
     setResultado(null);
+    setMatricula("");
   };
 
   const fechar = () => {
@@ -90,9 +103,10 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
         email: email.trim(),
         dataNascimento,
         role,
-        funcao: role === "colaborador" ? funcao.trim() : null,
+        funcao: funcao.trim() || null,
         jornadas,
-        cargaHorariaSemanal
+        cargaHorariaSemanal,
+        matricula: unmaskMatricula(matricula)
       });
       setResultado(data);
       toast.success("Funcionário criado com sucesso!");
@@ -134,6 +148,17 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
             <Campo>
               <label>Data de Nascimento</label>
               <input type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+            </Campo>
+
+            <Campo>
+              <label>Matrícula / ID do Funcionário {config?.regras?.loginPorMatricula && <span style={{ color: '#eb4d4b' }}>*</span>}</label>
+              <input
+                value={matricula}
+                onChange={(e) => setMatricula(maskMatricula(e.target.value))}
+                placeholder="0000000-0"
+                required={config?.regras?.loginPorMatricula}
+                title={config?.regras?.loginPorMatricula ? "Obrigatório para login por matrícula" : "Usado para o login simplificado"}
+              />
             </Campo>
 
             <Campo>
@@ -224,30 +249,38 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
 
                         {conf.ativo && (
                           <HorariosInputs>
-                            <InputSlim
-                              type="time"
-                              value={conf.entrada}
-                              title="Entrada"
-                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
-                            />
-                            <InputSlim
-                              type="time"
-                              value={conf.inicioIntervalo}
-                              title="Início Intervalo"
-                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
-                            />
-                            <InputSlim
-                              type="time"
-                              value={conf.fimIntervalo}
-                              title="Fim Intervalo"
-                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
-                            />
-                            <InputSlim
-                              type="time"
-                              value={conf.saida}
-                              title="Saída"
-                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
-                            />
+                            {temPonto('entrada') && (
+                              <InputSlim
+                                type="time"
+                                value={conf.entrada}
+                                title="Entrada"
+                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
+                              />
+                            )}
+                            {temPonto('intervalo_saida') && (
+                              <InputSlim
+                                type="time"
+                                value={conf.inicioIntervalo}
+                                title="Início Intervalo"
+                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
+                              />
+                            )}
+                            {temPonto('intervalo_entrada') && (
+                              <InputSlim
+                                type="time"
+                                value={conf.fimIntervalo}
+                                title="Fim Intervalo"
+                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
+                              />
+                            )}
+                            {temPonto('saida') && (
+                              <InputSlim
+                                type="time"
+                                value={conf.saida}
+                                title="Saída"
+                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                              />
+                            )}
                           </HorariosInputs>
                         )}
                       </DiaRow>

@@ -29,7 +29,7 @@ export default function ModalTrocaSenha({ aberto, onSucesso, onFechar, obrigator
       if (obrigatorio) {
         // ===== PRIMEIRO ACESSO =====
         // Usa Cloud Function com Admin SDK — não precisa da senha temporária
-        await trocarSenhaPrimeiroAcessoFn(novaSenha);
+        await trocarSenhaPrimeiroAcessoFn({ novaSenha });
         toast.success("Senha alterada com sucesso!");
         onSucesso();
       } else {

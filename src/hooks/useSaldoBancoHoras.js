@@ -59,7 +59,8 @@ export function useSaldoBancoHoras(userId, perfil) {
             perfil.cargaHorariaSemanal,
             periodoInicio,
             periodoFim,
-            feriados
+            feriados,
+            dataCriacao
         );
 
         // Saldo automático (pontos vs jornada)

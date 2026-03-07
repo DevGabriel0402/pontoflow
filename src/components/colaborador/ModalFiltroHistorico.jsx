@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { FiX, FiFilter } from "react-icons/fi";
 import SeletorAcordeao from "../SeletorAcordeao";
+import { useConfig } from "../../contexts/ConfigContexto";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos os Registros" },
@@ -22,6 +23,20 @@ export default function ModalFiltroHistorico({
   setDataFim,
   aoLimpar
 }) {
+  const { config } = useConfig();
+
+  const tiposFiltrados = React.useMemo(() => {
+    if (!config?.regras?.pontosAtivos) return TIPOS;
+    return TIPOS.filter(t => {
+      if (t.value === "TODOS") return true;
+      if (t.value === "ENTRADA") return config.regras.pontosAtivos.includes('entrada');
+      if (t.value === "SAIDA") return config.regras.pontosAtivos.includes('saida');
+      if (t.value === "INICIO_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_saida');
+      if (t.value === "FIM_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_entrada');
+      return true;
+    });
+  }, [config?.regras?.pontosAtivos]);
+
   if (!aberto) return null;
 
   return (
@@ -40,7 +55,7 @@ export default function ModalFiltroHistorico({
         <Corpo>
           <Label>Tipo de Registro</Label>
           <SeletorAcordeao
-            opcoes={TIPOS}
+            opcoes={tiposFiltrados}
             value={tipo}
             onChange={setTipo}
           />

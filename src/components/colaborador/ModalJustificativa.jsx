@@ -4,6 +4,7 @@ import { FiX, FiSend, FiClock, FiPaperclip } from "react-icons/fi";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
+import { useConfig } from "../../contexts/ConfigContexto";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 
@@ -26,6 +27,20 @@ const TIPOS_ANEXO = [
 
 export default function ModalJustificativa({ aberto, onFechar }) {
     const { usuario, perfil } = useAuth();
+    const { config } = useConfig();
+
+    const tiposFiltrados = React.useMemo(() => {
+        if (!config?.regras?.pontosAtivos) return TIPOS;
+        return TIPOS.filter(t => {
+            if (t.value === "ABONO_FALTA") return true;
+            if (t.value === "ENTRADA") return config.regras.pontosAtivos.includes('entrada');
+            if (t.value === "SAIDA") return config.regras.pontosAtivos.includes('saida');
+            if (t.value === "INICIO_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_saida');
+            if (t.value === "FIM_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_entrada');
+            return true;
+        });
+    }, [config?.regras?.pontosAtivos]);
+
     const [tipo, setTipo] = React.useState("ENTRADA");
     const [dataHora, setDataHora] = React.useState("");
     const [texto, setTexto] = React.useState("");
@@ -167,7 +182,7 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                 <Corpo>
                     <Label>Tipo de ponto esquecido</Label>
                     <ChipsRow>
-                        {TIPOS.map(t => (
+                        {tiposFiltrados.map(t => (
                             <Chip
                                 key={t.value}
                                 $ativo={tipo === t.value}

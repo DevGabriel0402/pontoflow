@@ -71,6 +71,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Modal Confirmação (Excluir ajuste)
   const [confirmarExclusao, setConfirmarExclusao] = useState({ aberto: false, id: null });
 
+  // Modal Confirmação (Excluir dia inteiro - Master)
+  const [confirmarExclusaoDia, setConfirmarExclusaoDia] = useState({ aberto: false, userId: null, dataKey: null, userName: null });
+
   // Busca lançamentos manuais do Firestore
   useEffect(() => {
     if (!perfil?.companyId) return;
@@ -141,8 +144,16 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
 
         // Extrair todos os abonos até o fim do período
         const abonosFunc = lancamentosAtePeriodo
-          .filter(l => l.userId === f.id && l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta"))
+          .filter(l => l.userId === f.id && (
+            (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
+            (l.origem === "ABONO_MANUAL")
+          ))
           .map(l => {
+            // ABONO_MANUAL usa dataReferencia diretamente (yyyy-MM-dd)
+            if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
+              return l.dataReferencia;
+            }
+            // JUSTIFICATIVA_APROVADA extrai a data da descrição
             const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
             if (match) {
               return `${match[3]}-${match[2]}-${match[1]}`;
@@ -164,7 +175,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           f.cargaHorariaSemanal,
           periodoInicioGeral,
           periodoFimGeral,
-          feriados
+          feriados,
+          dataCriacao
         );
 
         // 30 dias corridos (rolling) para o detalhamento
@@ -181,7 +193,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           f.cargaHorariaSemanal,
           periodoInicioMes,
           periodoFimMes,
-          feriados
+          feriados,
+          dataCriacao
         ).sort((a, b) => b.data - a.data);
 
         // Totais Acumulados (Saldo Histórico)
@@ -345,6 +358,68 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
       toast.error("Erro ao excluir o ajuste.");
     } finally {
       setConfirmarExclusao({ aberto: false, id: null });
+    }
+  };
+
+  const handleExcluirDia = async () => {
+    const { userId, dataKey } = confirmarExclusaoDia;
+    if (!userId || !dataKey) return;
+
+    try {
+      toast.loading("Excluindo registros do dia...", { id: "del-dia" });
+      const pontosRef = collection(db, "pontos");
+      const snap = await getDocs(query(
+        pontosRef,
+        where("userId", "==", userId)
+      ));
+
+      const deletes = [];
+      snap.docs.forEach((d) => {
+        const p = d.data();
+        let dataP;
+        if (p.dataHoraOriginal) {
+          dataP = format(new Date(p.dataHoraOriginal), "yyyy-MM-dd");
+        } else if (p.criadoEm?.toDate) {
+          dataP = format(p.criadoEm.toDate(), "yyyy-MM-dd");
+        } else if (p.criadoEm) {
+          dataP = format(new Date(p.criadoEm), "yyyy-MM-dd");
+        }
+        if (dataP === dataKey) {
+          deletes.push(deleteDoc(doc(db, "pontos", d.id)));
+        }
+      });
+
+      await Promise.all(deletes);
+      toast.success(`${deletes.length} registro(s) excluído(s) com sucesso!`, { id: "del-dia" });
+    } catch (err) {
+      console.error("Erro ao excluir dia:", err);
+      toast.error("Erro ao excluir registros do dia.", { id: "del-dia" });
+    } finally {
+      setConfirmarExclusaoDia({ aberto: false, userId: null, dataKey: null, userName: null });
+    }
+  };
+
+  const handleAbonarDia = async () => {
+    const { userId, dataKey, userName } = confirmarExclusaoDia;
+    if (!userId || !dataKey) return;
+
+    try {
+      await addDoc(collection(db, "banco_horas"), {
+        userId,
+        companyId: perfil?.companyId,
+        tipo: "CREDITO",
+        minutos: 0,
+        descricao: `Abono de Falta - ${dataKey.split('-').reverse().join('/')}`,
+        origem: "ABONO_MANUAL",
+        dataReferencia: dataKey,
+        criadoEm: serverTimestamp()
+      });
+      toast.success(`Dia ${dataKey} abonado para ${userName}!`);
+    } catch (err) {
+      console.error("Erro ao abonar dia:", err);
+      toast.error("Erro ao abonar o dia.");
+    } finally {
+      setConfirmarExclusaoDia({ aberto: false, userId: null, dataKey: null, userName: null });
     }
   };
 
@@ -520,26 +595,45 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         {dia.status}
                                       </StatusBadge>
                                     </td>
-                                    <td style={{ width: 40 }}>
-                                      {isSuperAdmin && (
-                                        <BtnIconeTabela
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDadosEditPonto({
-                                              userId: func.id,
-                                              userName: func.nome,
-                                              data: dia.data,
-                                              dataKey: dia.dataKey,
-                                              check: dia.check || {},
-                                              pontos: dia.pontosOriginal || []
-                                            });
-                                            setModalEditPontoAberto(true);
-                                          }}
-                                          title="Editar batidas do dia"
-                                        >
-                                          <FiEdit2 size={14} />
-                                        </BtnIconeTabela>
-                                      )}
+                                    <td style={{ width: 80 }}>
+                                      <div style={{ display: 'flex', gap: '4px' }}>
+                                        {(isSuperAdmin || perfil?.podeEditarDia) && (
+                                          <BtnIconeTabela
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setDadosEditPonto({
+                                                userId: func.id,
+                                                userName: func.nome,
+                                                data: dia.data,
+                                                dataKey: dia.dataKey,
+                                                check: dia.check || {},
+                                                pontos: dia.pontosOriginal || []
+                                              });
+                                              setModalEditPontoAberto(true);
+                                            }}
+                                            title="Editar batidas do dia"
+                                          >
+                                            <FiEdit2 size={14} />
+                                          </BtnIconeTabela>
+                                        )}
+                                        {isSuperAdmin && (
+                                          <BtnIconeTabela
+                                            $danger
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setConfirmarExclusaoDia({
+                                                aberto: true,
+                                                userId: func.id,
+                                                dataKey: dia.dataKey,
+                                                userName: func.nome
+                                              });
+                                            }}
+                                            title="Excluir todos os registros do dia"
+                                          >
+                                            <FiTrash2 size={14} />
+                                          </BtnIconeTabela>
+                                        )}
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
@@ -692,6 +786,41 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           userId={dadosEditPonto.userId}
           companyId={perfil?.companyId}
         />
+      )}
+
+      {/* Modal de Ações do Dia (Abonar / Excluir) */}
+      {confirmarExclusaoDia.aberto && (
+        <Overlay>
+          <ModalBox style={{ maxWidth: 420 }}>
+            <ModalHeader>
+              <ModalTitulo>Ações para o dia {confirmarExclusaoDia.dataKey?.split('-').reverse().join('/')}</ModalTitulo>
+              <BtnFecharModal onClick={() => setConfirmarExclusaoDia({ aberto: false, userId: null, dataKey: null, userName: null })}>
+                <FiX size={18} />
+              </BtnFecharModal>
+            </ModalHeader>
+            <div style={{ padding: '20px 24px' }}>
+              <p style={{ color: '#8d8d99', fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+                Funcionário: <strong style={{ color: '#e1e1e6' }}>{confirmarExclusaoDia.userName}</strong>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <BtnAbonar type="button" onClick={handleAbonarDia}>
+                  <FiCheckCircle size={18} />
+                  <div>
+                    <strong>Abonar Falta</strong>
+                    <span>Marcar como dia sem falta (abonado)</span>
+                  </div>
+                </BtnAbonar>
+                <BtnExcluirDia type="button" onClick={handleExcluirDia}>
+                  <FiTrash2 size={18} />
+                  <div>
+                    <strong>Excluir Registros</strong>
+                    <span>Apaga todos os pontos deste dia</span>
+                  </div>
+                </BtnExcluirDia>
+              </div>
+            </div>
+          </ModalBox>
+        </Overlay>
       )}
     </>
   );
@@ -1172,14 +1301,71 @@ const BtnIconeTabela = styled.button`
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.1);
   background: transparent;
-  color: #2f81f7;
+  color: ${({ $danger }) => $danger ? '#eb4d4b' : '#2f81f7'};
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
   &:hover {
-    background: rgba(47,129,247,0.15);
-    border-color: #2f81f7;
+    background: ${({ $danger }) => $danger ? 'rgba(235,77,75,0.15)' : 'rgba(47,129,247,0.15)'};
+    border-color: ${({ $danger }) => $danger ? '#eb4d4b' : '#2f81f7'};
   }
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const BtnFecharModal = styled.button`
+  background: transparent;
+  border: 0;
+  color: #8d8d99;
+  cursor: pointer;
+  display: flex;
+  &:hover { color: #fff; }
+`;
+
+const BtnAbonar = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(46,204,113,0.2);
+  background: rgba(46,204,113,0.06);
+  color: #2ecc71;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  svg { flex-shrink: 0; }
+  div { display: flex; flex-direction: column; gap: 2px; }
+  strong { font-size: 14px; font-weight: 700; }
+  span { font-size: 12px; opacity: 0.7; }
+  &:hover { background: rgba(46,204,113,0.12); border-color: rgba(46,204,113,0.4); }
+`;
+
+const BtnExcluirDia = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(235,77,75,0.2);
+  background: rgba(235,77,75,0.06);
+  color: #eb4d4b;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  svg { flex-shrink: 0; }
+  div { display: flex; flex-direction: column; gap: 2px; }
+  strong { font-size: 14px; font-weight: 700; }
+  span { font-size: 12px; opacity: 0.7; }
+  &:hover { background: rgba(235,77,75,0.12); border-color: rgba(235,77,75,0.4); }
 `;
