@@ -8,7 +8,13 @@ import { criarAdminEmpresaFn } from "../../services/funcoes";
 import { FiMapPin, FiMap } from "react-icons/fi";
 import MapaConfig from "../../components/admin/MapaConfig";
 
-export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
+const PLANOS_MODULOS = {
+    basico: ['relatorios'],
+    pro: ['relatorios', 'geo', 'bancoHoras', 'justificativas'],
+    enterprise: ['relatorios', 'geo', 'bancoHoras', 'justificativas', 'face']
+};
+
+export default function ModalNovaEmpresa({ aberto, empresa, onFechar }) {
     const [dados, setDados] = React.useState({
         id: "",
         nome: "",
@@ -160,6 +166,37 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
         }
     }, [empresa, aberto]);
 
+    // ==========================================
+    // 3. ENFORCE PLAN LIMITS
+    // ==========================================
+    React.useEffect(() => {
+        if (!dados.plano) return;
+        const permitidos = PLANOS_MODULOS[dados.plano] || [];
+
+        setDados(prev => {
+            if (!prev.config || !prev.config.modulos) return prev;
+
+            const novosModulos = { ...prev.config.modulos };
+            let mudou = false;
+
+            // Desliga os módulos que não são permitidos neste plano
+            Object.keys(novosModulos).forEach(mod => {
+                if (!permitidos.includes(mod) && novosModulos[mod]) {
+                    novosModulos[mod] = false;
+                    mudou = true;
+                }
+            });
+
+            if (mudou) {
+                return { ...prev, config: { ...prev.config, modulos: novosModulos } };
+            }
+            return prev;
+        });
+    }, [dados.plano]);
+
+    // ==========================================
+    // BUSCAS EXTERNAS (CEP, CNPJ, GEO)
+    // ==========================================
     const handleBuscarCnpj = async () => {
         const cnpj = dados.cnpj.replace(/\D/g, '');
         if (cnpj.length !== 14) return;
@@ -662,67 +699,97 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                         <Secao>
                             <TituloSecao>Módulos Ativos (SaaS)</TituloSecao>
                             <GridConfig>
-                                <ToggleWrapper>
+                                {/* FACE ID - Enterprise */}
+                                <ToggleWrapper $disabled={!PLANOS_MODULOS[dados.plano]?.includes('face')}>
                                     <label>
                                         <ToggleSwitch
                                             $ativo={dados.config.modulos?.face}
-                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, face: !dados.config.modulos?.face } } })}
+                                            $disabled={!PLANOS_MODULOS[dados.plano]?.includes('face')}
+                                            onClick={() => {
+                                                if (!PLANOS_MODULOS[dados.plano]?.includes('face')) return;
+                                                setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, face: !dados.config.modulos?.face } } });
+                                            }}
                                         >
                                             <span />
                                         </ToggleSwitch>
                                         Reconhecimento Facial
+                                        {!PLANOS_MODULOS[dados.plano]?.includes('face') && <BadgePlano>Enterprise</BadgePlano>}
                                     </label>
                                     <small>Exige foto do colaborador ao bater o ponto.</small>
                                 </ToggleWrapper>
 
-                                <ToggleWrapper>
+                                {/* GELO LOCALIZAÇÃO - Pro+ */}
+                                <ToggleWrapper $disabled={!PLANOS_MODULOS[dados.plano]?.includes('geo')}>
                                     <label>
                                         <ToggleSwitch
                                             $ativo={dados.config.modulos?.geo}
-                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, geo: !dados.config.modulos?.geo } } })}
+                                            $disabled={!PLANOS_MODULOS[dados.plano]?.includes('geo')}
+                                            onClick={() => {
+                                                if (!PLANOS_MODULOS[dados.plano]?.includes('geo')) return;
+                                                setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, geo: !dados.config.modulos?.geo } } });
+                                            }}
                                         >
                                             <span />
                                         </ToggleSwitch>
                                         Geolocalização
+                                        {!PLANOS_MODULOS[dados.plano]?.includes('geo') && <BadgePlano>Pro</BadgePlano>}
                                     </label>
                                     <small>Valida a posição GPS do colaborador.</small>
                                 </ToggleWrapper>
 
-                                <ToggleWrapper>
+                                {/* JUSTIFICATIVAS - Pro+ */}
+                                <ToggleWrapper $disabled={!PLANOS_MODULOS[dados.plano]?.includes('justificativas')}>
                                     <label>
                                         <ToggleSwitch
                                             $ativo={dados.config.modulos?.justificativas}
-                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, justificativas: !dados.config.modulos?.justificativas } } })}
+                                            $disabled={!PLANOS_MODULOS[dados.plano]?.includes('justificativas')}
+                                            onClick={() => {
+                                                if (!PLANOS_MODULOS[dados.plano]?.includes('justificativas')) return;
+                                                setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, justificativas: !dados.config.modulos?.justificativas } } });
+                                            }}
                                         >
                                             <span />
                                         </ToggleSwitch>
                                         Justificativas
+                                        {!PLANOS_MODULOS[dados.plano]?.includes('justificativas') && <BadgePlano>Pro</BadgePlano>}
                                     </label>
                                     <small>Permite que colaboradores enviem atestados/justificativas.</small>
                                 </ToggleWrapper>
 
-                                <ToggleWrapper>
+                                {/* BANCO DE HORAS - Pro+ */}
+                                <ToggleWrapper $disabled={!PLANOS_MODULOS[dados.plano]?.includes('bancoHoras')}>
                                     <label>
                                         <ToggleSwitch
                                             $ativo={dados.config.modulos?.bancoHoras}
-                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, bancoHoras: !dados.config.modulos?.bancoHoras } } })}
+                                            $disabled={!PLANOS_MODULOS[dados.plano]?.includes('bancoHoras')}
+                                            onClick={() => {
+                                                if (!PLANOS_MODULOS[dados.plano]?.includes('bancoHoras')) return;
+                                                setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, bancoHoras: !dados.config.modulos?.bancoHoras } } });
+                                            }}
                                         >
                                             <span />
                                         </ToggleSwitch>
                                         Banco de Horas
+                                        {!PLANOS_MODULOS[dados.plano]?.includes('bancoHoras') && <BadgePlano>Pro</BadgePlano>}
                                     </label>
                                     <small>Cálculo automático de saldo de horas positivas/negativas.</small>
                                 </ToggleWrapper>
 
-                                <ToggleWrapper>
+                                {/* RELATÓRIOS - Básico+ */}
+                                <ToggleWrapper $disabled={!PLANOS_MODULOS[dados.plano]?.includes('relatorios')}>
                                     <label>
                                         <ToggleSwitch
                                             $ativo={dados.config.modulos?.relatorios}
-                                            onClick={() => setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, relatorios: !dados.config.modulos?.relatorios } } })}
+                                            $disabled={!PLANOS_MODULOS[dados.plano]?.includes('relatorios')}
+                                            onClick={() => {
+                                                if (!PLANOS_MODULOS[dados.plano]?.includes('relatorios')) return;
+                                                setDados({ ...dados, config: { ...dados.config, modulos: { ...dados.config.modulos, relatorios: !dados.config.modulos?.relatorios } } });
+                                            }}
                                         >
                                             <span />
                                         </ToggleSwitch>
                                         Relatórios PDF/CSV
+                                        {!PLANOS_MODULOS[dados.plano]?.includes('relatorios') && <BadgePlano>Básico</BadgePlano>}
                                     </label>
                                     <small>Permite exportar dados para contabilidade.</small>
                                 </ToggleWrapper>
@@ -771,6 +838,25 @@ export default function ModalNovaEmpresa({ aberto, onFechar, empresa }) {
                                         Login por Matrícula
                                     </label>
                                     <small>Permite entrar usando Código + Matrícula em vez de e-mail.</small>
+                                    {dados.config.regras?.loginPorMatricula && (
+                                        <InputGroup style={{ marginTop: 8 }}>
+                                            <label>Quantidade de Dígitos da Matrícula</label>
+                                            <select
+                                                value={dados.config.regras?.digitosMatricula || 8}
+                                                onChange={e => setDados({
+                                                    ...dados,
+                                                    config: {
+                                                        ...dados.config,
+                                                        regras: { ...dados.config.regras, digitosMatricula: Number(e.target.value) }
+                                                    }
+                                                })}
+                                            >
+                                                {[4, 5, 6, 7, 8, 9, 10].map(n => (
+                                                    <option key={n} value={n}>{n} dígitos</option>
+                                                ))}
+                                            </select>
+                                        </InputGroup>
+                                    )}
                                 </ToggleWrapper>
                             </GridConfig>
 
@@ -1087,26 +1173,38 @@ const ToggleWrapper = styled.div`
         gap: 12px;
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
-        cursor: pointer;
+        color: ${props => props.$disabled ? 'rgba(255,255,255,0.4)' : '#fff'};
+        cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
     }
 
     small {
         font-size: 12px;
-        color: #8d8d99;
+        color: ${props => props.$disabled ? 'rgba(141,141,153,0.4)' : '#8d8d99'};
         line-height: 1.4;
     }
+`;
+
+const BadgePlano = styled.span`
+    background: rgba(235, 77, 75, 0.15);
+    color: #eb4d4b;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-left: auto;
 `;
 
 const ToggleSwitch = styled.div`
     width: 40px;
     height: 20px;
     border-radius: 10px;
-    background: ${props => props.$ativo ? "#2f81f7" : "rgba(255,255,255,0.1)"};
+    background: ${props => props.$ativo ? (props.$disabled ? "rgba(47,129,247,0.5)" : "#2f81f7") : "rgba(255,255,255,0.1)"};
     position: relative;
-    cursor: pointer;
+    cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
     transition: background 0.2s;
     flex-shrink: 0;
+    opacity: ${props => props.$disabled ? 0.5 : 1};
 
     span {
         position: absolute;

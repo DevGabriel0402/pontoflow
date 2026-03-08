@@ -244,8 +244,8 @@ export default function HomeColaborador() {
     <Tela>
       <Topo style={{ "--cor-primaria": corPrimaria }}>
         <Marca>
-          <Logo src={logoUrl} alt={empresaConfig?.nome || "PontoFlow"} />
-          <span>{empresaConfig?.nome || "ClickPonto"}</span>
+          <Logo src={logoUrl} alt={empresaConfig?.config?.nomePainel || empresaConfig?.nome || "PontoFlow"} />
+          <span>{empresaConfig?.config?.nomePainel || empresaConfig?.nome || "PontoFlow"}</span>
         </Marca>
 
         <AcoesTopo>
@@ -285,6 +285,10 @@ export default function HomeColaborador() {
             </BadgeMeta>
           )}
         </BadgesWrapper>
+
+        <SaudacaoFuncionario>
+          Olá, <strong>{perfil?.nome?.split(' ')[0] || "Colaborador"}</strong>!
+        </SaudacaoFuncionario>
 
         <Relogio>{hora}</Relogio>
         <Data>{data}</Data>
@@ -548,6 +552,19 @@ const BadgeMeta = styled(SeloSeguranca)`
 
   svg {
     color: ${({ theme }) => theme.cores.azul};
+  }
+`;
+
+const SaudacaoFuncionario = styled.p`
+  margin: 16px 0 0;
+  font-size: 18px;
+  color: ${({ theme }) => theme.cores.texto2};
+  text-align: center;
+  font-weight: 500;
+
+  strong {
+    color: ${({ theme }) => theme.cores.texto};
+    font-weight: 700;
   }
 `;
 

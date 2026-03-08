@@ -51,11 +51,29 @@ export function useSaldoBancoHoras(userId, perfil) {
         const periodoInicio = format(dataCriacao, "yyyy-MM-dd");
         const periodoFim = format(new Date(), "yyyy-MM-dd");
 
+        // Extrair todos os abonos
+        const abonosFunc = lancamentos
+            .filter(l => (
+                (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
+                (l.origem === "ABONO_MANUAL")
+            ))
+            .map(l => {
+                if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
+                    return l.dataReferencia;
+                }
+                const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    return `${match[3]}-${match[2]}-${match[1]}`;
+                }
+                return null;
+            })
+            .filter(Boolean);
+
         const confJornada = perfil.jornadas || perfil.jornada;
         const dias = calcularResumoDiario(
             pontos,
             confJornada,
-            [],
+            abonosFunc,
             perfil.cargaHorariaSemanal,
             periodoInicio,
             periodoFim,

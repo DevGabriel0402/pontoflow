@@ -33,6 +33,7 @@ import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 import { maskMatricula } from "../../utils/mascaras";
+import DateRangePicker from "../../components/DateRangePicker";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -500,15 +501,14 @@ export default function DashboardAdmin() {
                       />
                     </SeletorAcordeaoWrapper>
 
-                    <FiltroDataWrapper>
-                      <span>De:</span>
-                      <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} title="Data Início" />
-                    </FiltroDataWrapper>
-
-                    <FiltroDataWrapper>
-                      <span>Até:</span>
-                      <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} title="Data Fim" />
-                    </FiltroDataWrapper>
+                    <DateRangePicker
+                      startDate={dataInicio}
+                      endDate={dataFim}
+                      onChange={(ini, fim) => {
+                        setDataInicio(ini);
+                        setDataFim(fim);
+                      }}
+                    />
 
                     <GrupoBotoesExportar>
                       {temModulo('relatorios') && (

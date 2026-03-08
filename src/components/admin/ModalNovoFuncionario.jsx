@@ -106,7 +106,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
         funcao: funcao.trim() || null,
         jornadas,
         cargaHorariaSemanal,
-        matricula: unmaskMatricula(matricula)
+        matricula: unmaskMatricula(matricula, config?.regras?.digitosMatricula)
       });
       setResultado(data);
       toast.success("Funcionário criado com sucesso!");
@@ -154,8 +154,8 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
               <label>Matrícula / ID do Funcionário {config?.regras?.loginPorMatricula && <span style={{ color: '#eb4d4b' }}>*</span>}</label>
               <input
                 value={matricula}
-                onChange={(e) => setMatricula(maskMatricula(e.target.value))}
-                placeholder="0000000-0"
+                onChange={(e) => setMatricula(maskMatricula(e.target.value, config?.regras?.digitosMatricula))}
+                placeholder={`${"0".repeat((config?.regras?.digitosMatricula || 8) - 1)}-0`}
                 required={config?.regras?.loginPorMatricula}
                 title={config?.regras?.loginPorMatricula ? "Obrigatório para login por matrícula" : "Usado para o login simplificado"}
               />
@@ -173,7 +173,7 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
                 </RoleOption>
                 <RoleOption
                   $ativo={role === 'admin'}
-                  onClick={() => setRole('admin')}
+                  onClick={() => { setRole('admin'); setCargaHorariaSemanal('Livre'); }}
                   type="button"
                 >
                   Administrador
@@ -205,90 +205,88 @@ export default function ModalNovoFuncionario({ aberto, onFechar }) {
               </Campo>
             )}
 
-            {role === 'colaborador' && (
-              <>
-                <Separador />
+            <>
+              <Separador />
 
-                <Campo>
-                  <label>Carga Horária Semanal</label>
-                  <SeletorWrapper>
-                    <SeletorAcordeao
-                      opcoes={[
-                        { value: "44 Horas", label: "44 Horas" },
-                        { value: "40 Horas", label: "40 Horas" },
-                        { value: "30 Horas", label: "30 Horas" },
-                        { value: "Livre", label: "Livre" }
-                      ]}
-                      value={cargaHorariaSemanal}
-                      onChange={setCargaHorariaSemanal}
-                    />
-                  </SeletorWrapper>
-                </Campo>
+              <Campo>
+                <label>Carga Horária Semanal</label>
+                <SeletorWrapper>
+                  <SeletorAcordeao
+                    opcoes={[
+                      { value: "44 Horas", label: "44 Horas" },
+                      { value: "40 Horas", label: "40 Horas" },
+                      { value: "30 Horas", label: "30 Horas" },
+                      { value: "Livre", label: "Livre" }
+                    ]}
+                    value={cargaHorariaSemanal}
+                    onChange={setCargaHorariaSemanal}
+                  />
+                </SeletorWrapper>
+              </Campo>
 
-                <Separador />
+              <Separador />
 
-                <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
-                <JornadaArea>
-                  {diasSemanaInfo.map((dia) => {
-                    const conf = jornadas[dia.key];
-                    return (
-                      <DiaRow key={dia.key} $ativo={conf.ativo}>
-                        <DiaHeader>
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={conf.ativo}
-                              onChange={(e) => setJornadas(pd => ({
-                                ...pd,
-                                [dia.key]: { ...pd[dia.key], ativo: e.target.checked }
-                              }))}
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#e1e1e6' }}>Jornadas Diárias (Opcional)</label>
+              <JornadaArea>
+                {diasSemanaInfo.map((dia) => {
+                  const conf = jornadas[dia.key];
+                  return (
+                    <DiaRow key={dia.key} $ativo={conf.ativo}>
+                      <DiaHeader>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={conf.ativo}
+                            onChange={(e) => setJornadas(pd => ({
+                              ...pd,
+                              [dia.key]: { ...pd[dia.key], ativo: e.target.checked }
+                            }))}
+                          />
+                          {dia.label}
+                        </label>
+                      </DiaHeader>
+
+                      {conf.ativo && (
+                        <HorariosInputs>
+                          {temPonto('entrada') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.entrada}
+                              title="Entrada"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
                             />
-                            {dia.label}
-                          </label>
-                        </DiaHeader>
-
-                        {conf.ativo && (
-                          <HorariosInputs>
-                            {temPonto('entrada') && (
-                              <InputSlim
-                                type="time"
-                                value={conf.entrada}
-                                title="Entrada"
-                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
-                              />
-                            )}
-                            {temPonto('intervalo_saida') && (
-                              <InputSlim
-                                type="time"
-                                value={conf.inicioIntervalo}
-                                title="Início Intervalo"
-                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
-                              />
-                            )}
-                            {temPonto('intervalo_entrada') && (
-                              <InputSlim
-                                type="time"
-                                value={conf.fimIntervalo}
-                                title="Fim Intervalo"
-                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
-                              />
-                            )}
-                            {temPonto('saida') && (
-                              <InputSlim
-                                type="time"
-                                value={conf.saida}
-                                title="Saída"
-                                onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
-                              />
-                            )}
-                          </HorariosInputs>
-                        )}
-                      </DiaRow>
-                    );
-                  })}
-                </JornadaArea>
-              </>
-            )}
+                          )}
+                          {temPonto('intervalo_saida') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.inicioIntervalo}
+                              title="Início Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
+                            />
+                          )}
+                          {temPonto('intervalo_entrada') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.fimIntervalo}
+                              title="Fim Intervalo"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
+                            />
+                          )}
+                          {temPonto('saida') && (
+                            <InputSlim
+                              type="time"
+                              value={conf.saida}
+                              title="Saída"
+                              onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                            />
+                          )}
+                        </HorariosInputs>
+                      )}
+                    </DiaRow>
+                  );
+                })}
+              </JornadaArea>
+            </>
 
             <Rodape>
               <BtnGhost type="button" onClick={fechar}>Cancelar</BtnGhost>

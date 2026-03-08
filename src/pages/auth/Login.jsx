@@ -26,6 +26,7 @@ export default function Login() {
   const [carregando, setCarregando] = useState(false);
   const [empresas, setEmpresas] = useState([]);
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
+  const empresaSelecionada = empresas.find(e => e.id === slug);
 
   useEffect(() => {
     const buscarEmpresas = async () => {
@@ -51,7 +52,8 @@ export default function Login() {
           .map(doc => ({
             id: doc.id,
             nome: doc.data().nomeFantasia || doc.data().nome || doc.id,
-            permitido: doc.data().config?.regras?.loginPorMatricula === true
+            permitido: doc.data().config?.regras?.loginPorMatricula === true,
+            digitosMatricula: doc.data().config?.regras?.digitosMatricula || 8
           }))
           .filter(emp => emp.permitido);
 
@@ -91,7 +93,7 @@ export default function Login() {
         // Fluxo de login sem senha via Cloud Function (Custom Token)
         const res = await loginPorMatriculaFn({
           companyId: slug,
-          matricula: unmaskMatricula(matricula)
+          matricula: unmaskMatricula(matricula, empresaSelecionada?.digitosMatricula)
         });
 
         if (!res || !res.token) {
@@ -107,7 +109,21 @@ export default function Login() {
       } else {
         // Fluxo normal via Firebase Auth (Email/Senha)
         userRecord = await login(email, senha);
-        toast.success("Bem-vindo ao PontoFlow!");
+
+        try {
+          // Buscar nome do usuário no Firestore para saudação personalizada
+          const userDoc = await getDoc(doc(db, "users", userRecord.uid));
+          const nomeUsuario = userDoc.exists() ? userDoc.data().nome : "";
+          const primeiroNome = nomeUsuario ? nomeUsuario.split(" ")[0] : "";
+
+          if (primeiroNome) {
+            toast.success(`Bem-vindo(a) de volta, ${primeiroNome}!`);
+          } else {
+            toast.success("Bem-vindo(a) ao PontoFlow!");
+          }
+        } catch (err) {
+          toast.success("Bem-vindo(a) ao PontoFlow!");
+        }
       }
 
       if (!userRecord) {
@@ -118,9 +134,9 @@ export default function Login() {
       const snap = await getDoc(doc(db, "users", userRecord.uid));
       const perfilData = snap.exists() ? snap.data() : null;
 
-      if (perfilData?.role === "admin") navigate("/admin");
-      else if (perfilData?.role === "master") navigate("/master");
-      else navigate("/");
+      if (perfilData?.role === "admin") window.location.href = "/admin";
+      else if (perfilData?.role === "master") window.location.href = "/master";
+      else window.location.href = "/";
 
     } catch (err) {
       console.error("Erro no login:", err);
@@ -196,8 +212,8 @@ export default function Login() {
               <label style={{ marginTop: '10px' }}>Número da Matrícula</label>
               <input
                 value={matricula}
-                onChange={(e) => setMatricula(maskMatricula(e.target.value))}
-                placeholder="0000000-0"
+                onChange={(e) => setMatricula(maskMatricula(e.target.value, empresaSelecionada?.digitosMatricula))}
+                placeholder={`${"0".repeat((empresaSelecionada?.digitosMatricula || 8) - 1)}-0`}
                 required
               />
             </>

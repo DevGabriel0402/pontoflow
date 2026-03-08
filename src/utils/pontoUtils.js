@@ -195,14 +195,18 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
     }).filter(d => {
         const hojeKey = format(new Date(), "yyyy-MM-dd");
 
-        // 0. Esconder dias anteriores à criação do funcionário (ou data de implantação como fallback)
+        // 0. Filtrar pelo período selecionado
+        if (periodoInicio && d.dataKey < periodoInicio) return false;
+        if (periodoFim && d.dataKey > periodoFim) return false;
+
+        // 1. Esconder dias anteriores à criação do funcionário (ou data de implantação como fallback)
         const inicioKey = dataCriacao ? format(dataCriacao, "yyyy-MM-dd") : "2026-02-27";
         if (d.dataKey < inicioKey) return false;
 
-        // 1. Esconder dias futuros
+        // 2. Esconder dias futuros
         if (d.dataKey > hojeKey) return false;
 
-        // 2. Esconder finais de semana ou folgas SEM ponto batido e SEM horas esperadas
+        // 3. Esconder finais de semana ou folgas SEM ponto batido e SEM horas esperadas
         const temPonto = !!d.check.entrada;
         const temEsperado = d.minutosEsperados > 0;
 
