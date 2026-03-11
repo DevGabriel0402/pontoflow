@@ -169,7 +169,7 @@ export default function ModalJustificativa({ aberto, onFechar }) {
     if (!aberto) return null;
 
     return (
-        <Overlay onClick={(e) => e.target === e.currentTarget && onFechar()}>
+        <Overlay>
             <Modal>
                 <Header>
                     <Titulo>

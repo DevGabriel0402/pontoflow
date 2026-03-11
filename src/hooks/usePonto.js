@@ -105,6 +105,7 @@ export function usePonto() {
                 dentroDoRaio: !!ok,
                 deviceInfo: getDeviceInfo(),
                 ip: userIP,
+                dataKey: new Date().toISOString().split('T')[0], // yyyy-MM-dd
             };
 
             // ✅ OFFLINE: enfileira

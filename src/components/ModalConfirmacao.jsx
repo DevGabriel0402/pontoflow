@@ -15,7 +15,7 @@ export default function ModalConfirmacao({
     if (!aberto) return null;
 
     return (
-        <Overlay onClick={onFechar}>
+        <Overlay>
             <ModalBox onClick={(e) => e.stopPropagation()}>
                 <Header>
                     <IconWrapper $perigoso={perigoso}>

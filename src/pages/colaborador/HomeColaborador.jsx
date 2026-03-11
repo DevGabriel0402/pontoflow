@@ -14,9 +14,11 @@ import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
 import LoadingGlobal from "../../components/LoadingGlobal";
-import FacePontoModal from "../../components/colaborador/FacePontoModal";
 import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
 import { formatarSaldo } from "../../utils/pontoUtils";
+import { useNotificacoes } from "../../hooks/useNotificacoes";
+import NotificationBadge from "../../components/colaborador/NotificationBadge";
+import ModalNotificacoes from "../../components/colaborador/ModalNotificacoes";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -46,6 +48,7 @@ export default function HomeColaborador() {
   const { itens: historico, carregando: carregandoHist } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
   const { saldoMinutos, saldoDias, carregando: carregandoSaldo } = useSaldoBancoHoras(usuario?.uid, perfil);
+  const { notificacoes, naoLidasCount, marcarComoLida, marcarTodasComoLidas, excluirNotificacao } = useNotificacoes(usuario?.uid);
 
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
@@ -54,6 +57,7 @@ export default function HomeColaborador() {
   const [showConsentModal, setShowConsentModal] = React.useState(false);
   const [tipoSelecionado, setTipoSelecionado] = React.useState(null);
   const [modalFaceAberto, setModalFaceAberto] = React.useState(false);
+  const [modalNotificacoesAberto, setModalNotificacoesAberto] = React.useState(false);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);
@@ -261,6 +265,11 @@ export default function HomeColaborador() {
             </BotaoTopo>
           )}
 
+          <NotificationBadge 
+            count={naoLidasCount} 
+            onClick={() => setModalNotificacoesAberto(true)} 
+          />
+
           <BotaoTopo onClick={() => setModalTrocaSenhaAberto(true)} title="Trocar Senha">
             Trocar Senha
           </BotaoTopo>
@@ -424,6 +433,15 @@ export default function HomeColaborador() {
           onCancelar={() => setModalFaceAberto(false)}
         />
       )}
+
+      <ModalNotificacoes 
+        aberto={modalNotificacoesAberto}
+        onFechar={() => setModalNotificacoesAberto(false)}
+        notificacoes={notificacoes}
+        onMarcarLida={marcarComoLida}
+        onMarcarTodasLidas={marcarTodasComoLidas}
+        onExcluir={excluirNotificacao}
+      />
 
       {permissaoGPS === "denied" && (
         <OverlayBloqueio>

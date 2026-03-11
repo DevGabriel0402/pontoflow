@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import {
   FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
-  FiShield
+  FiShield, FiBell
 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,7 +18,7 @@ import ModalEditarFuncionario from "../../components/admin/ModalEditarFuncionari
 import MapaConfig from "../../components/admin/MapaConfig";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
 import { db } from "../../services/firebase";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
@@ -379,6 +379,47 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleNotificar = async (j) => {
+    const tId = toast.loading(`Analisando pendências de ${j.userName}...`);
+    try {
+      const dataFormatada = format(j.data, "dd/MM/yyyy");
+      const companyId = perfil?.companyId || "default";
+
+      // Mapeamento de pendências
+      const pendencias = [];
+      
+      // Verifica o que falta baseado nos pontos ativos e no que foi batido
+      if (temPonto('entrada') && !j.check.entrada) pendencias.push({ label: "entrada", tipo: "ENTRADA" });
+      if (temPonto('intervalo_saida') && !j.check.iniInt) pendencias.push({ label: "início de intervalo", tipo: "INICIO_INTERVALO" });
+      if (temPonto('intervalo_entrada') && !j.check.fimInt) pendencias.push({ label: "fim de intervalo", tipo: "FIM_INTERVALO" });
+      if (temPonto('saida') && !j.check.saida) pendencias.push({ label: "saída", tipo: "SAIDA" });
+
+      if (pendencias.length === 0) {
+        toast.success("Nenhuma pendência encontrada para este dia.", { id: tId });
+        return;
+      }
+
+      // Envia uma notificação para cada pendência
+      for (const p of pendencias) {
+        await addDoc(collection(db, "notificacoes"), {
+          userId: j.userId,
+          companyId,
+          mensagem: `Você esqueceu de registrar sua ${p.label} do dia ${dataFormatada}. Por favor, justifique.`,
+          data: serverTimestamp(),
+          lida: false,
+          tipo: "ponto_faltante",
+          tipoAlerta: p.tipo,
+          diaReferencia: j.dataKey
+        });
+      }
+
+      toast.success(`${pendencias.length} notificações enviadas com sucesso!`, { id: tId });
+    } catch (error) {
+      console.error("Erro ao notificar:", error);
+      toast.error("Erro ao enviar notificações.", { id: tId });
+    }
+  };
+
   return (
     <LayoutAdmin style={{ "--cor-primaria": corPrimaria }}>
       <Sidebar>
@@ -548,7 +589,19 @@ export default function DashboardAdmin() {
                         {resumoJornada.map((j, index) => (
                           <tr key={`${j.userId}-${format(j.data, 'yyyy-MM-dd')}-${index}`}>
                             <td>{j.userName || "—"}</td>
-                            <td>{format(j.data, 'dd/MM/yyyy')}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {format(j.data, 'dd/MM/yyyy')}
+                                {j.status !== "Ok" && j.status !== "Futuro" && j.status !== "Hoje" && (
+                                  <BtnNotificar 
+                                    onClick={() => handleNotificar(j)}
+                                    title="Notificar colaborador sobre este dia"
+                                  >
+                                    <FiBell size={14} />
+                                  </BtnNotificar>
+                                )}
+                              </div>
+                            </td>
                             {temPonto('entrada') && <td>{j.check.entrada ? format(j.check.entrada, 'HH:mm') : '—'}</td>}
                             {temPonto('intervalo_saida') && <td>{j.check.iniInt ? format(j.check.iniInt, 'HH:mm') : '—'}</td>}
                             {temPonto('intervalo_entrada') && <td>{j.check.fimInt ? format(j.check.fimInt, 'HH:mm') : '—'}</td>}
@@ -1679,5 +1732,28 @@ const BtnAcao = styled.button`
 
   svg {
     flex-shrink: 0;
+  }
+`;
+
+const BtnNotificar = styled.button`
+  background: #f1c40f22;
+  border: 1px solid #f1c40f44;
+  color: #f1c40f;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f1c40f33;
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.9);
   }
 `;

@@ -1,5 +1,8 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
+const { format, subDays, isSameDay } = require("date-fns");
+const { ptBR } = require("date-fns/locale");
 
 admin.initializeApp();
 
@@ -408,5 +411,190 @@ exports.loginPorMatricula = onCall({ region: "southamerica-east1", cors: true },
         console.error("Erro no loginPorMatricula:", error);
         if (error instanceof HttpsError) throw error;
         throw new HttpsError("internal", "Erro interno ao processar login.");
+    }
+});
+/**
+ * Função Agendada: Dispara as 03:00 AM (Horário de Brasília)
+ * Verifica pontos do dia anterior e notifica usuários com pendências.
+ */
+exports.dispararNotificacoesAutomaticas = onSchedule({
+    schedule: "0 3 * * *",
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1",
+    memory: "256MiB"
+}, async (event) => {
+    console.log("Iniciando processamento de notificações automáticas...");
+
+    const ontem = subDays(new Date(), 1);
+    const ontemKey = format(ontem, "yyyy-MM-dd");
+    const db = admin.firestore();
+
+    try {
+        // 1. Busca todas as empresas
+        const companiesSnap = await db.collection("companies").get();
+
+        for (const companyDoc of companiesSnap.docs) {
+            const companyId = companyDoc.id;
+            const config = companyDoc.data().config || {};
+            const pontosAtivos = config.regras?.pontosAtivos || ["entrada", "saida"];
+
+            // 2. Busca funcionários ativos desta empresa
+            const usersSnap = await db.collection("users")
+                .where("companyId", "==", companyId)
+                .where("ativo", "==", true)
+                .where("role", "==", "employee")
+                .get();
+
+            for (const userDoc of usersSnap.docs) {
+                const userId = userDoc.id;
+                const userName = userDoc.data().nome;
+
+                // 3. Verifica se já existe notificação para este dia
+                const notifExistente = await db.collection("notificacoes")
+                    .where("userId", "==", userId)
+                    .where("diaReferencia", "==", ontemKey)
+                    .limit(1)
+                    .get();
+
+                if (!notifExistente.empty) continue;
+
+                // 4. Busca pontos do dia anterior
+                const pontosSnap = await db.collection("pontos")
+                    .where("userId", "==", userId)
+                    .where("companyId", "==", companyId)
+                    .get();
+
+                // Filtra pontos de ontem (lida com Legado sem dataKey e Novos com dataKey)
+                const pontosOntem = pontosSnap.docs.filter(d => {
+                    const data = d.data();
+                    if (data.dataKey) return data.dataKey === ontemKey;
+                    
+                    const dObj = data.criadoEm?.toDate ? data.criadoEm.toDate() : (data.criadoEm ? new Date(data.criadoEm) : null);
+                    return dObj && format(dObj, "yyyy-MM-dd") === ontemKey;
+                });
+
+                const tiposBatidos = new Set(pontosOntem.map(d => d.data().type));
+                
+                // Mapeamento de tiposConfig -> TIPOS_SISTEMA
+                const mapa = {
+                    'entrada': 'ENTRADA',
+                    'intervalo_saida': 'INICIO_INTERVALO',
+                    'intervalo_entrada': 'FIM_INTERVALO',
+                    'saida': 'SAIDA'
+                };
+
+                const pendencias = [];
+                pontosAtivos.forEach(tipoConfig => {
+                    const tipoSistema = mapa[tipoConfig];
+                    if (tipoSistema && !tiposBatidos.has(tipoSistema)) {
+                        const label = tipoConfig === 'entrada' ? 'Entrada' : 
+                                      tipoConfig === 'saida' ? 'Saída' : 
+                                      tipoConfig === 'intervalo_saida' ? 'Início do Intervalo' : 'Fim do Intervalo';
+                        pendencias.push(label);
+                    }
+                });
+
+                if (pendencias.length > 0) {
+                    const msg = `Você esqueceu de bater seu ${pendencias.join(', ')} do dia ${format(ontem, "dd/MM/yyyy")}, justifique e aguarde um admnistrador confirmar sua justificativa`;
+                    
+                    await db.collection("notificacoes").add({
+                        userId,
+                        mensagem: msg,
+                        data: admin.firestore.FieldValue.serverTimestamp(),
+                        lida: false,
+                        tipo: "ponto_faltante_auto",
+                        diaReferencia: ontemKey
+                    });
+                    
+                    console.log(`Notificação automática enviada para ${userName} (${userId})`);
+                }
+            }
+        }
+
+        console.log("Processamento de notificações automáticas finalizado.");
+    } catch (error) {
+        console.error("Erro ao processar notificações automáticas:", error);
+    }
+});
+
+/**
+ * Verifica atrasos de ponto no dia atual e envia notificações em tempo real.
+ * Roda a cada 15 minutos.
+ */
+exports.verificarAtrasosHoje = onSchedule({ 
+    schedule: "every 15 minutes",
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
+}, async (event) => {
+    const db = admin.firestore();
+    const agora = new Date();
+    const hojeKey = format(agora, "yyyy-MM-dd");
+    const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+    const diaSemana = mapDias[agora.getDay()];
+    
+    const horaAtualMin = agora.getHours() * 60 + agora.getMinutes();
+
+    try {
+        const usersSnap = await db.collection("users").where("role", "==", "employee").where("ativo", "==", true).get();
+        
+        for (const userDoc of usersSnap.docs) {
+            const userData = userDoc.data();
+            const userId = userDoc.id;
+            const companyId = userData.companyId;
+            const jornadas = userData.jornadas || userData.jornada;
+
+            if (!jornadas) continue;
+
+            const jDia = (jornadas.segunda || jornadas.domingo) ? jornadas[diaSemana] : jornadas;
+            if (!jDia || !jDia.ativo) continue;
+
+            // Tipos para verificar
+            const verificacoes = [
+                { tipo: "ENTRADA", hora: jDia.entrada, label: "entrada" },
+                { tipo: "INICIO_INTERVALO", hora: jDia.inicioIntervalo, label: "início de intervalo" },
+                { tipo: "FIM_INTERVALO", hora: jDia.fimIntervalo, label: "fim de intervalo" },
+                { tipo: "SAIDA", hora: jDia.saida, label: "saída" }
+            ];
+
+            const pontosSnap = await db.collection("pontos")
+                .where("userId", "==", userId)
+                .where("dataKey", "==", hojeKey)
+                .get();
+            
+            const tiposFeitos = new Set(pontosSnap.docs.map(d => d.data().type));
+
+            for (const v of verificacoes) {
+                if (!v.hora || tiposFeitos.has(v.tipo)) continue;
+
+                const [h, m] = v.hora.split(":").map(Number);
+                const horaEscalaMin = h * 60 + m;
+
+                // Se passou 15 minutos do horário da escala
+                if (horaAtualMin > (horaEscalaMin + 15)) {
+                    // Verifica se já notificamos hoje para este tipo
+                    const notifAntiga = await db.collection("notificacoes")
+                        .where("userId", "==", userId)
+                        .where("diaReferencia", "==", hojeKey)
+                        .where("tipoAlerta", "==", v.tipo)
+                        .get();
+
+                    if (notifAntiga.empty) {
+                        await db.collection("notificacoes").add({
+                            userId,
+                            companyId: companyId || "default",
+                            mensagem: `Atenção! Você ainda não registrou sua ${v.label} hoje. Seu horário previsto era ${v.hora}.`,
+                            data: admin.firestore.FieldValue.serverTimestamp(),
+                            lida: false,
+                            tipo: "ponto_atrasado_realtime",
+                            tipoAlerta: v.tipo,
+                            diaReferencia: hojeKey
+                        });
+                        console.log(`Alerta de atraso (${v.tipo}) enviado para ${userData.nome}`);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Erro em verificarAtrasosHoje:", error);
     }
 });

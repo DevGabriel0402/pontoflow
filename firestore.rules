@@ -118,5 +118,26 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Coleção de Notificações
+    match /notificacoes/{notifId} {
+      allow read: if isSuperAdmin() ||
+                    request.auth.uid == resource.data.userId ||
+                    (hasRole('admin') && belongsTo(resource.data.companyId));
+      
+      // Admin pode criar notificações para funcionários da sua empresa
+      allow create: if isSuperAdmin() ||
+                      (hasRole('admin') && exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) && 
+                       get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.companyId == getUserData().companyId);
+
+      // Usuário pode marcar como lida (update)
+      allow update: if isSuperAdmin() ||
+                      request.auth.uid == resource.data.userId ||
+                      (hasRole('admin') && belongsTo(resource.data.companyId));
+      
+      allow delete: if isSuperAdmin() ||
+                      request.auth.uid == resource.data.userId ||
+                      (hasRole('admin') && belongsTo(resource.data.companyId));
+    }
+
   }
 }
