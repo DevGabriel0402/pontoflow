@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { useAdminPontos } from "../../hooks/useAdminPontos";
 import { exportarPontosPdf } from "../../utils/exportarPontosPdf";
 import { exportarResumoPdf } from "../../utils/exportarResumoPdf";
+import { exportarMensalPdf } from "../../utils/exportarMensalPdf";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
@@ -216,6 +217,21 @@ export default function DashboardAdmin() {
       empresa: nomePainel,
       periodo,
       totalGeral: totalHorasPeriodo,
+      pontosAtivos: config?.regras?.pontosAtivos
+    });
+
+    setMostrarToast(true);
+  };
+
+  const handleGerarMensalPdf = () => {
+    const periodo =
+      dataInicio || dataFim
+        ? `${dataInicio || "…"} até ${dataFim || "…"} `
+        : "Todos os períodos";
+
+    exportarMensalPdf(resumoJornada, {
+      empresa: nomePainel,
+      periodo,
       pontosAtivos: config?.regras?.pontosAtivos
     });
 
@@ -556,6 +572,9 @@ export default function DashboardAdmin() {
                         <>
                           <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
                             <FiFileText /> Resumo PDF
+                          </BotaoExportar>
+                          <BotaoExportar onClick={handleGerarMensalPdf} disabled={resumoJornada.length === 0}>
+                            <FiFileText /> Mensal PDF
                           </BotaoExportar>
                           <BotaoExportar $csv onClick={handleExportarCsvResumo} disabled={resumoJornada.length === 0}>
                             <FiFile /> Resumo CSV
