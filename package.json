@@ -13,6 +13,7 @@
     "date-fns": "^4.1.0",
     "face-api.js": "^0.22.2",
     "firebase": "^11.4.0",
+    "gsap": "^3.14.2",
     "haversine-distance": "^1.2.4",
     "json2csv": "^6.0.0-alpha.2",
     "jspdf": "^4.2.0",

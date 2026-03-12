@@ -12,6 +12,7 @@ import Historico from "./pages/colaborador/Historico";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
 import DashboardMaster from "./pages/master/DashboardMaster";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
+import LandingPage from "./pages/LandingPage";
 
 import { useSync } from "./hooks/useSync";
 import CookieConsent from "./components/CookieConsent";
@@ -31,9 +32,11 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+        
+        <Route path="/" element={<LandingPage />} />
 
         <Route
-          path="/"
+          path="/home"
           element={
             <PrivateRoute>
               <HomeColaborador />

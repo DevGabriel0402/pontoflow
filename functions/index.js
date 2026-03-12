@@ -140,7 +140,10 @@ exports.deletarFuncionario = onCall({ region: "southamerica-east1", cors: true }
         throw new HttpsError("permission-denied", "Acesso negado.");
     }
 
-    const adminCompanyId = adminDoc.data().companyId || "default";
+    const adminCompanyId = adminDoc.data().companyId;
+    if (!adminCompanyId) {
+        throw new HttpsError("failed-precondition", "Admin sem companyId.");
+    }
 
     // Busca usuário a ser deletado para verificar se é da mesma empresa
     const userDoc = await admin.firestore().doc(`users/${uid}`).get();
@@ -581,7 +584,7 @@ exports.verificarAtrasosHoje = onSchedule({
                     if (notifAntiga.empty) {
                         await db.collection("notificacoes").add({
                             userId,
-                            companyId: companyId || "default",
+                            companyId: companyId || "",
                             mensagem: `Atenção! Você ainda não registrou sua ${v.label} hoje. Seu horário previsto era ${v.hora}.`,
                             data: admin.firestore.FieldValue.serverTimestamp(),
                             lida: false,

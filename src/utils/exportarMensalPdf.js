@@ -14,6 +14,14 @@ function formatarHora(d) {
     return format(d, "HH:mm", { locale: ptBR });
 }
 
+function formatarSaldo(totalMinutos) {
+    const sinal = totalMinutos >= 0 ? "+" : "-";
+    const abs = Math.abs(totalMinutos);
+    const h = Math.floor(abs / 60);
+    const m = abs % 60;
+    return `${sinal}${h}h${m.toString().padStart(2, "0")}min`;
+}
+
 /**
  * resumo: array de objetos gerados pelo useMemo resumoJornada no DashboardAdmin
  * meta: infos do relatório (empresa, periodo, pontosAtivos)
@@ -32,6 +40,7 @@ export function exportarMensalPdf(resumo, meta = {}) {
         if (!acc[id]) {
             acc[id] = {
                 nome: curr.userName || id,
+                saldo: curr.saldo, // Captura o saldo injetado no objeto
                 registros: []
             };
         }
@@ -55,6 +64,37 @@ export function exportarMensalPdf(resumo, meta = {}) {
         doc.text(`Funcionário: ${func.nome}`, 14, 27);
         doc.text(`Período: ${periodo}`, 14, 32);
         doc.text(`Gerado em: ${geradoEm}`, 14, 37);
+
+        // Saldo de Horas se disponível (com Badge colorido)
+        if (func.saldo !== undefined && func.saldo !== null) {
+            const saldoFormatado = formatarSaldo(func.saldo);
+            const label = `SALDO ATUAL: ${saldoFormatado}`;
+            const isNeg = func.saldo < 0;
+
+            // Define cor do badge
+            if (isNeg) doc.setFillColor(231, 76, 60); // Vermelho suave (Alizarin)
+            else doc.setFillColor(46, 204, 113);   // Verde suave (Emerald)
+
+            // Calcula largura baseada no texto para o fundo
+            const textWidth = doc.getTextWidth(label);
+            const badgeW = textWidth + 6;
+            const badgeX = 140;
+            const badgeY = 22.5;
+
+            // Desenha o retângulo arredondado (x, y, w, h, rx, ry, style)
+            doc.roundedRect(badgeX, badgeY, badgeW, 7, 1.5, 1.5, "F");
+
+            // Texto em branco por cima
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.text(label, badgeX + 3, badgeY + 4.8);
+
+            // Reset para o padrão do documento
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+        }
 
         // Tabela de horários deste funcionário
         const headRow = ["Data"];

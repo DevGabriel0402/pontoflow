@@ -56,7 +56,8 @@ export default function ModalNovaEmpresa({ aberto, empresa, onFechar }) {
             nome: "",
             email: "",
             dataNascimento: ""
-        }
+        },
+        limiteFuncionarios: 10
     });
 
     const [salvando, setSalvando] = React.useState(false);
@@ -187,8 +188,12 @@ export default function ModalNovaEmpresa({ aberto, empresa, onFechar }) {
                 }
             });
 
-            if (mudou) {
-                return { ...prev, config: { ...prev.config, modulos: novosModulos } };
+            if (mudou || prev.limiteFuncionarios !== (prev.plano === 'enterprise' ? 9999 : prev.plano === 'pro' ? 99 : 10)) {
+                return { 
+                    ...prev, 
+                    config: { ...prev.config, modulos: novosModulos },
+                    limiteFuncionarios: prev.plano === 'enterprise' ? 9999 : prev.plano === 'pro' ? 99 : 10
+                };
             }
             return prev;
         });
@@ -477,17 +482,28 @@ export default function ModalNovaEmpresa({ aberto, empresa, onFechar }) {
                                 </InputGroup>
                             </InputRow>
 
-                            <InputGroup>
-                                <label>Plano</label>
-                                <select
-                                    value={dados.plano}
-                                    onChange={e => setDados({ ...dados, plano: e.target.value })}
-                                >
-                                    <option value="basico">Básico (R$ {planosConfig.basico}/mês)</option>
-                                    <option value="pro">Pro (R$ {planosConfig.pro}/mês)</option>
-                                    <option value="enterprise">Enterprise (Sob consulta)</option>
-                                </select>
-                            </InputGroup>
+                            <InputRow>
+                                <InputGroup>
+                                    <label>Plano</label>
+                                    <select
+                                        value={dados.plano}
+                                        onChange={e => setDados({ ...dados, plano: e.target.value })}
+                                    >
+                                        <option value="basico">Básico (R$ {planosConfig.basico}/mês)</option>
+                                        <option value="pro">Pro (R$ {planosConfig.pro}/mês)</option>
+                                        <option value="enterprise">Enterprise (Sob consulta)</option>
+                                    </select>
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>Limite de Colaboradores</label>
+                                    <input
+                                        type="number"
+                                        value={dados.limiteFuncionarios}
+                                        onChange={e => setDados({ ...dados, limiteFuncionarios: Number(e.target.value) })}
+                                        placeholder="Ex: 10"
+                                    />
+                                </InputGroup>
+                            </InputRow>
                         </Secao>
 
                         {!empresa && (

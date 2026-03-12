@@ -48,9 +48,9 @@ export function ConfigProvider({ children }) {
 
         // Se não houver perfil ou companyId, podemos usar uma "empresa padrão" ou configurações globais
         // Para o MVP SaaS, vamos usar o companyId do usuário se existir, senão o global anterior
-        const companyId = perfil?.companyId || "default";
-        const docRef = perfil?.companyId
-            ? doc(db, "companies", perfil.companyId)
+        const companyId = perfil?.companyId;
+        const docRef = companyId
+            ? doc(db, "companies", companyId)
             : doc(db, "settings", "geofencing");
 
         setCarregando(true);

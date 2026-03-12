@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiBriefcase, FiSettings, FiLogOut, FiLock } from "react-icons/fi";
+import { FiGrid, FiFileText, FiMessageSquare, FiLock } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContexto";
 
 export default function TabbarMasterMobile({ abaAtiva, setAbaAtiva }) {
@@ -8,10 +8,9 @@ export default function TabbarMasterMobile({ abaAtiva, setAbaAtiva }) {
 
   const abas = [
     { id: "DASHBOARD", label: "Global", icon: <FiGrid size={20} /> },
-    { id: "EMPRESAS", label: "Empresas", icon: <FiBriefcase size={20} /> },
     { id: "ADMINS", label: "Admins", icon: <FiLock size={20} /> },
-    { id: "CONFIG", label: "SaaS", icon: <FiSettings size={20} /> },
-    { id: "SAIR", label: "Sair", icon: <FiLogOut size={20} />, action: logout },
+    { id: "MANUAL", label: "Manual", icon: <FiFileText size={20} /> },
+    { id: "SUPORTE", label: "Suporte", icon: <FiMessageSquare size={20} /> },
   ];
 
   return (

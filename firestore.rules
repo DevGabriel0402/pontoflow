@@ -139,5 +139,20 @@ service cloud.firestore {
                       (hasRole('admin') && belongsTo(resource.data.companyId));
     }
 
+    // Coleção de Suporte (Chat Master-Empresa)
+    match /suporte_mensagens/{msgId} {
+      // SuperAdmin lê tudo. Admin lê apenas da sua empresa.
+      allow read: if isSuperAdmin() || 
+                    (hasRole('admin') && belongsTo(resource.data.companyId));
+      
+      // Criação: SuperAdmin ou Admin da empresa. 
+      // Deve garantir que o companyId está correto.
+      allow create: if isSuperAdmin() || 
+                      (hasRole('admin') && request.resource.data.companyId == getUserData().companyId);
+      
+      // SuperAdmin pode deletar
+      allow delete: if isSuperAdmin();
+    }
+
   }
 }

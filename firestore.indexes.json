@@ -105,6 +105,20 @@
                     "order": "ASCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "suporte_mensagens",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "companyId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "enviadoEm",
+                    "order": "ASCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []

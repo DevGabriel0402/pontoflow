@@ -19,7 +19,7 @@ import ModalEditarFuncionario from "../../components/admin/ModalEditarFuncionari
 import MapaConfig from "../../components/admin/MapaConfig";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
 import { db } from "../../services/firebase";
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
@@ -35,6 +35,8 @@ import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 import { maskMatricula } from "../../utils/mascaras";
 import DateRangePicker from "../../components/DateRangePicker";
+import ChatSuporte from "../../components/ChatSuporte";
+import { INITIAL_MANUAL_DATA, gerarManualHtml } from "../../utils/manualTemplate";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -114,6 +116,7 @@ export default function DashboardAdmin() {
   const [tempNomePainel, setTempNomePainel] = React.useState("");
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
+  const [bancoHoras, setBancoHoras] = React.useState([]);
 
   // Validar local ao abrir o painel
   React.useEffect(() => {
@@ -146,6 +149,19 @@ export default function DashboardAdmin() {
       }
     };
     carregar();
+  }, [perfil?.companyId]);
+
+  // Busca lançamentos do banco de horas para cálculo de saldo total
+  React.useEffect(() => {
+    if (!perfil?.companyId) return;
+    const q = query(
+      collection(db, "banco_horas"),
+      where("companyId", "==", perfil.companyId)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setBancoHoras(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
   }, [perfil?.companyId]);
 
   const handleSalvarConfig = async () => {
@@ -207,35 +223,52 @@ export default function DashboardAdmin() {
     setMostrarToast(true);
   };
 
-  const handleGerarResumoPdf = () => {
-    const periodo =
-      dataInicio || dataFim
-        ? `${dataInicio || "…"} até ${dataFim || "…"} `
-        : "Todos os períodos";
+    const handleGerarResumoPdf = () => {
+        const periodo =
+            dataInicio || dataFim
+                ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
+                : "Todos os períodos";
 
-    exportarResumoPdf(resumoJornada, {
-      empresa: nomePainel,
-      periodo,
-      totalGeral: totalHorasPeriodo,
-      pontosAtivos: config?.regras?.pontosAtivos
-    });
+        exportarResumoPdf(resumoJornada, {
+            empresa: nomePainel,
+            periodo,
+            totalGeral: totalHorasPeriodo,
+            pontosAtivos: config?.regras?.pontosAtivos
+        });
 
-    setMostrarToast(true);
-  };
+        setMostrarToast(true);
+    };
 
-  const handleGerarMensalPdf = () => {
-    const periodo =
-      dataInicio || dataFim
-        ? `${dataInicio || "…"} até ${dataFim || "…"} `
-        : "Todos os períodos";
+    const handleGerarMensalPdf = () => {
+        const periodo =
+            dataInicio || dataFim
+                ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
+                : "Todos os períodos";
 
-    exportarMensalPdf(resumoJornada, {
-      empresa: nomePainel,
-      periodo,
-      pontosAtivos: config?.regras?.pontosAtivos
-    });
+        exportarMensalPdf(resumoJornada, {
+            empresa: nomePainel,
+            periodo,
+            pontosAtivos: config?.regras?.pontosAtivos
+        });
 
-    setMostrarToast(true);
+        setMostrarToast(true);
+    };
+
+  const handleBaixarManual = async () => {
+    try {
+      const snap = await getDoc(doc(db, "settings", "manual"));
+      const conteudo = snap.exists() ? snap.data().template : INITIAL_MANUAL_DATA;
+      const htmlFinal = gerarManualHtml(conteudo);
+      
+      const win = window.open("", "_blank");
+      win.document.write(htmlFinal);
+      win.document.close();
+    } catch (e) {
+      console.error("Erro ao baixar manual:", e);
+      const win = window.open("", "_blank");
+      win.document.write(gerarManualHtml(INITIAL_MANUAL_DATA));
+      win.document.close();
+    }
   };
 
   const handleExportarCsvHistorico = () => {
@@ -338,34 +371,70 @@ export default function DashboardAdmin() {
 
     const todosResumos = [];
 
-    // 2. Calcular para cada um
-    funcsProcessar.forEach(func => {
-      // Filtrar pontos deste usuário para passar para o cálculo
-      const pontosUser = itens.filter(p => p.userId === func.id);
+      // 2. Calcular para cada um
+      funcsProcessar.forEach(func => {
+        const pontosUser = itens.filter(p => p.userId === func.id);
+        const feriados = config?.feriados || [];
+        const dataCriacao = func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null);
+        
+        // Extrair abonos (justificativas aprovadas ou abonos manuais) para este funcionário
+        const abonosFunc = bancoHoras
+          .filter(l => l.userId === func.id && (
+            (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
+            (l.origem === "ABONO_MANUAL")
+          ))
+          .map(l => {
+            if (l.origem === "ABONO_MANUAL" && l.dataReferencia) return l.dataReferencia;
+            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+            return null;
+          })
+          .filter(Boolean);
 
-      const feriados = config?.feriados || [];
-      const dataCriacao = func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null);
-      const resumosUser = calcularResumoDiario(
-        pontosUser,
-        func.jornadas || func.jornada,
-        [], // abonos não carregados aqui por enquanto
-        func.cargaHorariaSemanal,
-        dataInicio,
-        dataFim,
-        feriados,
-        dataCriacao
-      );
+        const dataCriacaoTotal = dataCriacao || new Date(2025, 0, 1);
+        
+        // Calcular resumo HISTÓRICO TOTAL (para o Saldo Total)
+        const resumoHistorico = calcularResumoDiario(
+          pontosUser,
+          func.jornadas || func.jornada,
+          abonosFunc, // Incluindo abonos aqui
+          func.cargaHorariaSemanal,
+          format(dataCriacaoTotal, "yyyy-MM-dd"),
+          format(new Date(), "yyyy-MM-dd"),
+          feriados,
+          dataCriacaoTotal
+        );
 
-      resumosUser.forEach(r => {
-        todosResumos.push({
-          ...r,
-          userId: func.id,
-          userName: func.nome,
-          totalMinutos: r.minutosTrabalhados,
-          totalFormatado: formatarDuracao(r.minutosTrabalhados)
+        const somaAuto = resumoHistorico.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
+        const somaManual = bancoHoras
+          .filter(l => l.userId === func.id)
+          .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
+        
+        const saldoTotal = somaAuto + somaManual;
+
+        // Calcular resumo do PERÍODO SELECIONADO (para a tabela do PDF)
+        const resumosUser = calcularResumoDiario(
+          pontosUser,
+          func.jornadas || func.jornada,
+          abonosFunc, // Incluindo abonos aqui também
+          func.cargaHorariaSemanal,
+          dataInicio,
+          dataFim,
+          feriados,
+          dataCriacao
+        );
+
+        resumosUser.forEach(r => {
+          todosResumos.push({
+            ...r,
+            userId: func.id,
+            userName: func.nome,
+            totalMinutos: r.minutosTrabalhados,
+            totalFormatado: formatarDuracao(r.minutosTrabalhados),
+            saldo: saldoTotal
+          });
         });
       });
-    });
 
     // 3. Ordenar por data decrescente (mais recente primeiro)
     return todosResumos.sort((a, b) => b.data - a.data);
@@ -399,7 +468,11 @@ export default function DashboardAdmin() {
     const tId = toast.loading(`Analisando pendências de ${j.userName}...`);
     try {
       const dataFormatada = format(j.data, "dd/MM/yyyy");
-      const companyId = perfil?.companyId || "default";
+      const companyId = perfil?.companyId;
+      if (!companyId || companyId === "default") {
+        toast.error("Vínculo de empresa inválido. Sincronize seus dados.", { id: tId });
+        return;
+      }
 
       // Mapeamento de pendências
       const pendencias = [];
@@ -570,11 +643,11 @@ export default function DashboardAdmin() {
                     <GrupoBotoesExportar>
                       {temModulo('relatorios') && (
                         <>
-                          <BotaoExportar onClick={handleGerarResumoPdf} disabled={resumoJornada.length === 0}>
-                            <FiFileText /> Resumo PDF
-                          </BotaoExportar>
                           <BotaoExportar onClick={handleGerarMensalPdf} disabled={resumoJornada.length === 0}>
                             <FiFileText /> Mensal PDF
+                          </BotaoExportar>
+                          <BotaoExportar onClick={handleBaixarManual} style={{ background: 'rgba(241, 196, 15, 0.15)', color: '#f1c40f', borderColor: 'rgba(241, 196, 15, 0.3)' }}>
+                            <FiFileText /> Baixar Manual
                           </BotaoExportar>
                           <BotaoExportar $csv onClick={handleExportarCsvResumo} disabled={resumoJornada.length === 0}>
                             <FiFile /> Resumo CSV
@@ -955,6 +1028,13 @@ export default function DashboardAdmin() {
         />
 
         <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
+        
+        <ChatSuporte 
+          companyId={perfil?.companyId} 
+          isMaster={false} 
+          userName={`Admin - ${perfil?.nome?.split(' ')[0]}`}
+          floating={true}
+        />
       </ConteudoPrincipal>
 
       <ModalConfirmacao
