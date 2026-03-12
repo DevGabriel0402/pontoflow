@@ -8,7 +8,7 @@ export default function AdminRoute({ children }) {
 
     if (carregando) return <LoadingGlobal />;
     if (!usuario) return <Navigate to="/login" replace />;
-    if (!isAdmin) return <Navigate to="/" replace />;
+    if (!isAdmin) return <Navigate to="/home" replace />;
 
     // Bloqueia admin inativo (pausado pelo Master)
     if (perfil?.ativo === false) return <Navigate to="/" replace />; // Ou /login para deslogar, mas aqui jogamos pra home ou barramos.

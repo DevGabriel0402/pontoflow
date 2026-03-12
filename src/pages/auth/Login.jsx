@@ -28,6 +28,17 @@ export default function Login() {
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
   const empresaSelecionada = empresas.find(e => e.id === slug);
 
+  const { usuario, perfil } = useAuth();
+
+  // Redireciona se já estiver logado
+  useEffect(() => {
+    if (usuario && perfil) {
+      if (perfil.role === "admin") navigate("/admin");
+      else if (perfil.role === "master") navigate("/master");
+      else navigate("/home");
+    }
+  }, [usuario, perfil, navigate]);
+
   useEffect(() => {
     const buscarEmpresas = async () => {
       if (modo !== "matricula") return;
@@ -136,7 +147,7 @@ export default function Login() {
 
       if (perfilData?.role === "admin") window.location.href = "/admin";
       else if (perfilData?.role === "master") window.location.href = "/master";
-      else window.location.href = "/";
+      else window.location.href = "/home";
 
     } catch (err) {
       console.error("Erro no login:", err);

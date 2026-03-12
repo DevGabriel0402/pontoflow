@@ -8,7 +8,7 @@ export default function MasterRoute({ children }) {
 
     if (carregando) return <LoadingGlobal />;
     if (!usuario) return <Navigate to="/login" replace />;
-    if (!isSuperAdmin) return <Navigate to="/" replace />;
+    if (!isSuperAdmin) return <Navigate to="/home" replace />;
 
     return children;
 }

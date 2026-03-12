@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import PrivateRoute from "./routes/PrivateRoute";
@@ -32,8 +32,10 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
-        
-        <Route path="/" element={<LandingPage />} />
+
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        <Route path="/landingpage" element={<LandingPage />} />
 
         <Route
           path="/home"
