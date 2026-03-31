@@ -237,6 +237,7 @@ export default function PainelJustificativas({ funcionarios = [] }) {
                     origem: "JUSTIFICATIVA_APROVADA",
                     justificativaId: item.id,
                     dataReferencia: dateSolicitada,
+                    motivo: item.motivo || null,
                     criadoEm: serverTimestamp(),
                     criadoPor: usuario.uid,
                 });
@@ -288,6 +289,7 @@ export default function PainelJustificativas({ funcionarios = [] }) {
                     origem: "JUSTIFICATIVA_APROVADA",
                     justificativaId: item.id,
                     dataReferencia: dateSolicitada,
+                    motivo: item.motivo || null,
                     criadoEm: serverTimestamp(),
                     criadoPor: usuario.uid,
                 });

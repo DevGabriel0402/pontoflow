@@ -1,10 +1,11 @@
 import React from "react";
 import styled, { keyframes } from "styled-components";
 import { FiX, FiSend, FiClock, FiPaperclip } from "react-icons/fi";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
+import SeletorAcordeao from "../SeletorAcordeao";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 
@@ -16,16 +17,30 @@ const TIPOS = [
     { value: "ABONO_FALTA", label: "Abono de Falta (Dia Inteiro)" },
 ];
 
-const TIPOS_ANEXO = [
-    { value: "SEM_ANEXO", label: "Não possuo anexo" },
-    { value: "ATESTADO_MEDICO", label: "Atestado Médico" },
-    { value: "COMPARECIMENTO", label: "Declaração Téc/Comparecimento" },
-    { value: "OBITO", label: "Atestado de Óbito Familiar" },
-    { value: "NASCIMENTO", label: "Atestado de Nascimento" },
-    { value: "OUTRO", label: "Outro" }
+export const MOTIVOS_JUSTIFICATIVA = [
+    { value: "ESQUECI_PONTO", label: "Esqueci de bater o ponto" },
+    { value: "PROBLEMAS_TECNICOS", label: "Problemas lógicos e técnicos" },
+    { value: "EMERGENCIA_FORCA_MAIOR", label: "Emergência ou Força maior" },
+    { value: "ASSEMBLEIA", label: "Assembleia" },
+    { value: "ATESTADO_MEDICO", label: "Atestado médico/odontológico" },
+    { value: "PARALISACAO", label: "Paralização" },
+    { value: "FORMACAO", label: "Formação" },
+    { value: "LICENCA_GALA", label: "Licença Gala (casamento)" },
+    { value: "LICENCA_PATERNIDADE_MATERNIDADE", label: "Licença Paternidade/Maternidade" },
+    { value: "LICENCA_LUTO", label: "Licença Luto" },
+    { value: "CONVOCACAO_JUDICIAL_ELEITORAL", label: "Convocação Judicial ou Eleitoral" },
+    { value: "DOACAO_SANGUE", label: "Doação de Sangue" },
+    { value: "OUTROS", label: "Outros" }
 ];
 
-export default function ModalJustificativa({ aberto, onFechar }) {
+const PRECISA_ANEXO = [
+    "ATESTADO_MEDICO",
+    "LICENCA_GALA",
+    "LICENCA_PATERNIDADE_MATERNIDADE",
+    "LICENCA_LUTO"
+];
+
+export default function ModalJustificativa({ aberto, onFechar, editandoObj = null }) {
     const { usuario, perfil } = useAuth();
     const { config } = useConfig();
 
@@ -42,11 +57,11 @@ export default function ModalJustificativa({ aberto, onFechar }) {
     }, [config?.regras?.pontosAtivos]);
 
     const [tipo, setTipo] = React.useState("ENTRADA");
+    const [motivo, setMotivo] = React.useState("ESQUECI_PONTO");
     const [dataHora, setDataHora] = React.useState("");
     const [texto, setTexto] = React.useState("");
     const [enviando, setEnviando] = React.useState(false);
 
-    const [tipoAnexo, setTipoAnexo] = React.useState("SEM_ANEXO");
     const [anexoBase64, setAnexoBase64] = React.useState(null);
     const [nomeArquivo, setNomeArquivo] = React.useState("");
     const fileInputRef = React.useRef(null);
@@ -54,16 +69,27 @@ export default function ModalJustificativa({ aberto, onFechar }) {
     // Pre-fill datetime with now when modal opens
     React.useEffect(() => {
         if (aberto) {
-            const now = new Date();
-            now.setSeconds(0, 0);
-            setDataHora(format(now, "yyyy-MM-dd'T'HH:mm"));
-            setTexto("");
-            setTipo("ENTRADA");
-            setTipoAnexo("SEM_ANEXO");
-            setAnexoBase64(null);
-            setNomeArquivo("");
+            if (editandoObj) {
+                setTipo(editandoObj.tipo || "ENTRADA");
+                setDataHora(editandoObj.dataHoraSolicitada || "");
+                setTexto(editandoObj.justificativa || "");
+                setMotivo(editandoObj.motivo || "ESQUECI_PONTO");
+                setAnexoBase64(editandoObj.anexoUrl || null);
+                setNomeArquivo(editandoObj.anexoNome || "");
+            } else {
+                const now = new Date();
+                now.setSeconds(0, 0);
+                setDataHora(format(now, "yyyy-MM-dd'T'HH:mm"));
+                setTexto("");
+                setTipo("ENTRADA");
+                setMotivo("ESQUECI_PONTO");
+                setAnexoBase64(null);
+                setNomeArquivo("");
+            }
         }
-    }, [aberto]);
+    }, [aberto, editandoObj]);
+
+    const precisaAnexo = React.useMemo(() => PRECISA_ANEXO.includes(motivo), [motivo]);
 
     const lidarComUpload = (e) => {
         const file = e.target.files[0];
@@ -128,34 +154,41 @@ export default function ModalJustificativa({ aberto, onFechar }) {
             toast.error("Informe a data da falta a ser abonada.");
             return;
         }
-        if (tipoAnexo !== "SEM_ANEXO" && !anexoBase64) {
-            toast.error("Você informou um tipo de atestado, por favor anexe a imagem!");
+        if (precisaAnexo && !anexoBase64) {
+            toast.error("Este tipo de justificativa requer um anexo (atestado/documento).");
             return;
         }
 
         setEnviando(true);
         try {
-            await addDoc(collection(db, "justificativas"), {
+            const payload = {
                 userId: usuario.uid,
                 userName: perfil?.nome || usuario.email,
                 companyId: perfil?.companyId || null,
                 tipo,
                 dataHoraSolicitada: dataHora,
                 justificativa: texto.trim(),
+                motivo: motivo,
                 status: "pendente",
-                criadoEm: serverTimestamp(),
+                criadoEm: editandoObj ? editandoObj.criadoEm : serverTimestamp(),
+                editadoEm: editandoObj ? serverTimestamp() : null,
                 avaliadoPor: null,
                 avaliadoEm: null,
                 motivoRejeicao: null,
-                tipoAnexo: tipoAnexo,
                 anexoUrl: anexoBase64, // Enviando string base64 direto pro DB
                 anexoNome: nomeArquivo,
-            });
+            };
 
-            if (anexoBase64) {
-                toast.success("Justificativa e anexo entregues para o RH!");
+            if (editandoObj) {
+                await updateDoc(doc(db, "justificativas", editandoObj.id), payload);
+                toast.success("Justificativa atualizada com sucesso!");
             } else {
-                toast.success("Justificativa enviada! Aguarde a aprovação do administrador.");
+                await addDoc(collection(db, "justificativas"), payload);
+                if (anexoBase64) {
+                    toast.success("Justificativa e anexo entregues para o RH!");
+                } else {
+                    toast.success("Justificativa enviada! Aguarde a aprovação do administrador.");
+                }
             }
             onFechar();
         } catch (e) {
@@ -174,7 +207,7 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                 <Header>
                     <Titulo>
                         <FiClock size={18} />
-                        Justificar Ponto Esquecido
+                        {editandoObj ? "Editar Justificativa" : "Justificar Ponto Esquecido"}
                     </Titulo>
                     <BtnFechar onClick={onFechar}><FiX size={20} /></BtnFechar>
                 </Header>
@@ -204,8 +237,15 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                     />
 
                     <Label style={{ marginTop: 20 }}>Motivo / Justificativa</Label>
+                    <SeletorAcordeao
+                        opcoes={MOTIVOS_JUSTIFICATIVA}
+                        value={motivo}
+                        onChange={setMotivo}
+                    />
+
+                    <Label style={{ marginTop: 20 }}>Observações Adicionais (Opcional)</Label>
                     <Textarea
-                        placeholder="Descreva o que aconteceu e por que não foi possível registrar o ponto..."
+                        placeholder="Descreva mais detalhes se necessário..."
                         value={texto}
                         onChange={e => setTexto(e.target.value)}
                         maxLength={400}
@@ -213,38 +253,30 @@ export default function ModalJustificativa({ aberto, onFechar }) {
                     />
                     <Contador $aviso={texto.length > 350}>{texto.length}/400</Contador>
 
-                    <Label style={{ marginTop: 20 }}>Anexar Atestado / Documento (Opcional)</Label>
-                    <Select value={tipoAnexo} onChange={(e) => {
-                        setTipoAnexo(e.target.value);
-                        if (e.target.value === "SEM_ANEXO") {
-                            setAnexoBase64(null);
-                            setNomeArquivo("");
-                        }
-                    }}>
-                        {TIPOS_ANEXO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </Select>
-
-                    {tipoAnexo !== "SEM_ANEXO" && (
-                        <AnexoUploadWrapper>
-                            <BtnUpload type="button" onClick={() => fileInputRef.current?.click()}>
-                                <FiPaperclip size={16} />
-                                {nomeArquivo ? "Trocar imagem" : "Selecionar imagem do documento"}
-                            </BtnUpload>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                style={{ display: "none" }}
-                                onChange={lidarComUpload}
-                            />
-                            {nomeArquivo && <NomeArquivo>Anexado: <strong>{nomeArquivo}</strong></NomeArquivo>}
-                            {anexoBase64 && <PreviewImg src={anexoBase64} />}
-                        </AnexoUploadWrapper>
+                    {precisaAnexo && (
+                        <>
+                            <Label style={{ marginTop: 10 }}>Anexar Atestado / Documento (Obrigatório)</Label>
+                            <AnexoUploadWrapper>
+                                <BtnUpload type="button" onClick={() => fileInputRef.current?.click()}>
+                                    <FiPaperclip size={16} />
+                                    {nomeArquivo ? "Trocar imagem" : "Selecionar imagem do documento"}
+                                </BtnUpload>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    ref={fileInputRef}
+                                    style={{ display: "none" }}
+                                    onChange={lidarComUpload}
+                                />
+                                {nomeArquivo && <NomeArquivo>Anexado: <strong>{nomeArquivo}</strong></NomeArquivo>}
+                                {anexoBase64 && <PreviewImg src={anexoBase64} />}
+                            </AnexoUploadWrapper>
+                        </>
                     )}
 
                     <BtnEnviar onClick={handleEnviar} disabled={enviando} style={{ marginTop: 20 }}>
                         <FiSend size={16} />
-                        {enviando ? "Enviando..." : "Enviar Justificativa"}
+                        {enviando ? "Enviando..." : editandoObj ? "Atualizar Justificativa" : "Enviar Justificativa"}
                     </BtnEnviar>
                 </Corpo>
             </Modal>

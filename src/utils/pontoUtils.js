@@ -104,7 +104,8 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
     }
 
     // Garante que mesmo os dias abonados (sem ponto batido) apareçam no resumo.
-    diasAbonados.forEach((isoDate) => {
+    const chavesAbono = Array.isArray(diasAbonados) ? diasAbonados : Object.keys(diasAbonados || {});
+    chavesAbono.forEach((isoDate) => {
         if (!grupos[isoDate]) {
             const dLocal = new Date(`${isoDate}T12:00:00`);
             grupos[isoDate] = { data: dLocal, pontos: [] };
@@ -113,10 +114,25 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
 
     return Object.entries(grupos).map(([dataKey, g]) => {
         const pts = g.pontos.sort((a, b) => a.dateObj - b.dateObj);
-        const entrada = pts.filter((p) => p.type === "ENTRADA").pop()?.dateObj;
-        const saida = pts.filter((p) => p.type === "SAIDA").pop()?.dateObj;
-        const iniInt = pts.filter((p) => p.type === "INICIO_INTERVALO").pop()?.dateObj;
-        const fimInt = pts.filter((p) => p.type === "FIM_INTERVALO").pop()?.dateObj;
+        
+        const getMeta = (type) => {
+            const p = pts.filter((p) => p.type === type).pop();
+            if (!p) return null;
+            return {
+                time: p.dateObj,
+                foiJustificado: p.origem === "JUSTIFICATIVA_APROVADA"
+            };
+        };
+
+        const entradaMeta = getMeta("ENTRADA");
+        const saidaMeta = getMeta("SAIDA");
+        const iniIntMeta = getMeta("INICIO_INTERVALO");
+        const fimIntMeta = getMeta("FIM_INTERVALO");
+
+        const entrada = entradaMeta?.time;
+        const saida = saidaMeta?.time;
+        const iniInt = iniIntMeta?.time;
+        const fimInt = fimIntMeta?.time;;
 
         let minutosTrabalhados = 0;
         let status = "Incompleto";
@@ -163,9 +179,12 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
 
         let minutosEsperadosDia = extrairEsperadoParaDia(g.data);
 
-        if (diasAbonados.includes(dataKey)) {
+        if (Array.isArray(diasAbonados) && diasAbonados.includes(dataKey)) {
             minutosEsperadosDia = 0;
             status = "Abonado";
+        } else if (diasAbonados && typeof diasAbonados === 'object' && diasAbonados[dataKey]) {
+            minutosEsperadosDia = 0;
+            status = diasAbonados[dataKey];
         }
 
         let diferenca = 0;
@@ -189,7 +208,12 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             minutosEsperados: minutosEsperadosDia,
             diferenca,
             status,
-            check: { entrada, saida, iniInt, fimInt },
+            ponto_indices: {
+                entrada: entradaMeta,
+                saida: saidaMeta,
+                iniInt: iniIntMeta,
+                fimInt: fimIntMeta
+            },
             pontosOriginal: pts,
         };
     }).filter(d => {
@@ -207,7 +231,7 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         if (d.dataKey > hojeKey) return false;
 
         // 3. Esconder finais de semana ou folgas SEM ponto batido e SEM horas esperadas
-        const temPonto = !!d.check.entrada;
+        const temPonto = !!d.ponto_indices.entrada;
         const temEsperado = d.minutosEsperados > 0;
 
         // Se não era pra trabalhar e não trabalhou, retira da lista

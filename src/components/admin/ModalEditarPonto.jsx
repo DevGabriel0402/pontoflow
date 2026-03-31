@@ -26,10 +26,10 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
     useEffect(() => {
         if (registro && aberto) {
             setHorarios({
-                entrada: registro.check.entrada ? format(registro.check.entrada, "HH:mm") : "",
-                iniInt: registro.check.iniInt ? format(registro.check.iniInt, "HH:mm") : "",
-                fimInt: registro.check.fimInt ? format(registro.check.fimInt, "HH:mm") : "",
-                saida: registro.check.saida ? format(registro.check.saida, "HH:mm") : ""
+                entrada: registro.ponto_indices?.entrada?.time ? format(registro.ponto_indices.entrada.time, "HH:mm") : "",
+                iniInt: registro.ponto_indices?.iniInt?.time ? format(registro.ponto_indices.iniInt.time, "HH:mm") : "",
+                fimInt: registro.ponto_indices?.fimInt?.time ? format(registro.ponto_indices.fimInt.time, "HH:mm") : "",
+                saida: registro.ponto_indices?.saida?.time ? format(registro.ponto_indices.saida.time, "HH:mm") : ""
             });
 
             // Verificar se já existe abono para este dia

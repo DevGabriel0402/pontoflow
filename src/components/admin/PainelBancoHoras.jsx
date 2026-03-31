@@ -11,7 +11,12 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWeekend, startOfToday, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter, FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2, FiRefreshCw, FiFile } from "react-icons/fi";
+import { 
+  FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter, 
+  FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiAlertCircle, 
+  FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2, 
+  FiRefreshCw, FiFile 
+} from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
   horaParaMin,
@@ -24,6 +29,7 @@ import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import SeletorAcordeao from "../SeletorAcordeao";
 import ModalConfirmacao from "../ModalConfirmacao";
 import ModalEditarPonto from "./ModalEditarPonto";
+import { MOTIVOS_JUSTIFICATIVA } from "../colaborador/ModalJustificativa";
 
 // Wrapper seguro contra "Invalid Date"
 function safeFormat(dateObj, fmtStr) {
@@ -37,6 +43,10 @@ function safeFormat(dateObj, fmtStr) {
 }
 
 // (Funções helpers movidas para src/utils/pontoUtils.js)
+const getMotivoLabel = (motivoValue) => {
+  const m = MOTIVOS_JUSTIFICATIVA.find(opt => opt.value === motivoValue);
+  return m ? m.label : "Justificado";
+};
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -143,24 +153,26 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         const pontosFunc = pontosAtePeriodo.filter((p) => p.userId === f.id);
 
         // Extrair todos os abonos até o fim do período
-        const abonosFunc = lancamentosAtePeriodo
+        const abonosFunc = {};
+        lancamentosAtePeriodo
           .filter(l => l.userId === f.id && (
             (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
             (l.origem === "ABONO_MANUAL")
           ))
-          .map(l => {
-            // ABONO_MANUAL usa dataReferencia diretamente (yyyy-MM-dd)
+          .forEach(l => {
+            let dataKey = null;
             if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
-              return l.dataReferencia;
+              dataKey = l.dataReferencia;
+            } else {
+              const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+              if (match) {
+                dataKey = `${match[3]}-${match[2]}-${match[1]}`;
+              }
             }
-            // JUSTIFICATIVA_APROVADA extrai a data da descrição
-            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-            if (match) {
-              return `${match[3]}-${match[2]}-${match[1]}`;
+            if (dataKey) {
+              abonosFunc[dataKey] = l.motivo ? getMotivoLabel(l.motivo) : "Justificado";
             }
-            return null;
-          })
-          .filter(Boolean);
+          });
 
         // Calcula o resumo histórico até o fim do período
         // Para o saldo total, passamos desde o início (criadoEm) até o fim do período selecionado
@@ -577,10 +589,38 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                 {dias.map((dia) => (
                                   <tr key={dia.dataKey}>
                                     <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
-                                    <td>{dia.check.entrada ? safeFormat(dia.check.entrada, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.iniInt ? safeFormat(dia.check.iniInt, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.fimInt ? safeFormat(dia.check.fimInt, "HH:mm") : "—"}</td>
-                                    <td>{dia.check.saida ? safeFormat(dia.check.saida, "HH:mm") : "—"}</td>
+                                    <td>
+                                      {dia.ponto_indices.entrada ? (
+                                        <TimeWrapper>
+                                          {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
+                                          {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                        </TimeWrapper>
+                                      ) : "—"}
+                                    </td>
+                                    <td>
+                                      {dia.ponto_indices.iniInt ? (
+                                        <TimeWrapper>
+                                          {safeFormat(dia.ponto_indices.iniInt.time, "HH:mm")}
+                                          {dia.ponto_indices.iniInt.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                        </TimeWrapper>
+                                      ) : "—"}
+                                    </td>
+                                    <td>
+                                      {dia.ponto_indices.fimInt ? (
+                                        <TimeWrapper>
+                                          {safeFormat(dia.ponto_indices.fimInt.time, "HH:mm")}
+                                          {dia.ponto_indices.fimInt.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                        </TimeWrapper>
+                                      ) : "—"}
+                                    </td>
+                                    <td>
+                                      {dia.ponto_indices.saida ? (
+                                        <TimeWrapper>
+                                          {safeFormat(dia.ponto_indices.saida.time, "HH:mm")}
+                                          {dia.ponto_indices.saida.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                        </TimeWrapper>
+                                      ) : "—"}
+                                    </td>
                                     <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
                                     <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
                                     <td>
@@ -590,8 +630,17 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                       }
                                     </td>
                                     <td>
-                                      <StatusBadge $ok={dia.status === "Ok"}>
-                                        {dia.status === "Ok" ? <FiCheckCircle size={12} /> : <FiAlertTriangle size={12} />}
+                                      <StatusBadge 
+                                        $ok={dia.status === "Ok"} 
+                                        $justificado={dia.status !== "Ok" && dia.status !== "Incompleto" && dia.status !== "Falta"}
+                                      >
+                                        {dia.status === "Ok" ? (
+                                          <FiCheckCircle size={12} />
+                                        ) : (dia.status !== "Incompleto" && dia.status !== "Falta") ? (
+                                          <FiAlertTriangle size={12} />
+                                        ) : (
+                                          <FiAlertCircle size={12} />
+                                        )}
                                         {dia.status}
                                       </StatusBadge>
                                     </td>
@@ -606,7 +655,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                                 userName: func.nome,
                                                 data: dia.data,
                                                 dataKey: dia.dataKey,
-                                                check: dia.check || {},
+                                                ponto_indices: dia.ponto_indices || {},
                                                 pontos: dia.pontosOriginal || []
                                               });
                                               setModalEditPontoAberto(true);
@@ -1128,9 +1177,25 @@ const StatusBadge = styled.span`
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-  background: ${({ $ok }) => $ok ? "rgba(46,204,113,0.1)" : "rgba(231,76,60,0.1)"};
-  color: ${({ $ok }) => $ok ? "#2ecc71" : "#e74c3c"};
+  background: ${({ $ok, $justificado }) => 
+    $ok ? "rgba(46,204,113,0.1)" : 
+    $justificado ? "rgba(241, 196, 15, 0.15)" : 
+    "rgba(231,76,60,0.1)"};
+  color: ${({ $ok, $justificado }) => 
+    $ok ? "#2ecc71" : 
+    $justificado ? "#f1c40f" : 
+    "#e74c3c"};
 `;
+
+const TimeWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const IconJustificado = () => (
+  <FiAlertCircle size={10} style={{ color: '#f1c40f' }} />
+);
 
 const AjustesManualSection = styled.div`
   margin-top: 8px;

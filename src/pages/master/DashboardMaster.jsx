@@ -568,6 +568,7 @@ export default function DashboardMaster() {
     const [novaVersao, setNovaVersao] = React.useState("");
     const [novaTitulo, setNovaTitulo] = React.useState("");
     const [novasNotas, setNovasNotas] = React.useState("");
+    const [novaDestinatario, setNovaDestinatario] = React.useState("TODOS");
     const [publicando, setPublicando] = React.useState(false);
 
     // Manual Editável
@@ -654,6 +655,7 @@ export default function DashboardMaster() {
                 versao: novaVersao.trim(),
                 titulo: novaTitulo.trim(),
                 notas: novasNotas.trim(),
+                destinatario: novaDestinatario,
                 dataPublicacao: serverTimestamp(),
             });
             // Marca no saas qual é a última atualização publicada
@@ -666,6 +668,7 @@ export default function DashboardMaster() {
             setNovaVersao("");
             setNovaTitulo("");
             setNovasNotas("");
+            setNovaDestinatario("TODOS");
         } catch (e) {
             console.error(e);
             toast.error("Erro ao publicar atualização.");
@@ -978,6 +981,18 @@ export default function DashboardMaster() {
                                         value={novaTitulo}
                                         onChange={e => setNovaTitulo(e.target.value)}
                                         placeholder="Ex: Melhorias no relatório PDF"
+                                    />
+                                </InputGroup>
+                                <InputGroup>
+                                    <label>Público-Alvo</label>
+                                    <SeletorEditor 
+                                        value={novaDestinatario}
+                                        onChange={e => setNovaDestinatario(e.target.value)}
+                                        opcoes={[
+                                            { value: "TODOS", label: "Todos os Perfis" },
+                                            { value: "ADMIN", label: "Apenas Administradores" },
+                                            { value: "COLABORADOR", label: "Apenas Colaboradores" }
+                                        ]}
                                     />
                                 </InputGroup>
                             </GridChangelog>

@@ -8,7 +8,7 @@ import { exportarParaCsv } from "../../utils/exportarCsv";
 import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import {
-  FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
+  FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiAlertCircle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
   FiShield, FiBell
 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
@@ -33,6 +33,7 @@ import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
+import { MOTIVOS_JUSTIFICATIVA } from "../../components/colaborador/ModalJustificativa";
 import { maskMatricula } from "../../utils/mascaras";
 import DateRangePicker from "../../components/DateRangePicker";
 import ChatSuporte from "../../components/ChatSuporte";
@@ -45,6 +46,11 @@ const TIPOS = [
   { value: "FIM_INTERVALO", label: "Fim Intervalo" },
   { value: "SAIDA", label: "Saída" },
 ];
+
+const getMotivoLabel = (motivoValue) => {
+  const m = MOTIVOS_JUSTIFICATIVA.find(opt => opt.value === motivoValue);
+  return m ? m.label : "Justificado";
+};
 
 function formatarTipo(tipo) {
   const map = {
@@ -378,18 +384,26 @@ export default function DashboardAdmin() {
         const dataCriacao = func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null);
         
         // Extrair abonos (justificativas aprovadas ou abonos manuais) para este funcionário
-        const abonosFunc = bancoHoras
+        const abonosFunc = {};
+        bancoHoras
           .filter(l => l.userId === func.id && (
             (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
             (l.origem === "ABONO_MANUAL")
           ))
-          .map(l => {
-            if (l.origem === "ABONO_MANUAL" && l.dataReferencia) return l.dataReferencia;
-            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-            if (match) return `${match[3]}-${match[2]}-${match[1]}`;
-            return null;
-          })
-          .filter(Boolean);
+          .forEach(l => {
+            let dataKey = null;
+            if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
+              dataKey = l.dataReferencia;
+            } else {
+              const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+              if (match) {
+                dataKey = `${match[3]}-${match[2]}-${match[1]}`;
+              }
+            }
+            if (dataKey) {
+              abonosFunc[dataKey] = l.motivo ? getMotivoLabel(l.motivo) : "Justificado";
+            }
+          });
 
         const dataCriacaoTotal = dataCriacao || new Date(2025, 0, 1);
         
@@ -694,17 +708,46 @@ export default function DashboardAdmin() {
                                 )}
                               </div>
                             </td>
-                            {temPonto('entrada') && <td>{j.check.entrada ? format(j.check.entrada, 'HH:mm') : '—'}</td>}
-                            {temPonto('intervalo_saida') && <td>{j.check.iniInt ? format(j.check.iniInt, 'HH:mm') : '—'}</td>}
-                            {temPonto('intervalo_entrada') && <td>{j.check.fimInt ? format(j.check.fimInt, 'HH:mm') : '—'}</td>}
-                            {temPonto('saida') && <td>{j.check.saida ? format(j.check.saida, 'HH:mm') : '—'}</td>}
+                            {temPonto('entrada') && (
+                              <td>
+                                {j.ponto_indices.entrada?.time ? format(j.ponto_indices.entrada.time, 'HH:mm') : '—'}
+                                {j.ponto_indices.entrada?.foiJustificado && <IconJustificado />}
+                              </td>
+                            )}
+                            {temPonto('intervalo_saida') && (
+                              <td>
+                                {j.ponto_indices.iniInt?.time ? format(j.ponto_indices.iniInt.time, 'HH:mm') : '—'}
+                                {j.ponto_indices.iniInt?.foiJustificado && <IconJustificado />}
+                              </td>
+                            )}
+                            {temPonto('intervalo_entrada') && (
+                              <td>
+                                {j.ponto_indices.fimInt?.time ? format(j.ponto_indices.fimInt.time, 'HH:mm') : '—'}
+                                {j.ponto_indices.fimInt?.foiJustificado && <IconJustificado />}
+                              </td>
+                            )}
+                            {temPonto('saida') && (
+                              <td>
+                                {j.ponto_indices.saida?.time ? format(j.ponto_indices.saida.time, 'HH:mm') : '—'}
+                                {j.ponto_indices.saida?.foiJustificado && <IconJustificado />}
+                              </td>
+                            )}
                             <td>{j.totalFormatado}</td>
-                            <td>
-                              <StatusBadge $ativo={j.status === "Ok"}>
-                                {j.status === "Ok" ? <FiCheckCircle /> : <FiAlertTriangle />}
-                                {j.status}
-                              </StatusBadge>
-                            </td>
+                             <td>
+                               <StatusBadge 
+                                 $ativo={j.status === "Ok"}
+                                 $justificado={j.status !== "Ok" && j.status !== "Incompleto" && j.status !== "Falta"}
+                               >
+                                 {j.status === "Ok" ? (
+                                   <FiCheckCircle />
+                                 ) : (j.status !== "Incompleto" && j.status !== "Falta") ? (
+                                   <FiAlertTriangle />
+                                 ) : (
+                                   <FiAlertCircle />
+                                 )}
+                                 {j.status}
+                               </StatusBadge>
+                             </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1665,9 +1708,18 @@ const StatusBadge = styled.div`
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  background: ${({ $ativo }) => $ativo ? "rgba(46, 204, 113, 0.1)" : "rgba(235, 77, 75, 0.1)"};
-  color: ${({ $ativo }) => $ativo ? "#2ecc71" : "#eb4d4b"};
-  border: 1px solid ${({ $ativo }) => $ativo ? "rgba(46, 204, 113, 0.2)" : "rgba(235, 77, 75, 0.2)"};
+  background: ${({ $ativo, $justificado }) => 
+    $ativo ? "rgba(46, 204, 113, 0.1)" : 
+    $justificado ? "rgba(241, 196, 15, 0.15)" : 
+    "rgba(235, 77, 75, 0.1)"};
+  color: ${({ $ativo, $justificado }) => 
+    $ativo ? "#2ecc71" : 
+    $justificado ? "#f1c40f" : 
+    "#eb4d4b"};
+  border: 1px solid ${({ $ativo, $justificado }) => 
+    $ativo ? "rgba(46, 204, 113, 0.2)" : 
+    $justificado ? "rgba(241, 196, 15, 0.2)" : 
+    "rgba(235, 77, 75, 0.2)"};
 
   svg {
     font-size: 14px;
@@ -1833,6 +1885,11 @@ const BtnAcao = styled.button`
     flex-shrink: 0;
   }
 `;
+
+
+const IconJustificado = () => (
+  <FiAlertCircle size={10} style={{ color: '#f1c40f', marginLeft: '2px' }} />
+);
 
 const BtnNotificar = styled.button`
   background: #f1c40f22;

@@ -30,8 +30,22 @@ export default function BannerNovaAtualizacao() {
             // Busca o changelog desta versão
             const changelogSnap = await getDoc(doc(db, "changelog", ultimaAtualizacaoId));
             if (changelogSnap.exists()) {
-                setNovaAtualizacao({ id: ultimaAtualizacaoId, ...changelogSnap.data() });
-                setDispensado(false);
+                const data = changelogSnap.data();
+                const destinatario = data.destinatario || "TODOS";
+                const isUserAdmin = perfil?.role === "admin";
+
+                // Lógica de filtragem
+                let mostrar = false;
+                if (destinatario === "TODOS") mostrar = true;
+                else if (destinatario === "ADMIN" && isUserAdmin) mostrar = true;
+                else if (destinatario === "COLABORADOR" && !isUserAdmin) mostrar = true;
+
+                if (mostrar) {
+                    setNovaAtualizacao({ id: ultimaAtualizacaoId, ...data });
+                    setDispensado(false);
+                } else {
+                    setNovaAtualizacao(null);
+                }
             }
         });
         return () => unsub();

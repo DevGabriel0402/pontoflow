@@ -3,16 +3,21 @@ import styled from "styled-components";
 import TabbarMobile from "../../components/TabbarMobile";
 import { useAuth } from "../../contexts/AuthContexto";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
+import { useJustificativas } from "../../hooks/useJustificativas";
 import { useSync } from "../../hooks/useSync";
 import { obterFila } from "../../services/offlineQueue";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon, FiPlusCircle } from "react-icons/fi";
+import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon, FiPlusCircle, FiEdit2, FiClock, FiFileText, FiTrash2 } from "react-icons/fi";
 import { startOfToday, startOfWeek, isAfter } from "date-fns";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
 import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
 import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import LoadingGlobal from "../../components/LoadingGlobal";
+import { db } from "../../services/firebase";
+import { doc, deleteDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -59,7 +64,26 @@ function getIcone(tipo, dentroDoRaio) {
     case "INICIO_INTERVALO": return <FiSun />;
     case "FIM_INTERVALO": return <FiSun />;
     case "SAIDA": return <FiCheck />;
+    case "ABONO_FALTA": return <FiFileText />;
     default: return <FiCheck />;
+  }
+}
+
+function getStatusCor(status) {
+  switch (status) {
+    case "aprovada": return "#2ecc71";
+    case "rejeitada": return "#eb4d4b";
+    case "pendente": return "#f9ca24";
+    default: return "#8e8e93";
+  }
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case "aprovada": return "Aprovada";
+    case "rejeitada": return "Rejeitada";
+    case "pendente": return "Pendente";
+    default: return status;
   }
 }
 
@@ -75,6 +99,22 @@ export default function Historico() {
   const [dataFim, setDataFim] = React.useState("");
   const [modalFiltroAberto, setModalFiltroAberto] = React.useState(false);
   const [modalJustificativaAberto, setModalJustificativaAberto] = React.useState(false);
+  const [justificativaParaEditar, setJustificativaParaEditar] = React.useState(null);
+  const [confirmarExclusaoId, setConfirmarExclusaoId] = React.useState(null);
+
+  const { itens: justificativas, carregando: carregandoJustificativas } = useJustificativas(usuario?.uid);
+
+  const handleExcluirJustificativa = async () => {
+    if (!confirmarExclusaoId) return;
+    try {
+      await deleteDoc(doc(db, "justificativas", confirmarExclusaoId));
+      toast.success("Justificativa excluída com sucesso.");
+      setConfirmarExclusaoId(null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao excluir justificativa.");
+    }
+  };
 
   const filaOffline = React.useMemo(() => obterFila(), [pendentes]);
 
@@ -196,6 +236,14 @@ export default function Historico() {
                 Período
               </Tab>
             )}
+            <Tab
+              $ativo={aba === "JUSTIFICATIVAS"}
+              onClick={() => {
+                setAba("JUSTIFICATIVAS");
+              }}
+            >
+              Justificativas
+            </Tab>
           </Tabs>
         </HeaderSecao>
 
@@ -214,7 +262,7 @@ export default function Historico() {
             <Vazio>Nenhum registro encontrado</Vazio>
           )}
 
-          {!carregando && !erro && (() => {
+          {!carregando && !erro && aba !== "JUSTIFICATIVAS" && (() => {
             let ultimaData = "";
             return itensFiltrados.map((p) => {
               const dataObj = getDataPreferida(p);
@@ -269,6 +317,64 @@ export default function Historico() {
               );
             });
           })()}
+
+          {aba === "JUSTIFICATIVAS" && (
+            <ListaJustificativas>
+              {carregandoJustificativas ? (
+                <LoadingGlobal fullHeight={false} />
+              ) : justificativas.length === 0 ? (
+                <Vazio>Nenhuma justificativa enviada</Vazio>
+              ) : (
+                justificativas.map((j) => (
+                  <CardJustificativa key={j.id}>
+                    <CardHeader>
+                      <BadgeJustificativa $status={j.status}>
+                        {getStatusLabel(j.status)}
+                      </BadgeJustificativa>
+                      <DataJustificativa>
+                        <FiClock size={12} />
+                        {j.criadoEm?.toDate ? format(j.criadoEm.toDate(), "dd/MM/yyyy HH:mm") : "Recém enviada"}
+                      </DataJustificativa>
+                    </CardHeader>
+
+                    <CardBody>
+                      <InfoLinha>
+                        <strong>Motivo:</strong> {j.motivo?.replace(/_/g, ' ') || j.justificativa?.substring(0, 30) + '...'}
+                      </InfoLinha>
+                      <InfoLinha>
+                        <strong>Ponto:</strong> {formatarTipo(j.tipo)} em {j.dataHoraSolicitada ? format(new Date(j.dataHoraSolicitada), "dd/MM/yyyy HH:mm") : "—"}
+                      </InfoLinha>
+                      {j.motivoRejeicao && (
+                        <MotivoRejeicao>
+                          <strong>Motivo da Rejeição:</strong> {j.motivoRejeicao}
+                        </MotivoRejeicao>
+                      )}
+                    </CardBody>
+
+                    <CardFooter>
+                      {j.status !== "aprovada" && (
+                        <CardFooterAcoes>
+                          {j.status === "rejeitada" && (
+                            <BtnEditarJustificativa onClick={() => {
+                              setJustificativaParaEditar(j);
+                              setModalJustificativaAberto(true);
+                            }}>
+                              <FiEdit2 size={14} />
+                              Editar e Reenviar
+                            </BtnEditarJustificativa>
+                          )}
+                          <BtnExcluirJustificativa onClick={() => setConfirmarExclusaoId(j.id)}>
+                            <FiTrash2 size={14} />
+                            Excluir
+                          </BtnExcluirJustificativa>
+                        </CardFooterAcoes>
+                      )}
+                    </CardFooter>
+                  </CardJustificativa>
+                ))
+              )}
+            </ListaJustificativas>
+          )}
         </ListaRefatorada>
 
         {online && pendentes > 0 && (
@@ -285,7 +391,21 @@ export default function Historico() {
 
       <ModalJustificativa
         aberto={modalJustificativaAberto}
-        onFechar={() => setModalJustificativaAberto(false)}
+        onFechar={() => {
+          setModalJustificativaAberto(false);
+          setJustificativaParaEditar(null);
+        }}
+        editandoObj={justificativaParaEditar}
+      />
+
+      <ModalConfirmacao
+        aberto={!!confirmarExclusaoId}
+        onFechar={() => setConfirmarExclusaoId(null)}
+        onConfirmar={handleExcluirJustificativa}
+        titulo="Excluir Justificativa"
+        mensagem="Certeza que deseja excluir esta justificativa? Essa ação não pode ser desfeita."
+        perigoso={true}
+        textoConfirmar="Excluir"
       />
 
       <TabbarMobile mostrarAdmin={isAdmin} />
@@ -560,5 +680,120 @@ const BotaoJustificarFAB = styled.button`
   }
 `;
 
+const ListaJustificativas = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 0;
+`;
 
+const CardJustificativa = styled.div`
+  background: #1c1c1e;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+`;
 
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const BadgeJustificativa = styled.div`
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: ${p => getStatusCor(p.$status)}20;
+  color: ${p => getStatusCor(p.$status)};
+  border: 1px solid ${p => getStatusCor(p.$status)}40;
+`;
+
+const DataJustificativa = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8e8e93;
+`;
+
+const CardBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const InfoLinha = styled.div`
+  font-size: 14px;
+  color: #fff;
+  strong {
+    color: #8e8e93;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+`;
+
+const MotivoRejeicao = styled.div`
+  margin-top: 8px;
+  padding: 10px;
+  background: rgba(235, 77, 75, 0.1);
+  border-left: 3px solid #eb4d4b;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #eb4d4b;
+`;
+
+const CardFooter = styled.div`
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const BtnEditarJustificativa = styled.button`
+  flex: 1;
+  height: 38px;
+  background: rgba(47, 129, 247, 0.1);
+  color: #2f81f7;
+  border: 1px solid rgba(47, 129, 247, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  
+  &:hover {
+    background: rgba(47, 129, 247, 0.2);
+  }
+`;
+
+const CardFooterAcoes = styled.div`
+  display: flex;
+  gap: 10px;
+  width: 100%;
+`;
+
+const BtnExcluirJustificativa = styled.button`
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(235, 77, 75, 0.1);
+  color: #eb4d4b;
+  border: 1px solid rgba(235, 77, 75, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  
+  &:hover {
+    background: rgba(235, 77, 75, 0.2);
+  }
+`;
