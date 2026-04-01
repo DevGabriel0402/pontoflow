@@ -58,20 +58,21 @@ export function exportarResumoPdf(resumo, meta = {}) {
 
     const body = resumo.map((r) => {
         const row = [r.userName || r.userId, formatarDataSimples(r.data)];
+        const pi = r.ponto_indices || {};
 
         if (temPonto('entrada')) {
-            row.push(formatarHora(r.check.entrada));
+            row.push(formatarHora(pi.entrada?.time));
         }
 
         if (temPonto('intervalo_saida') || temPonto('intervalo_entrada')) {
-            const intervalo = r.check.iniInt && r.check.fimInt
-                ? `${formatarHora(r.check.iniInt)} - ${formatarHora(r.check.fimInt)}`
-                : r.check.iniInt || r.check.fimInt ? "Incomp." : "N/A";
+            const intervalo = pi.iniInt?.time && pi.fimInt?.time
+                ? `${formatarHora(pi.iniInt.time)} - ${formatarHora(pi.fimInt.time)}`
+                : pi.iniInt?.time || pi.fimInt?.time ? "Incomp." : "N/A";
             row.push(intervalo);
         }
 
         if (temPonto('saida')) {
-            row.push(formatarHora(r.check.saida));
+            row.push(formatarHora(pi.saida?.time));
         }
 
         row.push(r.totalFormatado);
