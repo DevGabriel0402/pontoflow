@@ -19,6 +19,8 @@ const TIPOS = [
 
 export const MOTIVOS_JUSTIFICATIVA = [
     { value: "ESQUECI_PONTO", label: "Esqueci de bater o ponto" },
+    { value: "FERIADO", label: "Feriado" },
+    { value: "RECESSO", label: "Recesso" },
     { value: "PROBLEMAS_TECNICOS", label: "Problemas lógicos e técnicos" },
     { value: "EMERGENCIA_FORCA_MAIOR", label: "Emergência ou Força maior" },
     { value: "ASSEMBLEIA", label: "Assembleia" },
@@ -30,6 +32,7 @@ export const MOTIVOS_JUSTIFICATIVA = [
     { value: "LICENCA_LUTO", label: "Licença Luto" },
     { value: "CONVOCACAO_JUDICIAL_ELEITORAL", label: "Convocação Judicial ou Eleitoral" },
     { value: "DOACAO_SANGUE", label: "Doação de Sangue" },
+
     { value: "OUTROS", label: "Outros" }
 ];
 

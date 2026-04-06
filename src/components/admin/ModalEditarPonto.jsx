@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FiX, FiClock, FiSave, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
-import { doc, updateDoc, setDoc, collection, query, where, getDocs, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
 import { useConfig } from "../../contexts/ConfigContexto";
+import SeletorAcordeao from "../SeletorAcordeao";
+import { MOTIVOS_JUSTIFICATIVA } from "../colaborador/ModalJustificativa";
 
 export default function ModalEditarPonto({ aberto, onFechar, registro, userId, companyId }) {
     const { config } = useConfig();
@@ -22,6 +24,7 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
     const [salvando, setSalvando] = useState(false);
     const [abonado, setAbonado] = useState(false);
     const [abonoDocId, setAbonoDocId] = useState(null);
+    const [motivoAbono, setMotivoAbono] = useState("ESQUECI_PONTO");
 
     useEffect(() => {
         if (registro && aberto) {
@@ -44,9 +47,11 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                     if (!snap.empty) {
                         setAbonado(true);
                         setAbonoDocId(snap.docs[0].id);
+                        setMotivoAbono(snap.docs[0].data().motivo || "OUTROS");
                     } else {
                         setAbonado(false);
                         setAbonoDocId(null);
+                        setMotivoAbono("ESQUECI_PONTO");
                     }
                 } catch (e) {
                     console.error("Erro ao verificar abono:", e);
@@ -55,36 +60,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
             checkAbono();
         }
     }, [registro, aberto, userId]);
-
-    const handleToggleAbono = async () => {
-        try {
-            if (abonado && abonoDocId) {
-                // Remover abono
-                await deleteDoc(doc(db, "banco_horas", abonoDocId));
-                setAbonado(false);
-                setAbonoDocId(null);
-                toast.success("Abono removido.");
-            } else {
-                // Criar abono
-                const ref = await addDoc(collection(db, "banco_horas"), {
-                    userId,
-                    companyId,
-                    tipo: "CREDITO",
-                    minutos: 0,
-                    descricao: `Abono de Falta - ${format(registro.data, "dd/MM/yyyy")}`,
-                    origem: "ABONO_MANUAL",
-                    dataReferencia: registro.dataKey,
-                    criadoEm: serverTimestamp()
-                });
-                setAbonado(true);
-                setAbonoDocId(ref.id);
-                toast.success("Dia abonado com sucesso!");
-            }
-        } catch (err) {
-            console.error("Erro ao alternar abono:", err);
-            toast.error("Erro ao alterar abono.");
-        }
-    };
 
     if (!aberto || !registro) return null;
 
@@ -104,8 +79,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
             };
 
             const promessas = [];
-
-            const { deleteDoc } = await import("firebase/firestore");
 
             for (const [key, valor] of Object.entries(horarios)) {
                 const tipoPonto = tiposMapeados[key];
@@ -146,6 +119,33 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                 }
             }
 
+            // --- Lógica do Abono ---
+            const motivoLabel = MOTIVOS_JUSTIFICATIVA.find(m => m.value === motivoAbono)?.label || "Abono";
+            if (abonado) {
+                if (abonoDocId) {
+                    promessas.push(updateDoc(doc(db, "banco_horas", abonoDocId), {
+                        motivo: motivoAbono,
+                        descricao: `Abono de Falta - ${motivoLabel} - ${format(registro.data, "dd/MM/yyyy")}`,
+                    }));
+                } else {
+                    promessas.push(addDoc(collection(db, "banco_horas"), {
+                        userId,
+                        companyId,
+                        tipo: "CREDITO",
+                        minutos: 0,
+                        descricao: `Abono de Falta - ${motivoLabel} - ${format(registro.data, "dd/MM/yyyy")}`,
+                        origem: "ABONO_MANUAL",
+                        motivo: motivoAbono,
+                        dataReferencia: registro.dataKey,
+                        criadoEm: serverTimestamp()
+                    }));
+                }
+            } else {
+                if (abonoDocId) {
+                    promessas.push(deleteDoc(doc(db, "banco_horas", abonoDocId)));
+                }
+            }
+
             await Promise.all(promessas);
             toast.success("Horários atualizados com sucesso!");
             onFechar();
@@ -173,6 +173,29 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                 </Alerta>
 
                 <Form onSubmit={handleSalvar}>
+                    <AbonoToggle 
+                        type="button" 
+                        $ativo={abonado} 
+                        onClick={() => setAbonado(!abonado)}
+                    >
+                        {abonado ? <FiCheckCircle size={20} /> : <div style={{width: 20, height: 20, border: '1.5px solid #8d8d99', borderRadius: '50%'}} />}
+                        <div>
+                            <strong>Abonar todo o horário</strong>
+                            <span>Marque para justificar a falta deste dia</span>
+                        </div>
+                    </AbonoToggle>
+
+                    {abonado && (
+                        <div style={{ marginBottom: 24, marginTop: -8 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: '#8d8d99', textTransform: 'uppercase', marginBottom: 8, display: 'block' }}>Motivo do Abono</label>
+                            <SeletorAcordeao 
+                                opcoes={MOTIVOS_JUSTIFICATIVA}
+                                value={motivoAbono}
+                                onChange={setMotivoAbono}
+                            />
+                        </div>
+                    )}
+
                     <Grid>
                         {temPonto('entrada') && (
                             <Campo>

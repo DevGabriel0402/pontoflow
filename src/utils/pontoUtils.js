@@ -231,12 +231,15 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         if (d.dataKey > hojeKey) return false;
 
         // 3. Esconder finais de semana ou folgas SEM ponto batido e SEM horas esperadas
-        const temPonto = !!d.ponto_indices.entrada;
+        const temPonto = !!d.ponto_indices.entrada || !!d.ponto_indices.saida;
         const temEsperado = d.minutosEsperados > 0;
+        
+        // Verifica se o dia foi explicitamente abonado
+        const foiAbonado = diasAbonados && typeof diasAbonados === 'object' ? !!diasAbonados[d.dataKey] : Array.isArray(diasAbonados) && diasAbonados.includes(d.dataKey);
 
         // Se não era pra trabalhar e não trabalhou, retira da lista
-        // Isso remove feriados sem ponto e finais de semana sem ponto
-        if (!temEsperado && !temPonto) return false;
+        // Exceção: se o dia foi abonado ou era um feriado global, queremos mostrar
+        if (!temEsperado && !temPonto && !foiAbonado && d.status !== "Feriado") return false;
 
         return true;
     });
