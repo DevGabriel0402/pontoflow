@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { FiGrid, FiUsers, FiDatabase, FiMessageSquare, FiSettings } from "react-icons/fi";
+import { FiGrid, FiUsers, FiDatabase, FiMessageSquare, FiSettings, FiUserPlus } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContexto";
 
 export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
@@ -11,6 +11,7 @@ export default function TabbarAdminMobile({ abaAtiva, setAbaAtiva }) {
 
   const abas = [
     { id: "DASHBOARD", label: "Geral", icon: <FiGrid size={20} />, habilitado: true },
+    { id: "CADASTRO", label: "Cadastrar", icon: <FiUserPlus size={20} />, habilitado: true },
     { id: "FUNCIONARIOS", label: "Equipe", icon: <FiUsers size={20} />, habilitado: true },
     { id: "BANCO_HORAS", label: "Banco", icon: <FiDatabase size={20} />, habilitado: temModulo('bancoHoras') },
     { id: "JUSTIFICATIVAS", label: "Justif.", icon: <FiMessageSquare size={20} />, habilitado: temModulo('justificativas') },

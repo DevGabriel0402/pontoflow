@@ -174,6 +174,21 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
             }
           });
 
+        // Injetar Ausências/Férias/Recessos configurados na empresa
+        (config?.ausencias || []).forEach(aus => {
+          if (aus.userId === f.id || !aus.userId) {
+            try {
+              let d = new Date(`${aus.dataInicio}T12:00:00`);
+              const f_end = new Date(`${aus.dataFim}T12:00:00`);
+              while (d <= f_end) {
+                const key = format(d, "yyyy-MM-dd");
+                abonosFunc[key] = aus.motivo || (aus.tipo === "FERIAS" ? "Férias" : (aus.tipo === "RECESSO" ? "Recesso" : (aus.tipo === "FERIADO" ? "Feriado" : "Abonado")));
+                d.setDate(d.getDate() + 1);
+              }
+            } catch (e) { console.error("Erro ao processar ausência no BH:", e); }
+          }
+        });
+
         // Calcula o resumo histórico até o fim do período
         // Para o saldo total, passamos desde o início (criadoEm) até o fim do período selecionado
         const dataCriacao = f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1));

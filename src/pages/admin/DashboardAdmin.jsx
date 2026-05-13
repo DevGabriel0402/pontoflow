@@ -9,12 +9,11 @@ import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import {
   FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiAlertCircle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
-  FiShield, FiBell
+  FiShield, FiBell, FiPlus
 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import SeletorAcordeao from "../../components/SeletorAcordeao";
-import ModalNovoFuncionario from "../../components/admin/ModalNovoFuncionario";
 import ModalEditarFuncionario from "../../components/admin/ModalEditarFuncionario";
 import MapaConfig from "../../components/admin/MapaConfig";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
@@ -30,6 +29,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
 import PainelJustificativas from "../../components/admin/PainelJustificativas";
 import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
+import PainelCadastro from "../../components/admin/PainelCadastro";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
@@ -106,7 +106,6 @@ export default function DashboardAdmin() {
   const [dataFim, setDataFim] = React.useState(format(new Date(), "yyyy-MM-dd"));
   const [mostrarToast, setMostrarToast] = React.useState(false);
   const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
-  const [modalAberto, setModalAberto] = React.useState(false);
   const [modalSenhaAberto, setModalSenhaAberto] = React.useState(false);
   const [funcEditando, setFuncEditando] = React.useState(null);
   const [confirmarExclusao, setConfirmarExclusao] = React.useState({ aberto: false, func: null });
@@ -123,6 +122,17 @@ export default function DashboardAdmin() {
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
   const [bancoHoras, setBancoHoras] = React.useState([]);
+
+  // Estados para Calendário e Ausências
+  const [listaFeriados, setListaFeriados] = React.useState([]);
+  const [listaAusencias, setListaAusencias] = React.useState([]);
+  const [novaAusencia, setNovaAusencia] = React.useState({ 
+    userId: "", 
+    dataInicio: format(new Date(), "yyyy-MM-dd"), 
+    dataFim: format(new Date(), "yyyy-MM-dd"), 
+    tipo: "FERIADO", 
+    motivo: "" 
+  });
 
   // Validar local ao abrir o painel
   React.useEffect(() => {
@@ -149,6 +159,8 @@ export default function DashboardAdmin() {
           if (configData.nomePainel) {
             setTempNomePainel(configData.nomePainel);
           }
+          if (configData.feriados) setListaFeriados(configData.feriados);
+          if (configData.ausencias) setListaAusencias(configData.ausencias);
         }
       } catch (e) {
         console.error("Erro ao carregar settings:", e);
@@ -182,6 +194,8 @@ export default function DashboardAdmin() {
           "config.lat": Number(configLat),
           "config.lng": Number(configLng),
           "config.nomePainel": tempNomePainel.trim() || nomePainel,
+          "config.feriados": listaFeriados,
+          "config.ausencias": listaAusencias,
           "config.atualizadoEm": new Date(),
         });
       } else {
@@ -191,6 +205,8 @@ export default function DashboardAdmin() {
           lat: Number(configLat),
           lng: Number(configLng),
           nomePainel: tempNomePainel.trim() || nomePainel,
+          feriados: listaFeriados,
+          ausencias: listaAusencias,
           atualizadoEm: new Date(),
         });
       }
@@ -405,6 +421,21 @@ export default function DashboardAdmin() {
             }
           });
 
+        // Injetar Ausências/Férias/Recessos configurados na empresa
+        (config?.ausencias || []).forEach(aus => {
+          if (aus.userId === func.id || !aus.userId) {
+            try {
+              let d = new Date(`${aus.dataInicio}T12:00:00`);
+              const f = new Date(`${aus.dataFim}T12:00:00`);
+              while (d <= f) {
+                const key = format(d, "yyyy-MM-dd");
+                abonosFunc[key] = aus.motivo || (aus.tipo === "FERIAS" ? "Férias" : (aus.tipo === "RECESSO" ? "Recesso" : (aus.tipo === "FERIADO" ? "Feriado" : "Abonado")));
+                d.setDate(d.getDate() + 1);
+              }
+            } catch (e) { console.error("Erro ao processar ausência:", e); }
+          }
+        });
+
         const dataCriacaoTotal = dataCriacao || new Date(2025, 0, 1);
         
         // Calcular resumo HISTÓRICO TOTAL (para o Saldo Total)
@@ -537,6 +568,9 @@ export default function DashboardAdmin() {
           </NavItem>
           <NavItem $ativo={abaAtiva === "FUNCIONARIOS"} onClick={() => setAbaAtiva("FUNCIONARIOS")}>
             <FiUsers /> <span>Funcionários</span>
+          </NavItem>
+          <NavItem $ativo={abaAtiva === "CADASTRO"} onClick={() => setAbaAtiva("CADASTRO")}>
+            <FiUserPlus /> <span>Cadastrar</span>
           </NavItem>
 
           {temModulo('bancoHoras') && (
@@ -790,7 +824,7 @@ export default function DashboardAdmin() {
                       <span className="esconder-mobile">Sincronizar</span>
                     </BotaoGhost>
 
-                    <Botao onClick={() => setModalAberto(true)}>
+                    <Botao onClick={() => setAbaAtiva("CADASTRO")}>
                       <FiUserPlus size={16} />
                       Novo Func.
                     </Botao>
@@ -824,7 +858,22 @@ export default function DashboardAdmin() {
                                 {f.ativo ? "Ativo" : "Inativo"}
                               </StatusBadge>
                             </td>
-                            <td>{f.nome}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {f.nome}
+                                {f.status === 'novo' && (
+                                  <span style={{ 
+                                    background: 'var(--cor-primaria)', 
+                                    color: '#fff', 
+                                    fontSize: '10px', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '900',
+                                    textTransform: 'uppercase'
+                                  }}>Novo</span>
+                                )}
+                              </div>
+                            </td>
                             <td style={{ fontSize: 13, fontWeight: 700, color: 'var(--cor-primaria)' }}>{maskMatricula(f.matricula) || "—"}</td>
                             <td>{f.email}</td>
                             <td style={{ fontSize: 12, whiteSpace: 'nowrap', fontWeight: 600, color: '#e1e1e6' }}>
@@ -955,6 +1004,195 @@ export default function DashboardAdmin() {
                     </Botao>
                   </ConfigBox>
 
+                  <ConfigBox>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(47, 129, 247, 0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FiCalendar size={18} color="var(--cor-primaria, #2f81f7)" />
+                      </div>
+                      <h4 style={{ margin: 0 }}>Calendário e Ausências</h4>
+                    </div>
+                    <p>Gerencie feriados, recessos e férias para garantir a precisão do banco de horas.</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div className="input-group">
+                        <label>Tipo de Ausência</label>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                          {[
+                            { value: "FERIADO", label: "Feriado", icon: <FiMapPin size={12} /> },
+                            { value: "RECESSO", label: "Recesso", icon: <FiClock size={12} /> },
+                            { value: "FERIAS", label: "Férias", icon: <FiUserPlus size={12} /> },
+                            { value: "OUTRO", label: "Abono", icon: <FiCheckSquare size={12} /> }
+                          ].map(opt => (
+                            <div 
+                              key={opt.value}
+                              onClick={() => setNovaAusencia({ ...novaAusencia, tipo: opt.value, userId: opt.value === "FERIAS" ? novaAusencia.userId : "" })}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
+                                background: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)',
+                                color: novaAusencia.tipo === opt.value ? '#fff' : '#8d8d99',
+                                border: '1px solid',
+                                borderColor: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)'
+                              }}
+                            >
+                              {opt.icon} {opt.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {novaAusencia.tipo === "FERIAS" && (
+                        <div className="input-group" style={{ animation: 'fadeIn 0.3s ease' }}>
+                          <label>Selecionar Colaborador</label>
+                          <SeletorAcordeao
+                            opcoes={opcoesFuncionarios}
+                            value={novaAusencia.userId}
+                            onChange={(val) => setNovaAusencia({ ...novaAusencia, userId: val })}
+                          />
+                        </div>
+                      )}
+
+                      <div className="input-grid">
+                        <div className="input-group">
+                          <label>Data Início</label>
+                          <input 
+                            type="date" 
+                            value={novaAusencia.dataInicio} 
+                            onChange={(e) => setNovaAusencia({ ...novaAusencia, dataInicio: e.target.value, dataFim: e.target.value > novaAusencia.dataFim ? e.target.value : novaAusencia.dataFim })}
+                          />
+                        </div>
+                        <div className="input-group">
+                          <label>Data Fim (opcional)</label>
+                          <input 
+                            type="date" 
+                            value={novaAusencia.dataFim} 
+                            onChange={(e) => setNovaAusencia({ ...novaAusencia, dataFim: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="input-group">
+                        <label>Descrição / Motivo</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ex: Férias Anuais, Feriado Municipal..."
+                          value={novaAusencia.motivo}
+                          onChange={(e) => setNovaAusencia({ ...novaAusencia, motivo: e.target.value })}
+                        />
+                      </div>
+
+                      <BotaoGhost 
+                        onClick={() => {
+                          if (!novaAusencia.dataInicio) return toast.error("Selecione a data.");
+                          if (novaAusencia.tipo === "FERIAS" && !novaAusencia.userId) return toast.error("Selecione o colaborador.");
+                          
+                          if (novaAusencia.tipo === "FERIADO" && novaAusencia.dataInicio === novaAusencia.dataFim) {
+                             if (listaFeriados.includes(novaAusencia.dataInicio)) {
+                               toast.error("Este feriado já está cadastrado.");
+                               return;
+                             }
+                             setListaFeriados([...listaFeriados, novaAusencia.dataInicio].sort());
+                          } else {
+                             const id = Math.random().toString(36).substr(2, 9);
+                             setListaAusencias([...listaAusencias, { ...novaAusencia, id }].sort((a,b) => a.dataInicio.localeCompare(b.dataInicio)));
+                          }
+                          
+                          toast.success("Adicionado à lista!", { icon: '📅' });
+                          setNovaAusencia({ ...novaAusencia, motivo: "" });
+                        }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.1)', height: '48px' }}
+                      >
+                        <FiPlus /> Adicionar ao Calendário
+                      </BotaoGhost>
+                    </div>
+
+                    <div style={{ marginTop: '28px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <h5 style={{ color: '#8d8d99', fontSize: '11px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' }}>Datas Confirmadas</h5>
+                        <span style={{ fontSize: '10px', color: '#666' }}>{listaFeriados.length + listaAusencias.length} registros</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
+                        {listaFeriados.map(f => (
+                          <div key={f} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(241, 196, 15, 0.03)', border: '1px solid rgba(241, 196, 15, 0.1)', borderRadius: '12px', transition: 'all 0.2s' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(241, 196, 15, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <FiCalendar size={16} color="#f1c40f" />
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>{format(new Date(`${f}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}</span>
+                                <span style={{ fontSize: '11px', color: '#8d8d99' }}>Feriado Nacional • {format(new Date(`${f}T12:00:00`), "yyyy")}</span>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => setListaFeriados(listaFeriados.filter(x => x !== f))}
+                              style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
+                              className="hover-danger"
+                            >
+                              <FiTrash2 size={15} />
+                            </button>
+                          </div>
+                        ))}
+                        {listaAusencias.map(aus => (
+                          <div key={aus.id} style={{ 
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', 
+                            background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.03)' : 'rgba(47, 129, 247, 0.03)', 
+                            border: '1px solid',
+                            borderColor: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)',
+                            borderRadius: '12px' 
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ 
+                                width: '36px', height: '36px', borderRadius: '10px', 
+                                background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                              }}>
+                                {aus.tipo === 'FERIAS' ? <FiUserCheck size={16} color="#2ecc71" /> : <FiClock size={16} color="#2f81f7" />}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>
+                                  {format(new Date(`${aus.dataInicio}T12:00:00`), "dd/MM")}
+                                  {aus.dataFim !== aus.dataInicio && ` — ${format(new Date(`${aus.dataFim}T12:00:00`), "dd/MM")}`}
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#8d8d99' }}>
+                                  {aus.tipo === 'FERIAS' 
+                                    ? `Férias: ${funcionarios.find(f => f.id === aus.userId)?.nome}` 
+                                    : (aus.tipo === 'FERIADO' ? 'Feriado' : aus.tipo === 'RECESSO' ? 'Recesso Corporativo' : 'Outra Ausência')}
+                                  {aus.motivo && ` • ${aus.motivo}`}
+                                </span>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => setListaAusencias(listaAusencias.filter(x => x.id !== aus.id))}
+                              style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
+                            >
+                              <FiTrash2 size={15} />
+                            </button>
+                          </div>
+                        ))}
+                        {listaFeriados.length === 0 && listaAusencias.length === 0 && (
+                          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '16px', background: 'rgba(255,255,255,0.01)' }}>
+                            <FiCalendar size={24} style={{ marginBottom: '12px', opacity: 0.2 }} />
+                            <p style={{ margin: 0 }}>Nenhuma data cadastrada para este ano.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <Botao
+                      onClick={handleSalvarConfig}
+                      disabled={salvandoConfig}
+                      style={{ marginTop: '32px', width: '100%', justifyContent: 'center', height: '52px', boxShadow: '0 4px 14px rgba(47, 129, 247, 0.2)' }}
+                    >
+                      {salvandoConfig ? (
+                        "Gravando Alterações..."
+                      ) : (
+                        <>
+                          <FiCheckSquare size={18} /> Salvar Calendário Corporativo
+                        </>
+                      )}
+                    </Botao>
+                  </ConfigBox>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <ConfigBox>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -962,7 +1200,7 @@ export default function DashboardAdmin() {
                         <h4 style={{ margin: 0 }}>Gestão de Acessos</h4>
                       </div>
                       <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
-                      <BotaoGhost onClick={() => setModalAberto(true)} style={{ width: '100%', justifyContent: 'center' }}>
+                      <BotaoGhost onClick={() => setAbaAtiva("CADASTRO")} style={{ width: '100%', justifyContent: 'center' }}>
                         <FiUserPlus size={16} />
                         Cadastrar Novo Funcionário
                       </BotaoGhost>
@@ -1039,17 +1277,16 @@ export default function DashboardAdmin() {
               </>
             )}
 
+            {abaAtiva === "CADASTRO" && (
+              <PainelCadastro />
+            )}
+
           </>
         )}
 
         {/* Toast com timeout */}
         {mostrarToast && <ToastSucesso>Relatório PDF gerado com sucesso!</ToastSucesso>}
 
-
-        <ModalNovoFuncionario
-          aberto={modalAberto}
-          onFechar={() => setModalAberto(false)}
-        />
 
         <ModalEditarFuncionario
           aberto={!!funcEditando}
@@ -1627,6 +1864,37 @@ const ConfigBox = styled.div`
     }
   }
 
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #8d8d99;
+      margin-bottom: 0;
+    }
+
+    input, textarea {
+      background: #121214;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      height: 44px;
+      padding: 0 16px;
+      color: #fff;
+      outline: none;
+      width: 100%;
+      transition: all 0.2s;
+      
+      &:focus {
+        border-color: var(--cor-primaria, #2f81f7);
+        background: rgba(47, 129, 247, 0.05);
+      }
+    }
+  }
+
   .input-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1635,35 +1903,10 @@ const ConfigBox = styled.div`
     @media (max-width: 480px) {
       grid-template-columns: 1fr;
     }
-
-    .input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-
-      label {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: ${({ theme }) => theme.cores.texto2};
-        margin-bottom: 0;
-      }
-
-      input {
-        background: #121214;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        height: 44px;
-        padding: 0 16px;
-        color: #fff;
-        outline: none;
-        width: 100%;
-        
-        &:focus {
-          border-color: var(--cor-primaria, #2f81f7);
-        }
-      }
-    }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 `;
 

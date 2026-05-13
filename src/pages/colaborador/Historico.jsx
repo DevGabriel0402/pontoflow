@@ -6,26 +6,21 @@ import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { useJustificativas } from "../../hooks/useJustificativas";
 import { useSync } from "../../hooks/useSync";
 import { obterFila } from "../../services/offlineQueue";
-import { format } from "date-fns";
+import { format, startOfToday, startOfWeek, isAfter, eachDayOfInterval, isSameDay } from "date-fns";
+
 import { ptBR } from "date-fns/locale";
-import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiX, FiAlertTriangle, FiAlertCircle, FiSun, FiMoon, FiPlusCircle, FiEdit2, FiClock, FiFileText, FiTrash2 } from "react-icons/fi";
-import { startOfToday, startOfWeek, isAfter } from "date-fns";
-import SeletorAcordeao from "../../components/SeletorAcordeao";
+import { FiFilter, FiUploadCloud, FiMapPin, FiCheck, FiAlertTriangle, FiAlertCircle, FiSun, FiPlusCircle, FiEdit2, FiClock, FiFileText, FiTrash2, FiCalendar, FiUserCheck } from "react-icons/fi";
+
+
+import { useConfig } from "../../contexts/ConfigContexto";
 import ModalFiltroHistorico from "../../components/colaborador/ModalFiltroHistorico";
+
 import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { db } from "../../services/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
-
-const TIPOS = [
-  { value: "TODOS", label: "Todos" },
-  { value: "ENTRADA", label: "Entrada" },
-  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
-  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
-  { value: "SAIDA", label: "Saída" },
-];
 
 function formatarTipo(tipo) {
   const map = {
@@ -37,11 +32,6 @@ function formatarTipo(tipo) {
   return map[tipo] || tipo;
 }
 
-/**
- * ✅ Data preferida:
- * - criadoEmLocal (timestamp number do device) quando existir
- * - senão criadoEm (Firestore Timestamp)
- */
 function getDataPreferida(p) {
   if (p?.dataHoraOriginal) return new Date(p.dataHoraOriginal);
   if (p?.criadoEmLocal) return new Date(p.criadoEmLocal);
@@ -65,6 +55,9 @@ function getIcone(tipo, dentroDoRaio) {
     case "FIM_INTERVALO": return <FiSun />;
     case "SAIDA": return <FiCheck />;
     case "ABONO_FALTA": return <FiFileText />;
+    case "FERIAS": return <FiUserCheck />;
+    case "FERIADO": return <FiCalendar />;
+    case "RECESSO": return <FiCalendar />;
     default: return <FiCheck />;
   }
 }
@@ -92,6 +85,8 @@ export default function Historico() {
   const { itens, carregando, erro } = useHistoricoPontos(usuario?.uid);
 
   const { pendentes, online, sincronizando, syncAgora } = useSync();
+  const { config } = useConfig();
+
 
   const [tipo, setTipo] = React.useState("TODOS");
   const [aba, setAba] = React.useState("SEMANA");
@@ -119,10 +114,7 @@ export default function Historico() {
   const filaOffline = React.useMemo(() => obterFila(), [pendentes]);
 
   const itensFiltrados = React.useMemo(() => {
-    // Mesclar itens do Firestore com itens da fila offline (que ainda não foram sincronizados)
     const itensFirestore = [...itens];
-
-    // Converter itens offline para o formato da lista, se necessário
     const itensPendentes = filaOffline
       .filter(p => p.userId === usuario?.uid)
       .map(p => ({
@@ -131,20 +123,16 @@ export default function Historico() {
         statusOffline: true
       }));
 
-    // Evitar duplicidade caso o item já tenha sido sincronizado mas ainda esteja na fila local
     const idsFirestore = new Set(itensFirestore.map(i => i.localId).filter(Boolean));
     const pendentesNaoSincronizados = itensPendentes.filter(p => !idsFirestore.has(p.localId));
 
     let final = [...pendentesNaoSincronizados, ...itensFirestore];
 
-    // ✅ FILTRO DE TIPO (Sempre se aplica)
     if (tipo !== "TODOS") {
       final = final.filter(p => p.type === tipo);
     }
 
-    // ✅ FILTRO DE DATA/PERÍODO
     if (dataInicio || dataFim) {
-      // Se tiver data customizada, ignoramos o filtro de "aba" (Hoje/Semana)
       const ini = dataInicio ? new Date(`${dataInicio}T00:00:00`) : null;
       const fim = dataFim ? new Date(`${dataFim}T23:59:59`) : null;
       final = final.filter(p => {
@@ -155,7 +143,6 @@ export default function Historico() {
         return true;
       });
     } else {
-      // Se não tiver data customizada, aplica o filtro da "aba" selecionada
       if (aba === "HOJE") {
         const hoje = startOfToday();
         final = final.filter(p => {
@@ -171,11 +158,52 @@ export default function Historico() {
       }
     }
 
-    // Ordenar por data decrescente
     final.sort((a, b) => getDataPreferida(b) - getDataPreferida(a));
 
+    if (aba !== "JUSTIFICATIVAS" && config) {
+       const ausenciasMock = [];
+       (config?.ausencias || []).forEach(aus => {
+         if (aus.userId === usuario?.uid || !aus.userId) {
+           try {
+             let d = new Date(`${aus.dataInicio}T12:00:00`);
+             const f = new Date(`${aus.dataFim}T12:00:00`);
+             eachDayOfInterval({ start: d, end: f }).forEach(day => {
+               const jaTemPonto = final.some(p => isSameDay(getDataPreferida(p), day));
+               if (!jaTemPonto) {
+                 ausenciasMock.push({
+                   id: `aus-${aus.id}-${format(day, 'yyyyMMdd')}`,
+                   type: aus.tipo,
+                   motivo: aus.motivo,
+                   dataHoraOriginal: day.toISOString(),
+                   dentroDoRaio: true,
+                   isAusencia: true
+                 });
+               }
+             });
+           } catch (e) { console.error("Erro ao processar ausência:", e); }
+         }
+       });
+       (config?.feriados || []).forEach(fDate => {
+          const d = new Date(`${fDate}T12:00:00`);
+          const jaTemPonto = final.some(p => isSameDay(getDataPreferida(p), d));
+          if (!jaTemPonto) {
+            ausenciasMock.push({
+              id: `feriado-${fDate}`,
+              type: 'FERIADO',
+              motivo: 'Feriado Nacional',
+              dataHoraOriginal: d.toISOString(),
+              dentroDoRaio: true,
+              isAusencia: true
+            });
+          }
+       });
+       final = [...final, ...ausenciasMock];
+       final.sort((a, b) => getDataPreferida(b) - getDataPreferida(a));
+    }
+
     return final;
-  }, [itens, filaOffline, tipo, dataInicio, dataFim, aba, usuario?.uid]);
+  }, [itens, filaOffline, tipo, dataInicio, dataFim, aba, usuario?.uid, config]);
+
 
   return (
     <Tela>
@@ -284,7 +312,12 @@ export default function Historico() {
                       </IconCol>
 
                       <InfoCol>
-                        <TextoTipo>{formatarTipo(p.type)}</TextoTipo>
+                        <TextoTipo $ausencia={p.isAusencia}>
+                          {p.isAusencia 
+                            ? (p.motivo || (p.type === 'FERIAS' ? 'Férias' : p.type === 'RECESSO' ? 'Recesso' : 'Feriado')) 
+                            : formatarTipo(p.type)}
+                        </TextoTipo>
+
                         <TextoLocal>
                           <FiMapPin size={12} />
                           {p.dentroDoRaio ? "Escola Municipal Senador Levindo Coelho" : "Fora do Raio"}
@@ -292,7 +325,12 @@ export default function Historico() {
                       </InfoCol>
 
                       <ValorCol>
-                        <HoraPonto>{formatarDataPonto(p)}</HoraPonto>
+                        {p.isAusencia ? (
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#8d8d99', textTransform: 'uppercase' }}>Integral</div>
+                        ) : (
+                          <HoraPonto>{formatarDataPonto(p)}</HoraPonto>
+                        )}
+
 
                         {p.statusOffline && (
                           <BadgeStatus $cor="alerta" title="Aguardando sincronização">
@@ -418,7 +456,7 @@ export default function Historico() {
 const Tela = styled.div`
   min-height: 100vh;
   padding-bottom: 90px;
-  background: #000; /* Darker as per image */
+  background: #000;
   color: #fff;
 `;
 
@@ -562,6 +600,8 @@ const TextoTipo = styled.div`
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
+  color: ${p => p.$ausencia ? '#f1c40f' : '#fff'};
+
 `;
 
 const TextoLocal = styled.div`

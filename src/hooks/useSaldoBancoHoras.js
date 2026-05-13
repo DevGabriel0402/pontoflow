@@ -52,22 +52,42 @@ export function useSaldoBancoHoras(userId, perfil) {
         const periodoFim = format(new Date(), "yyyy-MM-dd");
 
         // Extrair todos os abonos
-        const abonosFunc = lancamentos
+        const abonosFunc = {};
+        
+        lancamentos
             .filter(l => (
                 (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
                 (l.origem === "ABONO_MANUAL")
             ))
-            .map(l => {
+            .forEach(l => {
+                let dataKey = null;
                 if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
-                    return l.dataReferencia;
+                    dataKey = l.dataReferencia;
+                } else {
+                    const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                    if (match) {
+                        dataKey = `${match[3]}-${match[2]}-${match[1]}`;
+                    }
                 }
-                const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-                if (match) {
-                    return `${match[3]}-${match[2]}-${match[1]}`;
+                if (dataKey) {
+                    abonosFunc[dataKey] = "Abonado";
                 }
-                return null;
-            })
-            .filter(Boolean);
+            });
+
+        // Injetar Ausências/Férias/Recessos configurados na empresa
+        (config?.ausencias || []).forEach(aus => {
+          if (aus.userId === userId || !aus.userId) {
+            try {
+              let d = new Date(`${aus.dataInicio}T12:00:00`);
+              const f_end = new Date(`${aus.dataFim}T12:00:00`);
+              while (d <= f_end) {
+                const key = format(d, "yyyy-MM-dd");
+                abonosFunc[key] = aus.tipo === "FERIAS" ? "Férias" : (aus.tipo === "RECESSO" ? "Recesso" : (aus.motivo || "Abonado"));
+                d.setDate(d.getDate() + 1);
+              }
+            } catch (e) { console.error("Erro ao processar ausência no hook saldo:", e); }
+          }
+        });
 
         const confJornada = perfil.jornadas || perfil.jornada;
         const dias = calcularResumoDiario(

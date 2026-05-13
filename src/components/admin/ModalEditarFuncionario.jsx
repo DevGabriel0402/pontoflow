@@ -110,6 +110,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
         jornadas,
         cargaHorariaSemanal,
         matricula: unmaskMatricula(matricula, config?.regras?.digitosMatricula),
+        status: 'ativo' // Remove o status 'novo' ao salvar as edições
       });
       toast.success("Funcionário atualizado!");
       onFechar();
@@ -130,6 +131,7 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
           <Titulo>
             <FiEdit2 size={18} />
             Editar Funcionário
+            {funcionario.status === 'novo' && <NovoBadge>Novo</NovoBadge>}
           </Titulo>
           <Fechar onClick={onFechar}>
             <FiX size={18} />
@@ -336,6 +338,16 @@ const Titulo = styled.div`
   align-items: center;
   gap: 10px;
   font-weight: 900;
+`;
+
+const NovoBadge = styled.span`
+  background: ${({ theme }) => theme.cores.azul};
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  margin-left: 8px;
 `;
 
 const Fechar = styled.button`

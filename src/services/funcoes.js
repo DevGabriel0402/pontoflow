@@ -1,8 +1,6 @@
-// src/services/funcoes.js
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { auth } from "./firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, functions } from "./firebase";
 
-const functions = getFunctions(undefined, "southamerica-east1");
 // ⚠️ ajuste a região se sua function estiver em outra (ou remova o 2º param pra default)
 
 export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role, jornadas, cargaHorariaSemanal, matricula }) => {
