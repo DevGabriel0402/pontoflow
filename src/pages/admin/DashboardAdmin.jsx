@@ -36,7 +36,6 @@ import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 import { MOTIVOS_JUSTIFICATIVA } from "../../components/colaborador/ModalJustificativa";
 import { maskMatricula } from "../../utils/mascaras";
 import DateRangePicker from "../../components/DateRangePicker";
-import ChatSuporte from "../../components/ChatSuporte";
 import { INITIAL_MANUAL_DATA, gerarManualHtml } from "../../utils/manualTemplate";
 import { baixarBackup, restaurarBackup } from "../../services/backup";
 
@@ -1386,13 +1385,6 @@ export default function DashboardAdmin() {
         />
 
         <TabbarAdminMobile abaAtiva={abaAtiva} setAbaAtiva={setAbaAtiva} />
-        
-        <ChatSuporte 
-          companyId={perfil?.companyId} 
-          isMaster={false} 
-          userName={`Admin - ${perfil?.nome?.split(' ')[0]}`}
-          floating={true}
-        />
       </ConteudoPrincipal>
 
       <ModalConfirmacao
