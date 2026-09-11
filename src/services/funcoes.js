@@ -30,6 +30,7 @@ export const deletarFuncionarioFn = (uid) => chamarApi("/api/usuarios/deletar", 
 export const criarAdminEmpresaFn = (dados) => chamarApi("/api/admin/criar", { data: dados });
 export const corrigirCompanyFn = () => chamarApi("/api/admin/corrigir-vinculos", { data: {} });
 export const trocarSenhaPrimeiroAcessoFn = (dados) => chamarApi("/api/usuarios/trocar-senha", { data: dados });
+export const resetarSenhaPadraoFn = (targetUid) => chamarApi("/api/usuarios/resetar-senha", { data: { targetUid } });
 export const loginPorMatriculaFn = (dados) => chamarApi("/api/auth/matricula", { data: dados, autenticado: false });
 export const verificarAtrasosFn = () => {
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {

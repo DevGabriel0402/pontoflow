@@ -95,65 +95,83 @@ export async function runDailyNotifications() {
 }
 
 export async function runDelayNotifications({ companyId = null, userId = null } = {}) {
-  const db = getAdminDb();
-  const now = new Date();
-  const parts = zonedParts(now);
-  const todayKey = dateKey(now);
-  const weekdays = { Sun: "domingo", Mon: "segunda", Tue: "terca", Wed: "quarta", Thu: "quinta", Fri: "sexta", Sat: "sabado" };
-  const weekday = weekdays[parts.weekday];
-  const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
-  let usersQuery = db.collection("users").where("ativo", "==", true);
-  if (companyId) usersQuery = usersQuery.where("companyId", "==", companyId);
-  const users = userId
-    ? { docs: [await db.collection("users").doc(userId).get()].filter((document) => document.exists) }
-    : await usersQuery.get();
-  let created = 0;
+  try {
+    const db = getAdminDb();
+    const now = new Date();
+    const parts = zonedParts(now);
+    const todayKey = dateKey(now);
+    const weekdays = { Sun: "domingo", Mon: "segunda", Tue: "terca", Wed: "quarta", Thu: "quinta", Fri: "sexta", Sat: "sabado" };
+    const weekday = weekdays[parts.weekday] || "segunda";
+    const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
 
-  for (const userDoc of users.docs) {
-    const user = userDoc.data();
-    if (["admin", "master"].includes(user.role)) continue;
-    if (companyId && user.companyId !== companyId) continue;
-    const schedules = user.jornadas || user.jornada;
-    if (!schedules) continue;
-    const schedule = schedules.segunda || schedules.domingo ? schedules[weekday] : schedules;
-    if (!schedule || schedule.ativo === false) continue;
-
-    const points = await db.collection("pontos")
-      .where("userId", "==", userDoc.id)
-      .where("dataKey", "==", todayKey)
-      .get();
-    const completed = new Set(points.docs.map((point) => point.data().type));
-    const checks = [
-      ["ENTRADA", schedule.entrada, "entrada"],
-      ["SAIDA", schedule.saida, "saida"],
-    ];
-
-    for (const [type, time, label] of checks) {
-      if (!time || completed.has(type)) continue;
-      const [hours, minutes] = time.split(":").map(Number);
-      if (currentMinutes <= hours * 60 + minutes + 15) continue;
-
-      const existing = await db.collection("notificacoes")
-        .where("userId", "==", userDoc.id)
-        .where("diaReferencia", "==", todayKey)
-        .where("tipoAlerta", "==", type)
-        .limit(1)
-        .get();
-      if (!existing.empty) continue;
-
-      await db.collection("notificacoes").add({
-        userId: userDoc.id,
-        companyId: user.companyId || "",
-        mensagem: `Atencao: sua ${label} prevista para ${time} ainda nao foi registrada.`,
-        data: FieldValue.serverTimestamp(),
-        lida: false,
-        tipo: "ponto_atrasado_realtime",
-        tipoAlerta: type,
-        diaReferencia: todayKey,
-      });
-      created += 1;
+    let usersDocs = [];
+    if (userId) {
+      const userSnap = await db.collection("users").doc(userId).get();
+      if (userSnap.exists) usersDocs = [userSnap];
+    } else {
+      let usersQuery = db.collection("users").where("ativo", "==", true);
+      if (companyId) usersQuery = usersQuery.where("companyId", "==", companyId);
+      const snap = await usersQuery.get();
+      usersDocs = snap.docs;
     }
-  }
 
-  return { success: true, diaReferencia: todayKey, notificacoesCriadas: created };
+    let created = 0;
+
+    for (const userDoc of usersDocs) {
+      try {
+        const user = userDoc.data();
+        if (!user || ["admin", "master"].includes(user.role)) continue;
+        if (companyId && user.companyId !== companyId) continue;
+        const schedules = user.jornadas || user.jornada;
+        if (!schedules) continue;
+        const schedule = schedules.segunda || schedules.domingo ? schedules[weekday] : schedules;
+        if (!schedule || schedule.ativo === false) continue;
+
+        const points = await db.collection("pontos")
+          .where("userId", "==", userDoc.id)
+          .where("dataKey", "==", todayKey)
+          .get();
+        const completed = new Set(points.docs.map((point) => point.data().type));
+        const checks = [
+          ["ENTRADA", schedule.entrada, "entrada"],
+          ["SAIDA", schedule.saida, "saida"],
+        ];
+
+        // Buscar notificações existentes deste usuário no dia de hoje em memória (evita necessidade de índice composto)
+        const existingNotifs = await db.collection("notificacoes")
+          .where("userId", "==", userDoc.id)
+          .where("diaReferencia", "==", todayKey)
+          .get();
+        const tiposExistentes = new Set(existingNotifs.docs.map(doc => doc.data().tipoAlerta));
+
+        for (const [type, time, label] of checks) {
+          if (!time || typeof time !== "string" || !time.includes(":") || completed.has(type)) continue;
+          if (tiposExistentes.has(type)) continue;
+
+          const [hours, minutes] = time.split(":").map(Number);
+          if (Number.isNaN(hours) || Number.isNaN(minutes)) continue;
+          if (currentMinutes <= hours * 60 + minutes + 15) continue;
+
+          await db.collection("notificacoes").add({
+            userId: userDoc.id,
+            companyId: user.companyId || "",
+            mensagem: `Atenção: sua ${label} prevista para ${time} ainda não foi registrada.`,
+            data: FieldValue.serverTimestamp(),
+            lida: false,
+            tipo: "ponto_atrasado_realtime",
+            tipoAlerta: type,
+            diaReferencia: todayKey,
+          });
+          created += 1;
+        }
+      } catch (errUser) {
+        console.error("Erro ao verificar atraso do usuário", userDoc.id, errUser);
+      }
+    }
+
+    return { success: true, diaReferencia: todayKey, notificacoesCriadas: created };
+  } catch (err) {
+    console.error("Erro em runDelayNotifications:", err);
+    return { success: false, error: err.message };
+  }
 }

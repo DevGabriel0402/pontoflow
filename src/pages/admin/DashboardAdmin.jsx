@@ -24,7 +24,7 @@ import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import TabbarAdminMobile from "../../components/admin/TabbarAdminMobile";
 import { useConfig } from "../../contexts/ConfigContexto";
 import LoadingGlobal from "../../components/LoadingGlobal";
-import { deletarFuncionarioFn, corrigirCompanyFn } from "../../services/funcoes";
+import { deletarFuncionarioFn, corrigirCompanyFn, resetarSenhaPadraoFn } from "../../services/funcoes";
 import { useAuth } from "../../contexts/AuthContexto";
 import BannerNovaAtualizacao from "../../components/admin/BannerNovaAtualizacao";
 import PainelJustificativas from "../../components/admin/PainelJustificativas";
@@ -113,6 +113,8 @@ export default function DashboardAdmin() {
   };
   const [funcEditando, setFuncEditando] = React.useState(null);
   const [confirmarExclusao, setConfirmarExclusao] = React.useState({ aberto: false, func: null });
+  const [confirmarResetSenha, setConfirmarResetSenha] = React.useState({ aberto: false, func: null });
+  const [resetandoSenha, setResetandoSenha] = React.useState(false);
 
   // Lista de funcionários para a aba específica
   const { funcionarios, carregando: carregandoFuncs, erro: erroFuncs } = useAdminFuncionarios();
@@ -565,6 +567,35 @@ export default function DashboardAdmin() {
     }
   };
 
+  const handleResetarSenhaPadrao = (f) => {
+    if (!f?.dataNascimento) {
+      toast.error(`O funcionário ${f.nome || f.email} não possui data de nascimento cadastrada.`);
+      return;
+    }
+    setConfirmarResetSenha({ aberto: true, func: f });
+  };
+
+  const executarResetSenha = async () => {
+    const f = confirmarResetSenha.func;
+    if (!f) return;
+
+    setResetandoSenha(true);
+    const tId = toast.loading(`Resetando senha de ${f.nome}...`);
+    try {
+      const res = await resetarSenhaPadraoFn(f.id);
+      toast.success(
+        `Senha de ${f.nome} resetada para a data de nascimento! Nova senha temporária: ${res.senhaPadrao}`,
+        { id: tId, duration: 8000 }
+      );
+    } catch (err) {
+      console.error("Erro ao resetar senha:", err);
+      toast.error(err.message || "Erro ao resetar senha.", { id: tId });
+    } finally {
+      setResetandoSenha(false);
+      setConfirmarResetSenha({ aberto: false, func: null });
+    }
+  };
+
   const handleNotificar = async (j) => {
     const tId = toast.loading(`Analisando pendências de ${j.userName}...`);
     try {
@@ -949,8 +980,16 @@ export default function DashboardAdmin() {
                             </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
-                                <BotaoAcao onClick={() => setFuncEditando(f)} title="Editar">
+                                <BotaoAcao onClick={() => setFuncEditando(f)} title="Editar Funcionário">
                                   <FiEdit2 size={16} />
+                                </BotaoAcao>
+
+                                <BotaoAcao
+                                  onClick={() => handleResetarSenhaPadrao(f)}
+                                  title="Resetar senha para a data de nascimento padrão"
+                                  style={{ color: '#e67e22', borderColor: 'rgba(230, 126, 34, 0.3)', background: 'rgba(230, 126, 34, 0.08)' }}
+                                >
+                                  <FiKey size={16} />
                                 </BotaoAcao>
 
                                 <BotaoAcao onClick={async () => {
@@ -1522,6 +1561,17 @@ export default function DashboardAdmin() {
         mensagem={`Tem certeza que deseja EXCLUIR permanentemente o funcionário ${confirmarExclusao.func?.nome}? Esta ação não pode ser desfeita e todos os registros dele sumirão.`}
         perigoso={true}
         textoConfirmar="Excluir Permanentemente"
+      />
+
+      <ModalConfirmacao
+        aberto={confirmarResetSenha.aberto}
+        onFechar={() => setConfirmarResetSenha({ aberto: false, func: null })}
+        onConfirmar={executarResetSenha}
+        titulo="Resetar Senha do Funcionário"
+        mensagem={`Tem certeza que deseja resetar a senha de ${confirmarResetSenha.func?.nome} para a senha padrão da data de nascimento? O colaborador precisará cadastrar uma nova senha no próximo acesso.`}
+        perigoso={true}
+        textoConfirmar="Resetar Senha"
+        carregando={resetandoSenha}
       />
     </LayoutAdmin>
   );
