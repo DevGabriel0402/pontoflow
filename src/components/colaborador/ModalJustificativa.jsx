@@ -53,8 +53,7 @@ export default function ModalJustificativa({ aberto, onFechar, editandoObj = nul
             if (t.value === "ABONO_FALTA") return true;
             if (t.value === "ENTRADA") return ativos.includes('entrada');
             if (t.value === "SAIDA") return ativos.includes('saida');
-            if (t.value === "INICIO_INTERVALO") return ativos.includes('intervalo_saida');
-            if (t.value === "FIM_INTERVALO") return ativos.includes('intervalo_entrada');
+            if (t.value === "INICIO_INTERVALO" || t.value === "FIM_INTERVALO") return false;
             return true;
         });
     }, [config?.regras?.pontosAtivos]);

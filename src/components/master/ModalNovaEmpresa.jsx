@@ -902,8 +902,6 @@ export default function ModalNovaEmpresa({ aberto, empresa, onFechar }) {
                             <GridConfig>
                                 {[
                                     { id: 'entrada', label: 'Entrada' },
-                                    { id: 'intervalo_saida', label: 'Início Intervalo' },
-                                    { id: 'intervalo_entrada', label: 'Fim Intervalo' },
                                     { id: 'saida', label: 'Saída' }
                                 ].map(ponto => (
                                     <ToggleWrapper key={ponto.id}>

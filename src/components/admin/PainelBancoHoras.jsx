@@ -634,8 +634,6 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                 <tr>
                                   <th>Data</th>
                                   {temPonto('entrada') && <th>Entrada</th>}
-                                  {temPonto('intervalo_saida') && <th>Iní. Intervalo</th>}
-                                  {temPonto('intervalo_entrada') && <th>Fim Intervalo</th>}
                                   {temPonto('saida') && <th>Saída</th>}
                                   <th>Trabalhado</th>
                                   <th>Esperado</th>
@@ -654,26 +652,6 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         <TimeWrapper>
                                           {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
                                           {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                        </TimeWrapper>
-                                      ) : "—"}
-                                    </td>
-                                  )}
-                                  {temPonto('intervalo_saida') && (
-                                    <td>
-                                      {dia.ponto_indices.iniInt ? (
-                                        <TimeWrapper>
-                                          {safeFormat(dia.ponto_indices.iniInt.time, "HH:mm")}
-                                          {dia.ponto_indices.iniInt.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                        </TimeWrapper>
-                                      ) : "—"}
-                                    </td>
-                                  )}
-                                  {temPonto('intervalo_entrada') && (
-                                    <td>
-                                      {dia.ponto_indices.fimInt ? (
-                                        <TimeWrapper>
-                                          {safeFormat(dia.ponto_indices.fimInt.time, "HH:mm")}
-                                          {dia.ponto_indices.fimInt.foiJustificado && <IconJustificado title="Horário Justificado" />}
                                         </TimeWrapper>
                                       ) : "—"}
                                     </td>

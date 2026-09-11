@@ -18,8 +18,6 @@ const STATUS_LABEL = {
 
 const TIPO_LABEL = {
     ENTRADA: "Entrada",
-    INICIO_INTERVALO: "Início Intervalo",
-    FIM_INTERVALO: "Fim Intervalo",
     SAIDA: "Saída",
     ABONO_FALTA: "Abono de Falta (Dia Inteiro)",
 };

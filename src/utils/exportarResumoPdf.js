@@ -50,7 +50,6 @@ export function exportarResumoPdf(resumo, meta = {}) {
     // Tabela
     const headRow = ["Funcionário", "Data"];
     if (temPonto('entrada')) headRow.push("Entrada");
-    if (temPonto('intervalo_saida') || temPonto('intervalo_entrada')) headRow.push("Intervalo");
     if (temPonto('saida')) headRow.push("Saída");
     headRow.push("Total", "Status");
 
@@ -62,13 +61,6 @@ export function exportarResumoPdf(resumo, meta = {}) {
 
         if (temPonto('entrada')) {
             row.push(formatarHora(pi.entrada?.time));
-        }
-
-        if (temPonto('intervalo_saida') || temPonto('intervalo_entrada')) {
-            const intervalo = pi.iniInt?.time && pi.fimInt?.time
-                ? `${formatarHora(pi.iniInt.time)} - ${formatarHora(pi.fimInt.time)}`
-                : pi.iniInt?.time || pi.fimInt?.time ? "Incomp." : "N/A";
-            row.push(intervalo);
         }
 
         if (temPonto('saida')) {

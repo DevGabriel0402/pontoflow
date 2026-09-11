@@ -755,8 +755,6 @@ export default function DashboardAdmin() {
                           <th>Funcionário</th>
                           <th>Data</th>
                           {temPonto('entrada') && <th>Entrada</th>}
-                          {temPonto('intervalo_saida') && <th>Início Intervalo</th>}
-                          {temPonto('intervalo_entrada') && <th>Fim Intervalo</th>}
                           {temPonto('saida') && <th>Saída</th>}
                           <th>Total Trabalhado</th>
                           <th>Status</th>
@@ -783,18 +781,6 @@ export default function DashboardAdmin() {
                               <td>
                                 {j.ponto_indices.entrada?.time ? format(j.ponto_indices.entrada.time, 'HH:mm') : '—'}
                                 {j.ponto_indices.entrada?.foiJustificado && <IconJustificado />}
-                              </td>
-                            )}
-                            {temPonto('intervalo_saida') && (
-                              <td>
-                                {j.ponto_indices.iniInt?.time ? format(j.ponto_indices.iniInt.time, 'HH:mm') : '—'}
-                                {j.ponto_indices.iniInt?.foiJustificado && <IconJustificado />}
-                              </td>
-                            )}
-                            {temPonto('intervalo_entrada') && (
-                              <td>
-                                {j.ponto_indices.fimInt?.time ? format(j.ponto_indices.fimInt.time, 'HH:mm') : '—'}
-                                {j.ponto_indices.fimInt?.foiJustificado && <IconJustificado />}
                               </td>
                             )}
                             {temPonto('saida') && (

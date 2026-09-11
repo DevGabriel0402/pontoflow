@@ -59,20 +59,7 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         const fim = horaParaMin(jDia.saida);
         if (ini === null || fim === null) return 0;
 
-        // Padrão de pausa: 20 min para <= 30h, 60 min para > 30h
-        let pausaMin = carga <= 30 ? 20 : 60;
-
-        if (jDia.inicioIntervalo && jDia.fimIntervalo) {
-            const pIni = horaParaMin(jDia.inicioIntervalo);
-            const pFim = horaParaMin(jDia.fimIntervalo);
-            if (pIni !== null && pFim !== null) {
-                pausaMin = Math.max(0, pFim - pIni);
-            }
-        } else if (jDia.intervaloMin) {
-            pausaMin = Number(jDia.intervaloMin);
-        }
-
-        return Math.max(0, fim - ini - pausaMin);
+        return Math.max(0, fim - ini);
     };
 
     // Agrupa por data
@@ -82,12 +69,16 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         if (p.dataHoraOriginal) {
             d = new Date(p.dataHoraOriginal);
         } else {
-            d = p.criadoEm?.toDate ? p.criadoEm.toDate() : p.criadoEm ? new Date(p.criadoEm) : null;
+            const ts = p.criadoEm;
+            d = ts?.toDate ? ts.toDate() : new Date(ts);
         }
-        if (!d) return;
-        const key = format(d, "yyyy-MM-dd");
-        if (!grupos[key]) grupos[key] = { data: d, pontos: [] };
-        grupos[key].pontos.push({ ...p, dateObj: d });
+        if (isNaN(d.getTime())) return;
+
+        const dataKey = format(d, "yyyy-MM-dd");
+        if (!grupos[dataKey]) {
+            grupos[dataKey] = { data: d, pontos: [] };
+        }
+        grupos[dataKey].pontos.push({ ...p, dateObj: d });
     });
 
     // Se houver um período definido, garante que TODOS os dias do período estejam no objeto 'grupos'
@@ -126,13 +117,9 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
 
         const entradaMeta = getMeta("ENTRADA");
         const saidaMeta = getMeta("SAIDA");
-        const iniIntMeta = getMeta("INICIO_INTERVALO");
-        const fimIntMeta = getMeta("FIM_INTERVALO");
 
         const entrada = entradaMeta?.time;
         const saida = saidaMeta?.time;
-        const iniInt = iniIntMeta?.time;
-        const fimInt = fimIntMeta?.time;;
 
         let minutosTrabalhados = 0;
         let status = "Incompleto";
@@ -140,34 +127,8 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         const hojeKey = format(new Date(), "yyyy-MM-dd");
 
         if (entrada && saida) {
-            const total = differenceInMinutes(saida, entrada);
-
-            // PADRONIZAÇÃO DO INTERVALO: 
-            // Se tem início de intervalo, usamos a pausa padrão (20min para 30h, 60min para 44h)
-            // ou a pausa específica da jornada se houver.
-            let intervalo = 0;
-            if (iniInt) {
-                intervalo = carga <= 30 ? 20 : 60;
-
-                // Tenta pegar da jornada do dia se houver configuração específica
-                const index = g.data.getDay();
-                const diaStr = mapDias[index];
-                const jDia = jornadas?.[diaStr] || jornadas;
-                if (jDia?.inicioIntervalo && jDia?.fimIntervalo) {
-                    const pIni = horaParaMin(jDia.inicioIntervalo);
-                    const pFim = horaParaMin(jDia.fimIntervalo);
-                    if (pIni !== null && pFim !== null) {
-                        intervalo = Math.max(0, pFim - pIni);
-                    }
-                } else if (jDia?.intervaloMin) {
-                    intervalo = Number(jDia.intervaloMin);
-                }
-            }
-
-            minutosTrabalhados = Math.max(0, total - intervalo);
-            if (!iniInt && !fimInt) status = "Ok";
-            else if (iniInt && fimInt) status = "Ok";
-            else status = "Intervalo Incompleto";
+            minutosTrabalhados = Math.max(0, differenceInMinutes(saida, entrada));
+            status = "Ok";
         } else if (entrada && !saida) {
             status = "Sem Saída";
         } else if (!entrada && !saida) {
@@ -210,9 +171,7 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             status,
             ponto_indices: {
                 entrada: entradaMeta,
-                saida: saidaMeta,
-                iniInt: iniIntMeta,
-                fimInt: fimIntMeta
+                saida: saidaMeta
             },
             pontosOriginal: pts,
         };

@@ -58,13 +58,13 @@ export default function PainelCadastro() {
 
         // Jornada padrão vazia ou básica para ser editada depois
         jornadas: {
-          segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
-          terca: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
-          quarta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
-          quinta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
-          sexta: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
-          sabado: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
-          domingo: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "12:00", ativo: false },
+          segunda: { entrada: "08:00", saida: "17:00", ativo: true },
+          terca: { entrada: "08:00", saida: "17:00", ativo: true },
+          quarta: { entrada: "08:00", saida: "17:00", ativo: true },
+          quinta: { entrada: "08:00", saida: "17:00", ativo: true },
+          sexta: { entrada: "08:00", saida: "17:00", ativo: true },
+          sabado: { entrada: "08:00", saida: "12:00", ativo: false },
+          domingo: { entrada: "08:00", saida: "12:00", ativo: false },
         },
         cargaHorariaSemanal: role === 'admin' ? 'Livre' : (config?.regras?.cargaHorariaSemanal ? `${config.regras.cargaHorariaSemanal} Horas` : "44 Horas")
       });

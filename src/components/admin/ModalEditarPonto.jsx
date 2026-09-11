@@ -18,8 +18,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
     };
     const [horarios, setHorarios] = useState({
         entrada: "",
-        iniInt: "",
-        fimInt: "",
         saida: ""
     });
     const [salvando, setSalvando] = useState(false);
@@ -31,8 +29,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
         if (registro && aberto) {
             setHorarios({
                 entrada: registro.ponto_indices?.entrada?.time ? format(registro.ponto_indices.entrada.time, "HH:mm") : "",
-                iniInt: registro.ponto_indices?.iniInt?.time ? format(registro.ponto_indices.iniInt.time, "HH:mm") : "",
-                fimInt: registro.ponto_indices?.fimInt?.time ? format(registro.ponto_indices.fimInt.time, "HH:mm") : "",
                 saida: registro.ponto_indices?.saida?.time ? format(registro.ponto_indices.saida.time, "HH:mm") : ""
             });
 
@@ -74,8 +70,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
             // Tipos de ponto que queremos gerenciar
             const tiposMapeados = {
                 entrada: "ENTRADA",
-                iniInt: "INICIO_INTERVALO",
-                fimInt: "FIM_INTERVALO",
                 saida: "SAIDA"
             };
 
@@ -215,26 +209,6 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                                     type="time"
                                     value={horarios.saida}
                                     onChange={e => setHorarios({ ...horarios, saida: e.target.value })}
-                                />
-                            </Campo>
-                        )}
-                        {temPonto('intervalo_saida') && (
-                            <Campo>
-                                <label>Início Intervalo</label>
-                                <input
-                                    type="time"
-                                    value={horarios.iniInt}
-                                    onChange={e => setHorarios({ ...horarios, iniInt: e.target.value })}
-                                />
-                            </Campo>
-                        )}
-                        {temPonto('intervalo_entrada') && (
-                            <Campo>
-                                <label>Fim Intervalo</label>
-                                <input
-                                    type="time"
-                                    value={horarios.fimInt}
-                                    onChange={e => setHorarios({ ...horarios, fimInt: e.target.value })}
                                 />
                             </Campo>
                         )}

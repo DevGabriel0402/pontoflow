@@ -25,8 +25,6 @@ import ModalConfirmacao from "../../components/ModalConfirmacao";
 function formatarTipo(tipo) {
   const map = {
     ENTRADA: "Entrada",
-    INICIO_INTERVALO: "Início Intervalo",
-    FIM_INTERVALO: "Fim Intervalo",
     SAIDA: "Saída",
   };
   return map[tipo] || tipo;
@@ -51,8 +49,6 @@ function getIcone(tipo, dentroDoRaio) {
 
   switch (tipo) {
     case "ENTRADA": return <FiCheck />;
-    case "INICIO_INTERVALO": return <FiSun />;
-    case "FIM_INTERVALO": return <FiSun />;
     case "SAIDA": return <FiCheck />;
     case "ABONO_FALTA": return <FiFileText />;
     case "FERIAS": return <FiUserCheck />;

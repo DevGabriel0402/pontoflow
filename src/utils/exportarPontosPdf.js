@@ -19,8 +19,6 @@ function formatarData(p) {
 function formatarTipo(tipo) {
     const map = {
         ENTRADA: "Entrada",
-        INICIO_INTERVALO: "Início Intervalo",
-        FIM_INTERVALO: "Fim Intervalo",
         SAIDA: "Saída",
     };
     return map[tipo] || tipo;
