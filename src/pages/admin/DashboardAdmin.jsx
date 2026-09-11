@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import {
   FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiAlertCircle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
-  FiShield, FiBell, FiPlus, FiUpload
+  FiShield, FiBell, FiPlus, FiUpload, FiShare2, FiChevronDown
 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +31,7 @@ import PainelJustificativas from "../../components/admin/PainelJustificativas";
 import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import PainelCadastro from "../../components/admin/PainelCadastro";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
+import ModalCompartilharSistema from "../../components/admin/ModalCompartilharSistema";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 import { MOTIVOS_JUSTIFICATIVA } from "../../components/colaborador/ModalJustificativa";
@@ -104,6 +105,12 @@ export default function DashboardAdmin() {
   const [mostrarToast, setMostrarToast] = React.useState(false);
   const [abaAtiva, setAbaAtiva] = React.useState("DASHBOARD"); // DASHBOARD, HISTORICO, FUNCIONARIOS, CONFIG
   const [modalSenhaAberto, setModalSenhaAberto] = React.useState(false);
+  const [modalCompartilharAberto, setModalCompartilharAberto] = React.useState(false);
+  const [secoesAbertasConfig, setSecoesAbertasConfig] = React.useState({ regime: true, geo: false });
+
+  const toggleSecaoConfig = (chave) => {
+    setSecoesAbertasConfig(prev => ({ ...prev, [chave]: !prev[chave] }));
+  };
   const [funcEditando, setFuncEditando] = React.useState(null);
   const [confirmarExclusao, setConfirmarExclusao] = React.useState({ aberto: false, func: null });
 
@@ -632,6 +639,10 @@ export default function DashboardAdmin() {
             </>
           )}
 
+          <NavItem onClick={() => setModalCompartilharAberto(true)}>
+            <FiShare2 /> <span>Compartilhar Sistema</span>
+          </NavItem>
+
           <NavSeparador />
 
           <NavItem onClick={() => setModalSenhaAberto(true)}>
@@ -723,6 +734,9 @@ export default function DashboardAdmin() {
                     />
 
                     <GrupoBotoesExportar>
+                      <BotaoExportar onClick={() => setModalCompartilharAberto(true)} style={{ background: 'rgba(79, 172, 254, 0.15)', color: '#4facfe', borderColor: 'rgba(79, 172, 254, 0.3)' }}>
+                        <FiShare2 /> Compartilhar Sistema
+                      </BotaoExportar>
                       {temModulo('relatorios') && (
                         <>
                           <BotaoExportar onClick={handleGerarMensalPdf} disabled={resumoJornada.length === 0}>
@@ -957,395 +971,482 @@ export default function DashboardAdmin() {
                   <TituloSecao>Configurações do Sistema</TituloSecao>
                 </Topo>
 
-                <PainelConfig>
-                  <ConfigBox style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <FiClock size={18} color="var(--cor-primaria, #2f81f7)" />
-                      <h4 style={{ margin: 0 }}>Regime de Registro de Ponto</h4>
-                    </div>
-                    <p>Defina o formato de batidas diárias para os colaboradores da instituição.</p>
+                <AccordionContainer>
+                  {/* 1. Regime de Registro de Ponto */}
+                  <AccordionCard $aberto={secoesAbertasConfig.regime}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.regime} onClick={() => toggleSecaoConfig('regime')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: 'var(--cor-primaria, #4facfe)', background: 'rgba(79, 172, 254, 0.12)' }}>
+                          <FiClock size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Regime de Registro de Ponto</h4>
+                          <p>Formato de batidas diárias para os colaboradores</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.regime}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '16px' }}>
-                      <div
-                        onClick={() => setConfigPontosAtivos(['entrada', 'saida'])}
-                        style={{
-                          padding: '16px',
-                          borderRadius: '14px',
-                          cursor: 'pointer',
-                          border: '2px solid',
-                          borderColor: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
-                            ? 'var(--cor-primaria, #2f81f7)'
-                            : 'rgba(255,255,255,0.06)',
-                          background: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
-                            ? 'rgba(47, 129, 247, 0.08)'
-                            : 'rgba(255,255,255,0.02)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <strong style={{ color: '#fff', fontSize: '14px' }}>Somente Entrada e Saída (2 batidas)</strong>
-                          {(configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')) && (
-                            <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
-                          )}
-                        </div>
-                        <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
-                          Fluxo suave e sem atrito. O colaborador registra a Entrada ao chegar e a Saída ao encerrar. Ideal para simplificar a rotina.
+                    {secoesAbertasConfig.regime && (
+                      <AccordionBody>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>
+                          Defina a forma como os colaboradores registrarão as batidas diárias na instituição.
                         </p>
-                      </div>
-
-
-                    </div>
-                  </ConfigBox>
-                  <ConfigBox>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <FiMapPin size={18} color="#fff" />
-                      <h4 style={{ margin: 0 }}>Geofencing (Raio de Ponto)</h4>
-                    </div>
-                    <p>Defina o raio de tolerância para batida de ponto na Escola Municipal Senador Levindo Coelho.</p>
-                    <div className="input-row">
-                      <input
-                        type="number"
-                        placeholder="Ex: 500"
-                        value={configRaio}
-                        onChange={(e) => setConfigRaio(e.target.value)}
-                      />
-                      <span>metros</span>
-                    </div>
-
-                    <div style={{ marginTop: '24px' }}>
-                      <h4>Localização da Sede</h4>
-                      <p>Coordenadas centrais da escola ou arraste o marcador.</p>
-                      <div className="input-grid" style={{ marginBottom: '16px' }}>
-                        <div className="input-group">
-                          <label>Latitude</label>
-                          <input
-                            type="text"
-                            placeholder="Latitude"
-                            value={configLat}
-                            onChange={(e) => setConfigLat(e.target.value)}
-                          />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                          <div
+                            onClick={() => setConfigPontosAtivos(['entrada', 'saida'])}
+                            style={{
+                              padding: '16px',
+                              borderRadius: '14px',
+                              cursor: 'pointer',
+                              border: '2px solid',
+                              borderColor: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
+                                ? 'var(--cor-primaria, #2f81f7)'
+                                : 'rgba(255,255,255,0.06)',
+                              background: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
+                                ? 'rgba(47, 129, 247, 0.08)'
+                                : 'rgba(255,255,255,0.02)',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <strong style={{ color: '#fff', fontSize: '14px' }}>Somente Entrada e Saída (2 batidas)</strong>
+                              {(configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')) && (
+                                <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
+                              )}
+                            </div>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
+                              Fluxo suave e sem atrito. O colaborador registra a Entrada ao chegar e a Saída ao encerrar. Ideal para simplificar a rotina.
+                            </p>
+                          </div>
                         </div>
-                        <div className="input-group">
-                          <label>Longitude</label>
-                          <input
-                            type="text"
-                            placeholder="Longitude"
-                            value={configLng}
-                            onChange={(e) => setConfigLng(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <MapaConfig
-                        lat={Number(configLat)}
-                        lng={Number(configLng)}
-                        raio={Number(configRaio)}
-                        onMove={(pos) => {
-                          setConfigLat(pos.lat);
-                          setConfigLng(pos.lng);
-                        }}
-                      />
-                      <BotaoGhost
-                        onClick={() => {
-                          setConfigLat(-19.9440459);
-                          setConfigLng(-43.9147834);
-                          toast.success("Mapa resetado para a Sede");
-                        }}
-                        style={{ marginTop: '12px', width: '100%', justifyContent: 'center' }}
-                      >
-                        <FiMapPin size={16} />
-                        Resetar para Sede (Rua Caraça, 910)
-                      </BotaoGhost>
-                    </div>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
 
-                    <Botao
-                      onClick={handleSalvarConfig}
-                      disabled={salvandoConfig}
-                      style={{ marginTop: '32px', width: '100%', justifyContent: 'center' }}
-                    >
-                      {salvandoConfig ? (
-                        "Salvando..."
-                      ) : (
-                        <>
-                          <FiCheckSquare size={18} /> Salvar Configurações
-                        </>
-                      )}
-                    </Botao>
-                  </ConfigBox>
+                  {/* 2. Geofencing (Raio de Ponto) */}
+                  <AccordionCard $aberto={secoesAbertasConfig.geo}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.geo} onClick={() => toggleSecaoConfig('geo')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#2ecc71', background: 'rgba(46, 204, 113, 0.12)' }}>
+                          <FiMapPin size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Geofencing & Localização da Sede</h4>
+                          <p>Raio de tolerância GPS e coordenadas da sede no mapa</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.geo}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
 
-                  <ConfigBox>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(47, 129, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FiCalendar size={18} color="var(--cor-primaria, #2f81f7)" />
-                      </div>
-                      <h4 style={{ margin: 0 }}>Calendário e Ausências</h4>
-                    </div>
-                    <p>Gerencie feriados, recessos e férias para garantir a precisão do banco de horas.</p>
+                    {secoesAbertasConfig.geo && (
+                      <AccordionBody>
+                        <ConfigBox style={{ background: 'transparent', padding: 0, border: 'none' }}>
+                          <p>Defina o raio de tolerância para batida de ponto na sede da instituição.</p>
+                          <div className="input-row">
+                            <input
+                              type="number"
+                              placeholder="Ex: 500"
+                              value={configRaio}
+                              onChange={(e) => setConfigRaio(e.target.value)}
+                            />
+                            <span>metros</span>
+                          </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div className="input-group">
-                        <label>Tipo de Ausência</label>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                          {[
-                            { value: "FERIADO", label: "Feriado", icon: <FiMapPin size={12} /> },
-                            { value: "RECESSO", label: "Recesso", icon: <FiClock size={12} /> },
-                            { value: "FERIAS", label: "Férias", icon: <FiUserPlus size={12} /> },
-                            { value: "OUTRO", label: "Abono", icon: <FiCheckSquare size={12} /> }
-                          ].map(opt => (
-                            <div 
-                              key={opt.value}
-                              onClick={() => setNovaAusencia({ ...novaAusencia, tipo: opt.value, userId: opt.value === "FERIAS" ? novaAusencia.userId : "" })}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
-                                background: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)',
-                                color: novaAusencia.tipo === opt.value ? '#fff' : '#8d8d99',
-                                border: '1px solid',
-                                borderColor: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)'
+                          <div style={{ marginTop: '24px' }}>
+                            <h4>Localização da Sede</h4>
+                            <p>Coordenadas centrais da instituição ou arraste o marcador no mapa.</p>
+                            <div className="input-grid" style={{ marginBottom: '16px' }}>
+                              <div className="input-group">
+                                <label>Latitude</label>
+                                <input
+                                  type="text"
+                                  placeholder="Latitude"
+                                  value={configLat}
+                                  onChange={(e) => setConfigLat(e.target.value)}
+                                />
+                              </div>
+                              <div className="input-group">
+                                <label>Longitude</label>
+                                <input
+                                  type="text"
+                                  placeholder="Longitude"
+                                  value={configLng}
+                                  onChange={(e) => setConfigLng(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <MapaConfig
+                              lat={Number(configLat)}
+                              lng={Number(configLng)}
+                              raio={Number(configRaio)}
+                              onMove={(pos) => {
+                                setConfigLat(pos.lat);
+                                setConfigLng(pos.lng);
                               }}
+                            />
+                            <BotaoGhost
+                              onClick={() => {
+                                setConfigLat(-19.9440459);
+                                setConfigLng(-43.9147834);
+                                toast.success("Mapa resetado para a Sede");
+                              }}
+                              style={{ marginTop: '12px', width: '100%', justifyContent: 'center' }}
                             >
-                              {opt.icon} {opt.label}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                              <FiMapPin size={16} />
+                              Resetar para Sede (Rua Caraça, 910)
+                            </BotaoGhost>
+                          </div>
 
-                      {novaAusencia.tipo === "FERIAS" && (
-                        <div className="input-group" style={{ animation: 'fadeIn 0.3s ease' }}>
-                          <label>Selecionar Colaborador</label>
-                          <SeletorAcordeao
-                            opcoes={opcoesFuncionarios}
-                            value={novaAusencia.userId}
-                            onChange={(val) => setNovaAusencia({ ...novaAusencia, userId: val })}
-                          />
-                        </div>
-                      )}
+                          <Botao
+                            onClick={handleSalvarConfig}
+                            disabled={salvandoConfig}
+                            style={{ marginTop: '24px', width: '100%', justifyContent: 'center' }}
+                          >
+                            {salvandoConfig ? "Salvando..." : <><FiCheckSquare size={18} /> Salvar Localização & Raio</>}
+                          </Botao>
+                        </ConfigBox>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
 
-                      <div className="input-grid">
-                        <div className="input-group">
-                          <label>Data Início</label>
-                          <input 
-                            type="date" 
-                            value={novaAusencia.dataInicio} 
-                            onChange={(e) => setNovaAusencia({ ...novaAusencia, dataInicio: e.target.value, dataFim: e.target.value > novaAusencia.dataFim ? e.target.value : novaAusencia.dataFim })}
-                          />
-                        </div>
-                        <div className="input-group">
-                          <label>Data Fim (opcional)</label>
-                          <input 
-                            type="date" 
-                            value={novaAusencia.dataFim} 
-                            onChange={(e) => setNovaAusencia({ ...novaAusencia, dataFim: e.target.value })}
-                          />
-                        </div>
-                      </div>
+                  {/* 3. Calendário e Ausências */}
+                  <AccordionCard $aberto={secoesAbertasConfig.calendario}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.calendario} onClick={() => toggleSecaoConfig('calendario')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#f1c40f', background: 'rgba(241, 196, 15, 0.12)' }}>
+                          <FiCalendar size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Calendário Corporativo & Ausências</h4>
+                          <p>Gerencie feriados, recessos, férias e abonos</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.calendario}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
 
-                      <div className="input-group">
-                        <label>Descrição / Motivo</label>
-                        <input 
-                          type="text" 
-                          placeholder="Ex: Férias Anuais, Feriado Municipal..."
-                          value={novaAusencia.motivo}
-                          onChange={(e) => setNovaAusencia({ ...novaAusencia, motivo: e.target.value })}
-                        />
-                      </div>
+                    {secoesAbertasConfig.calendario && (
+                      <AccordionBody>
+                        <ConfigBox style={{ background: 'transparent', padding: 0, border: 'none' }}>
+                          <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>Gerencie feriados, recessos e férias para garantir a precisão do banco de horas.</p>
 
-                      <BotaoGhost 
-                        onClick={() => {
-                          if (!novaAusencia.dataInicio) return toast.error("Selecione a data.");
-                          if (novaAusencia.tipo === "FERIAS" && !novaAusencia.userId) return toast.error("Selecione o colaborador.");
-                          
-                          if (novaAusencia.tipo === "FERIADO" && novaAusencia.dataInicio === novaAusencia.dataFim) {
-                             if (listaFeriados.includes(novaAusencia.dataInicio)) {
-                               toast.error("Este feriado já está cadastrado.");
-                               return;
-                             }
-                             setListaFeriados([...listaFeriados, novaAusencia.dataInicio].sort());
-                          } else {
-                             const id = Math.random().toString(36).substr(2, 9);
-                             setListaAusencias([...listaAusencias, { ...novaAusencia, id }].sort((a,b) => a.dataInicio.localeCompare(b.dataInicio)));
-                          }
-                          
-                          toast.success("Adicionado à lista!", { icon: '📅' });
-                          setNovaAusencia({ ...novaAusencia, motivo: "" });
-                        }}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.1)', height: '48px' }}
-                      >
-                        <FiPlus /> Adicionar ao Calendário
-                      </BotaoGhost>
-                    </div>
-
-                    <div style={{ marginTop: '28px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                        <h5 style={{ color: '#8d8d99', fontSize: '11px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' }}>Datas Confirmadas</h5>
-                        <span style={{ fontSize: '10px', color: '#666' }}>{listaFeriados.length + listaAusencias.length} registros</span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
-                        {listaFeriados.map(f => (
-                          <div key={f} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(241, 196, 15, 0.03)', border: '1px solid rgba(241, 196, 15, 0.1)', borderRadius: '12px', transition: 'all 0.2s' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(241, 196, 15, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <FiCalendar size={16} color="#f1c40f" />
-                              </div>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>{format(new Date(`${f}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}</span>
-                                <span style={{ fontSize: '11px', color: '#8d8d99' }}>Feriado Nacional • {format(new Date(`${f}T12:00:00`), "yyyy")}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div className="input-group">
+                              <label>Tipo de Ausência</label>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                {[
+                                  { value: "FERIADO", label: "Feriado", icon: <FiMapPin size={12} /> },
+                                  { value: "RECESSO", label: "Recesso", icon: <FiClock size={12} /> },
+                                  { value: "FERIAS", label: "Férias", icon: <FiUserPlus size={12} /> },
+                                  { value: "OUTRO", label: "Abono", icon: <FiCheckSquare size={12} /> }
+                                ].map(opt => (
+                                  <div 
+                                    key={opt.value}
+                                    onClick={() => setNovaAusencia({ ...novaAusencia, tipo: opt.value, userId: opt.value === "FERIAS" ? novaAusencia.userId : "" })}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
+                                      background: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)',
+                                      color: novaAusencia.tipo === opt.value ? '#fff' : '#8d8d99',
+                                      border: '1px solid',
+                                      borderColor: novaAusencia.tipo === opt.value ? 'var(--cor-primaria, #2f81f7)' : 'rgba(255,255,255,0.05)'
+                                    }}
+                                  >
+                                    {opt.icon} {opt.label}
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                            <button 
-                              onClick={() => setListaFeriados(listaFeriados.filter(x => x !== f))}
-                              style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
-                              className="hover-danger"
-                            >
-                              <FiTrash2 size={15} />
-                            </button>
-                          </div>
-                        ))}
-                        {listaAusencias.map(aus => (
-                          <div key={aus.id} style={{ 
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', 
-                            background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.03)' : 'rgba(47, 129, 247, 0.03)', 
-                            border: '1px solid',
-                            borderColor: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)',
-                            borderRadius: '12px' 
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{ 
-                                width: '36px', height: '36px', borderRadius: '10px', 
-                                background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)', 
-                                display: 'flex', alignItems: 'center', justifyContent: 'center' 
-                              }}>
-                                {aus.tipo === 'FERIAS' ? <FiUserCheck size={16} color="#2ecc71" /> : <FiClock size={16} color="#2f81f7" />}
+
+                            {novaAusencia.tipo === "FERIAS" && (
+                              <div className="input-group" style={{ animation: 'fadeIn 0.3s ease' }}>
+                                <label>Selecionar Colaborador</label>
+                                <SeletorAcordeao
+                                  opcoes={opcoesFuncionarios}
+                                  value={novaAusencia.userId}
+                                  onChange={(val) => setNovaAusencia({ ...novaAusencia, userId: val })}
+                                />
                               </div>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>
-                                  {format(new Date(`${aus.dataInicio}T12:00:00`), "dd/MM")}
-                                  {aus.dataFim !== aus.dataInicio && ` — ${format(new Date(`${aus.dataFim}T12:00:00`), "dd/MM")}`}
-                                </span>
-                                <span style={{ fontSize: '11px', color: '#8d8d99' }}>
-                                  {aus.tipo === 'FERIAS' 
-                                    ? `Férias: ${funcionarios.find(f => f.id === aus.userId)?.nome}` 
-                                    : (aus.tipo === 'FERIADO' ? 'Feriado' : aus.tipo === 'RECESSO' ? 'Recesso Corporativo' : 'Outra Ausência')}
-                                  {aus.motivo && ` • ${aus.motivo}`}
-                                </span>
+                            )}
+
+                            <div className="input-grid">
+                              <div className="input-group">
+                                <label>Data Início</label>
+                                <input 
+                                  type="date" 
+                                  value={novaAusencia.dataInicio} 
+                                  onChange={(e) => setNovaAusencia({ ...novaAusencia, dataInicio: e.target.value, dataFim: e.target.value > novaAusencia.dataFim ? e.target.value : novaAusencia.dataFim })}
+                                />
+                              </div>
+                              <div className="input-group">
+                                <label>Data Fim (opcional)</label>
+                                <input 
+                                  type="date" 
+                                  value={novaAusencia.dataFim} 
+                                  onChange={(e) => setNovaAusencia({ ...novaAusencia, dataFim: e.target.value })}
+                                />
                               </div>
                             </div>
-                            <button 
-                              onClick={() => setListaAusencias(listaAusencias.filter(x => x.id !== aus.id))}
-                              style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
+
+                            <div className="input-group">
+                              <label>Descrição / Motivo</label>
+                              <input 
+                                type="text" 
+                                placeholder="Ex: Férias Anuais, Feriado Municipal..."
+                                value={novaAusencia.motivo}
+                                onChange={(e) => setNovaAusencia({ ...novaAusencia, motivo: e.target.value })}
+                              />
+                            </div>
+
+                            <BotaoGhost 
+                              onClick={() => {
+                                if (!novaAusencia.dataInicio) return toast.error("Selecione a data.");
+                                if (novaAusencia.tipo === "FERIAS" && !novaAusencia.userId) return toast.error("Selecione o colaborador.");
+                                
+                                if (novaAusencia.tipo === "FERIADO" && novaAusencia.dataInicio === novaAusencia.dataFim) {
+                                   if (listaFeriados.includes(novaAusencia.dataInicio)) {
+                                     toast.error("Este feriado já está cadastrado.");
+                                     return;
+                                   }
+                                   setListaFeriados([...listaFeriados, novaAusencia.dataInicio].sort());
+                                } else {
+                                   const id = Math.random().toString(36).substr(2, 9);
+                                   setListaAusencias([...listaAusencias, { ...novaAusencia, id }].sort((a,b) => a.dataInicio.localeCompare(b.dataInicio)));
+                                }
+                                
+                                toast.success("Adicionado à lista!", { icon: '📅' });
+                                setNovaAusencia({ ...novaAusencia, motivo: "" });
+                              }}
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.1)', height: '48px' }}
                             >
-                              <FiTrash2 size={15} />
-                            </button>
+                              <FiPlus /> Adicionar ao Calendário
+                            </BotaoGhost>
                           </div>
-                        ))}
-                        {listaFeriados.length === 0 && listaAusencias.length === 0 && (
-                          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '16px', background: 'rgba(255,255,255,0.01)' }}>
-                            <FiCalendar size={24} style={{ marginBottom: '12px', opacity: 0.2 }} />
-                            <p style={{ margin: 0 }}>Nenhuma data cadastrada para este ano.</p>
+
+                          <div style={{ marginTop: '28px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                              <h5 style={{ color: '#8d8d99', fontSize: '11px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' }}>Datas Confirmadas</h5>
+                              <span style={{ fontSize: '10px', color: '#666' }}>{listaFeriados.length + listaAusencias.length} registros</span>
+                            </div>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
+                              {listaFeriados.map(f => (
+                                <div key={f} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(241, 196, 15, 0.03)', border: '1px solid rgba(241, 196, 15, 0.1)', borderRadius: '12px', transition: 'all 0.2s' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(241, 196, 15, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <FiCalendar size={16} color="#f1c40f" />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>{format(new Date(`${f}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}</span>
+                                      <span style={{ fontSize: '11px', color: '#8d8d99' }}>Feriado Nacional • {format(new Date(`${f}T12:00:00`), "yyyy")}</span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={() => setListaFeriados(listaFeriados.filter(x => x !== f))}
+                                    style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
+                                    className="hover-danger"
+                                  >
+                                    <FiTrash2 size={15} />
+                                  </button>
+                                </div>
+                              ))}
+                              {listaAusencias.map(aus => (
+                                <div key={aus.id} style={{ 
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', 
+                                  background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.03)' : 'rgba(47, 129, 247, 0.03)', 
+                                  border: '1px solid',
+                                  borderColor: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)',
+                                  borderRadius: '12px' 
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ 
+                                      width: '36px', height: '36px', borderRadius: '10px', 
+                                      background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)', 
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                                    }}>
+                                      {aus.tipo === 'FERIAS' ? <FiUserCheck size={16} color="#2ecc71" /> : <FiClock size={16} color="#2f81f7" />}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>
+                                        {format(new Date(`${aus.dataInicio}T12:00:00`), "dd/MM")}
+                                        {aus.dataFim !== aus.dataInicio && ` — ${format(new Date(`${aus.dataFim}T12:00:00`), "dd/MM")}`}
+                                      </span>
+                                      <span style={{ fontSize: '11px', color: '#8d8d99' }}>
+                                        {aus.tipo === 'FERIAS' 
+                                          ? `Férias: ${funcionarios.find(f => f.id === aus.userId)?.nome}` 
+                                          : (aus.tipo === 'FERIADO' ? 'Feriado' : aus.tipo === 'RECESSO' ? 'Recesso Corporativo' : 'Outra Ausência')}
+                                        {aus.motivo && ` • ${aus.motivo}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    onClick={() => setListaAusencias(listaAusencias.filter(x => x.id !== aus.id))}
+                                    style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
+                                  >
+                                    <FiTrash2 size={15} />
+                                  </button>
+                                </div>
+                              ))}
+                              {listaFeriados.length === 0 && listaAusencias.length === 0 && (
+                                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#666', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '16px', background: 'rgba(255,255,255,0.01)' }}>
+                                  <FiCalendar size={24} style={{ marginBottom: '12px', opacity: 0.2 }} />
+                                  <p style={{ margin: 0 }}>Nenhuma data cadastrada para este ano.</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    <Botao
-                      onClick={handleSalvarConfig}
-                      disabled={salvandoConfig}
-                      style={{ marginTop: '32px', width: '100%', justifyContent: 'center', height: '52px', boxShadow: '0 4px 14px rgba(47, 129, 247, 0.2)' }}
-                    >
-                      {salvandoConfig ? (
-                        "Gravando Alterações..."
-                      ) : (
-                        <>
-                          <FiCheckSquare size={18} /> Salvar Calendário Corporativo
-                        </>
-                      )}
-                    </Botao>
-                  </ConfigBox>
+                          <Botao
+                            onClick={handleSalvarConfig}
+                            disabled={salvandoConfig}
+                            style={{ marginTop: '24px', width: '100%', justifyContent: 'center', height: '52px' }}
+                          >
+                            {salvandoConfig ? "Gravando Alterações..." : <><FiCheckSquare size={18} /> Salvar Calendário Corporativo</>}
+                          </Botao>
+                        </ConfigBox>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <ConfigBox>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <FiDatabase size={18} color="#fff" />
-                        <h4 style={{ margin: 0 }}>Backup dos Dados</h4>
-                      </div>
-                      <p>Baixe os dados da instituição ou restaure um arquivo salvo anteriormente.</p>
-                      <div style={{ display: 'grid', gap: '10px' }}>
-                        <BotaoGhost onClick={handleBaixarBackup} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
-                          <FiDownload size={16} /> Baixar Backup
+                  {/* 4. Backup dos Dados */}
+                  <AccordionCard $aberto={secoesAbertasConfig.backup}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.backup} onClick={() => toggleSecaoConfig('backup')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#9b59b6', background: 'rgba(155, 89, 182, 0.12)' }}>
+                          <FiDatabase size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Backup & Restauração de Dados</h4>
+                          <p>Baixe cópias de segurança ou restaure dados do sistema</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.backup}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
+
+                    {secoesAbertasConfig.backup && (
+                      <AccordionBody>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>Baixe os dados da instituição ou restaure um arquivo salvo anteriormente.</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <BotaoGhost onClick={handleBaixarBackup} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiDownload size={16} /> Baixar Backup
+                          </BotaoGhost>
+                          <BotaoGhost onClick={() => backupInputRef.current?.click()} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiUpload size={16} /> Restaurar Backup
+                          </BotaoGhost>
+                          <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleRestaurarBackup} hidden />
+                        </div>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
+
+                  {/* 5. Identidade do Painel */}
+                  <AccordionCard $aberto={secoesAbertasConfig.identidade}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.identidade} onClick={() => toggleSecaoConfig('identidade')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#e67e22', background: 'rgba(230, 126, 34, 0.12)' }}>
+                          <FiSettings size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Identidade do Painel</h4>
+                          <p>Personalize o nome da empresa/instituição no sistema</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.identidade}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
+
+                    {secoesAbertasConfig.identidade && (
+                      <AccordionBody>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>Personalize o nome que aparece no topo e na barra lateral do painel.</p>
+                        <div className="input-row" style={{ marginBottom: '16px' }}>
+                          <span>Nome do Painel</span>
+                          <input
+                            type="text"
+                            value={tempNomePainel}
+                            onChange={(e) => setTempNomePainel(e.target.value)}
+                            placeholder="Ex: Minha Empresa"
+                          />
+                        </div>
+                        <Botao
+                          onClick={handleSalvarConfig}
+                          disabled={salvandoConfig}
+                          style={{ width: '100%', justifyContent: 'center' }}
+                        >
+                          {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
+                          Salvar Identidade
+                        </Botao>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
+
+                  {/* 6. Segurança e Gestão de Acessos */}
+                  <AccordionCard $aberto={secoesAbertasConfig.acessos}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.acessos} onClick={() => toggleSecaoConfig('acessos')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#1abc9c', background: 'rgba(26, 188, 156, 0.12)' }}>
+                          <FiShield size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Segurança & Gestão de Acessos</h4>
+                          <p>Troca de senha e cadastramento de novos usuários</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.acessos}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
+
+                    {secoesAbertasConfig.acessos && (
+                      <AccordionBody>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <BotaoGhost onClick={() => setAbaAtiva("CADASTRO")} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiUserPlus size={16} /> Cadastrar Funcionário
+                          </BotaoGhost>
+                          <BotaoGhost onClick={() => setModalSenhaAberto(true)} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiLock size={16} /> Trocar Minha Senha
+                          </BotaoGhost>
+                        </div>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
+
+                  {/* 7. Sessão */}
+                  <AccordionCard $aberto={secoesAbertasConfig.sessao}>
+                    <AccordionHeader $aberto={secoesAbertasConfig.sessao} onClick={() => toggleSecaoConfig('sessao')}>
+                      <AccordionLeft>
+                        <IconeBox style={{ color: '#eb4d4b', background: 'rgba(235, 77, 75, 0.12)' }}>
+                          <FiLogOut size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4 style={{ color: '#eb4d4b' }}>Sessão do Usuário</h4>
+                          <p>Encerrar sessão atual neste dispositivo</p>
+                        </AccordionTitulos>
+                      </AccordionLeft>
+                      <AccordionChevron $aberto={secoesAbertasConfig.sessao}>
+                        <FiChevronDown size={20} />
+                      </AccordionChevron>
+                    </AccordionHeader>
+
+                    {secoesAbertasConfig.sessao && (
+                      <AccordionBody>
+                        <BotaoGhost
+                          onClick={logout}
+                          style={{ width: '100%', justifyContent: 'center', borderColor: 'rgba(235, 77, 75, 0.3)', color: '#eb4d4b' }}
+                        >
+                          <FiLogOut size={16} /> Sair da Conta
                         </BotaoGhost>
-                        <BotaoGhost onClick={() => backupInputRef.current?.click()} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
-                          <FiUpload size={16} /> Restaurar Backup
-                        </BotaoGhost>
-                        <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleRestaurarBackup} hidden />
-                      </div>
-                    </ConfigBox>
-
-                    <ConfigBox>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <FiUsers size={18} color="#fff" />
-                        <h4 style={{ margin: 0 }}>Gestão de Acessos</h4>
-                      </div>
-                      <p>Gerencie quem pode acessar o sistema e cadastre novos funcionários.</p>
-                      <BotaoGhost onClick={() => setAbaAtiva("CADASTRO")} style={{ width: '100%', justifyContent: 'center' }}>
-                        <FiUserPlus size={16} />
-                        Cadastrar Novo Funcionário
-                      </BotaoGhost>
-                    </ConfigBox>
-
-                    <ConfigBox>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <FiLock size={18} color="#fff" />
-                        <h4 style={{ margin: 0 }}>Segurança</h4>
-                      </div>
-                      <p>Mantenha sua conta protegida alterando sua senha regularmente.</p>
-                      <BotaoGhost onClick={() => setModalSenhaAberto(true)} style={{ width: '100%', justifyContent: 'center' }}>
-                        <FiLock size={16} />
-                        Trocar Minha Senha
-                      </BotaoGhost>
-                    </ConfigBox>
-
-                    <ConfigBox>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <FiSettings size={18} color="#fff" />
-                        <h4 style={{ margin: 0 }}>Identidade do Painel</h4>
-                      </div>
-                      <p>Personalize o nome que aparece no topo e na barra lateral.</p>
-
-                      <div className="input-row">
-                        <span>Nome do Painel</span>
-                        <input
-                          type="text"
-                          value={tempNomePainel}
-                          onChange={(e) => setTempNomePainel(e.target.value)}
-                          placeholder="Ex: Minha Empresa"
-                        />
-                      </div>
-
-                      <Botao
-                        onClick={handleSalvarConfig}
-                        disabled={salvandoConfig}
-                        style={{ marginTop: '24px', width: '100%', justifyContent: 'center' }}
-                      >
-                        {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
-                        Salvar Identidade
-                      </Botao>
-                    </ConfigBox>
-
-                    <ConfigBox>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <FiLogOut size={18} color="#eb4d4b" />
-                        <h4 style={{ margin: 0, color: '#eb4d4b' }}>Sessão</h4>
-                      </div>
-                      <p>Encerrar sua sessão atual neste dispositivo.</p>
-                      <BotaoGhost
-                        onClick={logout}
-                        style={{ width: '100%', justifyContent: 'center', borderColor: 'rgba(235, 77, 75, 0.2)', color: '#eb4d4b' }}
-                      >
-                        <FiLogOut size={16} />
-                        Sair da Conta
-                      </BotaoGhost>
-                    </ConfigBox>
-                  </div>
-                </PainelConfig>
+                      </AccordionBody>
+                    )}
+                  </AccordionCard>
+                </AccordionContainer>
               </>
             )}
 
@@ -1383,6 +1484,11 @@ export default function DashboardAdmin() {
           aberto={modalSenhaAberto}
           onFechar={() => setModalSenhaAberto(false)}
           onSucesso={() => setModalSenhaAberto(false)}
+        />
+
+        <ModalCompartilharSistema
+          aberto={modalCompartilharAberto}
+          onFechar={() => setModalCompartilharAberto(false)}
         />
 
         <ModalMapaPonto
@@ -2232,5 +2338,94 @@ const BtnNotificar = styled.button`
 
   &:active {
     transform: scale(0.9);
+  }
+`;
+
+const AccordionContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: 40px;
+`;
+
+const AccordionCard = styled.div`
+  background: #18191c;
+  border: 1px solid ${p => p.$aberto ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+  border-radius: 18px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+  box-shadow: ${p => p.$aberto ? "0 8px 30px rgba(0, 0, 0, 0.4)" : "0 4px 16px rgba(0, 0, 0, 0.2)"};
+
+  &:hover {
+    border-color: ${p => p.$aberto ? "rgba(79, 172, 254, 0.4)" : "rgba(255, 255, 255, 0.16)"};
+  }
+`;
+
+const AccordionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  cursor: pointer;
+  user-select: none;
+  background: ${p => p.$aberto ? "rgba(255, 255, 255, 0.03)" : "transparent"};
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+`;
+
+const AccordionLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const IconeBox = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const AccordionTitulos = styled.div`
+  h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  p {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: #8d8d99;
+  }
+`;
+
+const AccordionChevron = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8d8d99;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotate(${p => p.$aberto ? "180deg" : "0deg"});
+`;
+
+const AccordionBody = styled.div`
+  padding: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.25s ease-out;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 `;
