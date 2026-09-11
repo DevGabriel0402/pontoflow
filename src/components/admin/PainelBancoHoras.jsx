@@ -54,6 +54,10 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const { perfil, usuario, isSuperAdmin } = useAuth();
   const { config } = useConfig();
   const feriados = config?.feriados || [];
+  const temPonto = (id) => {
+    const ativos = config?.regras?.pontosAtivos || ['entrada', 'saida'];
+    return ativos.includes(id);
+  };
 
   // Período: mês/ano
   const hoje = new Date();
@@ -588,10 +592,10 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                               <thead>
                                 <tr>
                                   <th>Data</th>
-                                  <th>Entrada</th>
-                                  <th>Iní. Intervalo</th>
-                                  <th>Fim Intervalo</th>
-                                  <th>Saída</th>
+                                  {temPonto('entrada') && <th>Entrada</th>}
+                                  {temPonto('intervalo_saida') && <th>Iní. Intervalo</th>}
+                                  {temPonto('intervalo_entrada') && <th>Fim Intervalo</th>}
+                                  {temPonto('saida') && <th>Saída</th>}
                                   <th>Trabalhado</th>
                                   <th>Esperado</th>
                                   <th>Diferença</th>
@@ -603,6 +607,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                 {dias.map((dia) => (
                                   <tr key={dia.dataKey}>
                                     <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
+                                  {temPonto('entrada') && (
                                     <td>
                                       {dia.ponto_indices.entrada ? (
                                         <TimeWrapper>
@@ -611,6 +616,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         </TimeWrapper>
                                       ) : "—"}
                                     </td>
+                                  )}
+                                  {temPonto('intervalo_saida') && (
                                     <td>
                                       {dia.ponto_indices.iniInt ? (
                                         <TimeWrapper>
@@ -619,6 +626,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         </TimeWrapper>
                                       ) : "—"}
                                     </td>
+                                  )}
+                                  {temPonto('intervalo_entrada') && (
                                     <td>
                                       {dia.ponto_indices.fimInt ? (
                                         <TimeWrapper>
@@ -627,6 +636,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         </TimeWrapper>
                                       ) : "—"}
                                     </td>
+                                  )}
+                                  {temPonto('saida') && (
                                     <td>
                                       {dia.ponto_indices.saida ? (
                                         <TimeWrapper>
@@ -635,6 +646,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                         </TimeWrapper>
                                       ) : "—"}
                                     </td>
+                                  )}
                                     <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
                                     <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
                                     <td>

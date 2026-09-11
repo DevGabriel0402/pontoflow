@@ -116,7 +116,29 @@ export default function HomeColaborador() {
       const d = getDataPonto(p);
       return d && isSameDay(d, hoje);
     });
-  }, [historico]);
+  }, [historico, pendentes, usuario?.uid]);
+
+  // ✅ Identifica batidas de hoje para exibição suave de Entrada e Saída
+  const pontoEntradaHoje = React.useMemo(() => {
+    return pontosHoje.find(p => p.type === TIPOS.ENTRADA);
+  }, [pontosHoje]);
+
+  const pontoSaidaHoje = React.useMemo(() => {
+    return pontosHoje.find(p => p.type === TIPOS.SAIDA);
+  }, [pontosHoje]);
+
+  // ✅ Próxima ação inteligente (Entrada -> Saída)
+  const proximoTipo = React.useMemo(() => {
+    if (tipoSelecionado && !tiposFeitosHoje.has(tipoSelecionado)) {
+      return tipoSelecionado;
+    }
+    for (const t of tiposAtivos) {
+      if (!tiposFeitosHoje.has(t)) {
+        return t;
+      }
+    }
+    return null;
+  }, [tipoSelecionado, tiposFeitosHoje, tiposAtivos]);
 
   const statusTexto = React.useMemo(() => {
     if (!checou) return "Validando localização...";
@@ -200,9 +222,10 @@ export default function HomeColaborador() {
     }
   };
 
-  const handleConfirmar = () => {
-    if (!tipoSelecionado) {
-      toast.error("Selecione o tipo de ponto antes de continuar.");
+  const handleConfirmar = (tipoManual = null) => {
+    const alvo = (typeof tipoManual === "string" ? tipoManual : null) || proximoTipo;
+    if (!alvo) {
+      toast.error("Você já concluiu todos os registros de hoje!");
       return;
     }
     if (bloqueado && !isAdmin) {
@@ -211,16 +234,18 @@ export default function HomeColaborador() {
     }
 
     if (temModulo('face')) {
+      setTipoSelecionado(alvo);
       setModalFaceAberto(true);
     } else {
-      handle(tipoSelecionado);
+      handle(alvo);
     }
   };
 
   const handleSucessoFace = async () => {
     setModalFaceAberto(false);
     try {
-      await handle(tipoSelecionado);
+      const alvo = tipoSelecionado || proximoTipo;
+      if (alvo) await handle(alvo);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao registrar ponto após autenticação facial.");
@@ -340,7 +365,68 @@ export default function HomeColaborador() {
           <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
         </Status>
 
-        <ChipsGrid>
+        {tiposAtivos.length <= 2 ? (
+          <PainelEntradaSaida>
+            <CardBatida
+              $feito={tiposFeitosHoje.has(TIPOS.ENTRADA)}
+              $selecionado={tipoSelecionado === TIPOS.ENTRADA || (!tipoSelecionado && proximoTipo === TIPOS.ENTRADA)}
+              onClick={() => {
+                if (!tiposFeitosHoje.has(TIPOS.ENTRADA)) {
+                  setTipoSelecionado(TIPOS.ENTRADA);
+                }
+              }}
+            >
+              <CardBatidaTopo>
+                <span className="titulo">Entrada</span>
+                {tiposFeitosHoje.has(TIPOS.ENTRADA) ? (
+                  <BadgeFeito>✓ Concluído</BadgeFeito>
+                ) : (
+                  <BadgePendente $destaque={proximoTipo === TIPOS.ENTRADA}>
+                    {proximoTipo === TIPOS.ENTRADA ? "Próxima batida" : "Pendente"}
+                  </BadgePendente>
+                )}
+              </CardBatidaTopo>
+              <CardBatidaHora>
+                {pontoEntradaHoje
+                  ? new Date(getDataPonto(pontoEntradaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : "--:--"}
+              </CardBatidaHora>
+              <CardBatidaSub>
+                {tiposFeitosHoje.has(TIPOS.ENTRADA) ? "Registrado com sucesso" : "Início do expediente"}
+              </CardBatidaSub>
+            </CardBatida>
+
+            <CardBatida
+              $feito={tiposFeitosHoje.has(TIPOS.SAIDA)}
+              $selecionado={tipoSelecionado === TIPOS.SAIDA || (!tipoSelecionado && proximoTipo === TIPOS.SAIDA)}
+              onClick={() => {
+                if (!tiposFeitosHoje.has(TIPOS.SAIDA)) {
+                  setTipoSelecionado(TIPOS.SAIDA);
+                }
+              }}
+            >
+              <CardBatidaTopo>
+                <span className="titulo">Saída</span>
+                {tiposFeitosHoje.has(TIPOS.SAIDA) ? (
+                  <BadgeFeito>✓ Concluído</BadgeFeito>
+                ) : (
+                  <BadgePendente $destaque={proximoTipo === TIPOS.SAIDA}>
+                    {proximoTipo === TIPOS.SAIDA ? "Próxima batida" : "Pendente"}
+                  </BadgePendente>
+                )}
+              </CardBatidaTopo>
+              <CardBatidaHora>
+                {pontoSaidaHoje
+                  ? new Date(getDataPonto(pontoSaidaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : "--:--"}
+              </CardBatidaHora>
+              <CardBatidaSub>
+                {tiposFeitosHoje.has(TIPOS.SAIDA) ? "Registrado com sucesso" : "Término do expediente"}
+              </CardBatidaSub>
+            </CardBatida>
+          </PainelEntradaSaida>
+        ) : (
+          <ChipsGrid>
           {[
             { key: TIPOS.ENTRADA, label: "Entrada" },
             { key: TIPOS.INICIO_INTERVALO, label: "Início Intervalo" },
@@ -351,7 +437,7 @@ export default function HomeColaborador() {
             .map(({ key, label }) => (
               <Chip
                 key={key}
-                $selecionado={tipoSelecionado === key}
+                $selecionado={tipoSelecionado === key || (!tipoSelecionado && proximoTipo === key)}
                 $feito={tiposFeitosHoje.has(key)}
                 onClick={() => !tiposFeitosHoje.has(key) && setTipoSelecionado(key)}
               >
@@ -359,14 +445,19 @@ export default function HomeColaborador() {
               </Chip>
             ))}
         </ChipsGrid>
+        )}
 
         <BotaoFace
-          onClick={handleConfirmar}
-          disabled={!tipoSelecionado || bloqueado || carregandoGeo}
-          style={{ background: `linear-gradient(135deg, ${corPrimaria}, ${corPrimaria}dd)` }}
+          onClick={() => handleConfirmar()}
+          disabled={!proximoTipo || bloqueado || carregandoGeo || todosConcluidos}
+          style={{ background: todosConcluidos ? "rgba(255,255,255,0.08)" : `linear-gradient(135deg, ${corPrimaria}, ${corPrimaria}dd)` }}
         >
           {temModulo('face') ? <FiCamera /> : <FiClock />}
-          {temModulo('face') ? "Confirmar com Reconhecimento Facial" : "Confirmar Registro de Ponto"}
+          {todosConcluidos
+            ? "Jornada Concluída por Hoje"
+            : temModulo('face')
+              ? `Confirmar ${proximoTipo === TIPOS.ENTRADA ? "Entrada" : proximoTipo === TIPOS.SAIDA ? "Saída" : "Ponto"} Facial`
+              : `Bater ${proximoTipo === TIPOS.ENTRADA ? "Entrada" : proximoTipo === TIPOS.SAIDA ? "Saída" : "Ponto"} Agora`}
         </BotaoFace>
 
         {ehFimDeSemana && (
@@ -713,6 +804,111 @@ const Grid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+`;
+
+const PainelEntradaSaida = styled.div`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const CardBatida = styled.div`
+  background: ${({ theme, $feito, $selecionado }) =>
+    $feito
+      ? "rgba(46, 204, 113, 0.08)"
+      : $selecionado
+      ? "rgba(79, 172, 254, 0.12)"
+      : "rgba(255, 255, 255, 0.03)"};
+  border: 2px solid ${({ theme, $feito, $selecionado }) =>
+    $feito
+      ? "rgba(46, 204, 113, 0.4)"
+      : $selecionado
+      ? "var(--cor-primaria, #4facfe)"
+      : "rgba(255, 255, 255, 0.08)"};
+  border-radius: 18px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: ${({ $feito }) => ($feito ? "default" : "pointer")};
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: ${({ $selecionado }) =>
+    $selecionado ? "0 8px 24px rgba(79, 172, 254, 0.18)" : "none"};
+
+  &:hover {
+    ${({ $feito }) =>
+      !$feito &&
+      `
+      transform: translateY(-2px);
+      border-color: var(--cor-primaria, #4facfe);
+      background: rgba(79, 172, 254, 0.08);
+    `}
+  }
+
+  &:active {
+    ${({ $feito }) => !$feito && `transform: scale(0.98);`}
+  }
+`;
+
+const CardBatidaTopo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .titulo {
+    font-size: 13px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+`;
+
+const BadgeFeito = styled.span`
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+`;
+
+const BadgePendente = styled.span`
+  background: ${({ $destaque }) =>
+    $destaque ? "rgba(79, 172, 254, 0.15)" : "rgba(255, 255, 255, 0.05)"};
+  color: ${({ $destaque }) => ($destaque ? "var(--cor-primaria, #4facfe)" : "#8d8d99")};
+  border: 1px solid
+    ${({ $destaque }) =>
+      $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  animation: ${({ $destaque }) => ($destaque ? "pulse 2s infinite" : "none")};
+
+  @keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+  }
+`;
+
+const CardBatidaHora = styled.div`
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+  margin: 4px 0 2px;
+  font-variant-numeric: tabular-nums;
+`;
+
+const CardBatidaSub = styled.div`
+  font-size: 11px;
+  color: #8d8d99;
+  font-weight: 500;
 `;
 
 const ChipsGrid = styled.div`

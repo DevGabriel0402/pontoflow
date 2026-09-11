@@ -12,8 +12,9 @@ import { MOTIVOS_JUSTIFICATIVA } from "../colaborador/ModalJustificativa";
 export default function ModalEditarPonto({ aberto, onFechar, registro, userId, companyId }) {
     const { config } = useConfig();
     const temPonto = (id) => {
-        if (!config?.regras?.pontosAtivos) return true;
-        return config.regras.pontosAtivos.includes(id);
+        const ativos = config?.regras?.pontosAtivos || ['entrada', 'saida'];
+        return ativos.includes(id);
+
     };
     const [horarios, setHorarios] = useState({
         entrada: "",

@@ -31,7 +31,7 @@ export function exportarMensalPdf(resumo, meta = {}) {
     const empresa = meta.empresa || "Empresa";
     const periodo = meta.periodo || "—";
     const geradoEm = format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR });
-    const pontosAtivos = meta.pontosAtivos || ['entrada', 'intervalo_saida', 'intervalo_entrada', 'saida'];
+    const pontosAtivos = meta.pontosAtivos || ['entrada', 'saida'];
     const temPonto = (id) => pontosAtivos.includes(id);
 
     // Agrupar dados por funcionário

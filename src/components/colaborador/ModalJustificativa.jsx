@@ -48,13 +48,13 @@ export default function ModalJustificativa({ aberto, onFechar, editandoObj = nul
     const { config } = useConfig();
 
     const tiposFiltrados = React.useMemo(() => {
-        if (!config?.regras?.pontosAtivos) return TIPOS;
+        const ativos = config?.regras?.pontosAtivos || ['entrada', 'saida'];
         return TIPOS.filter(t => {
             if (t.value === "ABONO_FALTA") return true;
-            if (t.value === "ENTRADA") return config.regras.pontosAtivos.includes('entrada');
-            if (t.value === "SAIDA") return config.regras.pontosAtivos.includes('saida');
-            if (t.value === "INICIO_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_saida');
-            if (t.value === "FIM_INTERVALO") return config.regras.pontosAtivos.includes('intervalo_entrada');
+            if (t.value === "ENTRADA") return ativos.includes('entrada');
+            if (t.value === "SAIDA") return ativos.includes('saida');
+            if (t.value === "INICIO_INTERVALO") return ativos.includes('intervalo_saida');
+            if (t.value === "FIM_INTERVALO") return ativos.includes('intervalo_entrada');
             return true;
         });
     }, [config?.regras?.pontosAtivos]);

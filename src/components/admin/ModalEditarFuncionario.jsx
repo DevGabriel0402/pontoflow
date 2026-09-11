@@ -14,8 +14,9 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
   const { isSuperAdmin } = useAuth();
 
   const temPonto = (id) => {
-    if (!config?.regras?.pontosAtivos) return true;
-    return config.regras.pontosAtivos.includes(id);
+    const ativos = config?.regras?.pontosAtivos || ['entrada', 'saida'];
+    return ativos.includes(id);
+
   };
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");

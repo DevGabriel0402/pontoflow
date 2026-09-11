@@ -92,8 +92,9 @@ export default function DashboardAdmin() {
   const { config, nomePainel } = useConfig();
   const temPonto = (id) => {
     // Se não houver config ou pontosAtivos, mostra tudo (fallback legacy)
-    if (!config?.regras?.pontosAtivos) return true;
-    return config.regras.pontosAtivos.includes(id);
+    const ativos = config?.regras?.pontosAtivos || configPontosAtivos || ['entrada', 'saida'];
+    return ativos.includes(id);
+
   };
   const { validacao, validarLocal } = usePonto();
 
@@ -121,6 +122,7 @@ export default function DashboardAdmin() {
   const [configLng, setConfigLng] = React.useState(-43.9147834);
   const [tempNomePainel, setTempNomePainel] = React.useState("");
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
+  const [configPontosAtivos, setConfigPontosAtivos] = React.useState(['entrada', 'saida']);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
   const [bancoHoras, setBancoHoras] = React.useState([]);
   const backupInputRef = React.useRef(null);
@@ -194,6 +196,10 @@ export default function DashboardAdmin() {
           }
           if (configData.feriados) setListaFeriados(configData.feriados);
           if (configData.ausencias) setListaAusencias(configData.ausencias);
+          const pAtivos = configData.regras?.pontosAtivos || configData.pontosAtivos;
+          if (Array.isArray(pAtivos) && pAtivos.length > 0) {
+            setConfigPontosAtivos(pAtivos);
+          }
         }
       } catch (e) {
         console.error("Erro ao carregar settings:", e);
@@ -229,6 +235,7 @@ export default function DashboardAdmin() {
           "config.nomePainel": tempNomePainel.trim() || nomePainel,
           "config.feriados": listaFeriados,
           "config.ausencias": listaAusencias,
+          "config.regras.pontosAtivos": configPontosAtivos,
           "config.atualizadoEm": new Date(),
         });
       } else {
@@ -240,6 +247,7 @@ export default function DashboardAdmin() {
           nomePainel: tempNomePainel.trim() || nomePainel,
           feriados: listaFeriados,
           ausencias: listaAusencias,
+          "regras.pontosAtivos": configPontosAtivos,
           atualizadoEm: new Date(),
         });
       }
@@ -961,6 +969,69 @@ export default function DashboardAdmin() {
                 </Topo>
 
                 <PainelConfig>
+                  <ConfigBox style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <FiClock size={18} color="var(--cor-primaria, #2f81f7)" />
+                      <h4 style={{ margin: 0 }}>Regime de Registro de Ponto</h4>
+                    </div>
+                    <p>Defina o formato de batidas diárias para os colaboradores da instituição.</p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '16px' }}>
+                      <div
+                        onClick={() => setConfigPontosAtivos(['entrada', 'saida'])}
+                        style={{
+                          padding: '16px',
+                          borderRadius: '14px',
+                          cursor: 'pointer',
+                          border: '2px solid',
+                          borderColor: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
+                            ? 'var(--cor-primaria, #2f81f7)'
+                            : 'rgba(255,255,255,0.06)',
+                          background: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
+                            ? 'rgba(47, 129, 247, 0.08)'
+                            : 'rgba(255,255,255,0.02)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <strong style={{ color: '#fff', fontSize: '14px' }}>Somente Entrada e Saída (2 batidas)</strong>
+                          {(configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')) && (
+                            <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
+                          )}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
+                          Fluxo suave e sem atrito. O colaborador registra a Entrada ao chegar e a Saída ao encerrar. Ideal para simplificar a rotina.
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setConfigPontosAtivos(['entrada', 'intervalo_saida', 'intervalo_entrada', 'saida'])}
+                        style={{
+                          padding: '16px',
+                          borderRadius: '14px',
+                          cursor: 'pointer',
+                          border: '2px solid',
+                          borderColor: (configPontosAtivos.length === 4)
+                            ? 'var(--cor-primaria, #2f81f7)'
+                            : 'rgba(255,255,255,0.06)',
+                          background: (configPontosAtivos.length === 4)
+                            ? 'rgba(47, 129, 247, 0.08)'
+                            : 'rgba(255,255,255,0.02)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <strong style={{ color: '#fff', fontSize: '14px' }}>Completo com Intervalo (4 batidas)</strong>
+                          {(configPontosAtivos.length === 4) && (
+                            <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
+                          )}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
+                          Inclui batidas de Início e Término do intervalo de almoço/refeição.
+                        </p>
+                      </div>
+                    </div>
+                  </ConfigBox>
                   <ConfigBox>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                       <FiMapPin size={18} color="#fff" />

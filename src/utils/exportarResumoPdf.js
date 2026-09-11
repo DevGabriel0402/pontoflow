@@ -44,7 +44,7 @@ export function exportarResumoPdf(resumo, meta = {}) {
     doc.rect(14, 38, 182, 10, "F");
     doc.text(`TOTAL TRABALHADO NO PERÍODO: ${totalGeral}`, 18, 44.5);
 
-    const pontosAtivos = meta.pontosAtivos || ['entrada', 'intervalo_saida', 'intervalo_entrada', 'saida'];
+    const pontosAtivos = meta.pontosAtivos || ['entrada', 'saida'];
     const temPonto = (id) => pontosAtivos.includes(id);
 
     // Tabela
