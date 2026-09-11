@@ -589,7 +589,10 @@ export default function DashboardAdmin() {
       );
     } catch (err) {
       console.error("Erro ao resetar senha:", err);
-      toast.error(err.message || "Erro ao resetar senha.", { id: tId });
+      const msg = err.message?.includes("Erro interno") || err.message?.includes("500")
+        ? "Serviço de reset indisponível na Vercel de produção. Faça o deploy (git push) para ativar o endpoint."
+        : (err.message || "Erro ao resetar senha.");
+      toast.error(msg, { id: tId, duration: 6000 });
     } finally {
       setResetandoSenha(false);
       setConfirmarResetSenha({ aberto: false, func: null });

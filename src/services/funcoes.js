@@ -8,7 +8,9 @@ export async function chamarApi(path, { method = "POST", data, autenticado = tru
     headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
   }
 
-  const response = await fetch(path, {
+  const url = path;
+
+  const response = await fetch(url, {
     method,
     headers,
     body: data === undefined ? undefined : JSON.stringify(data),

@@ -80,5 +80,12 @@ export default defineConfig({
   server: {
     open: true,
     port: 3000,
+    proxy: {
+      "/api": {
+        target: "https://clickpontobh.vercel.app",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   }
 });

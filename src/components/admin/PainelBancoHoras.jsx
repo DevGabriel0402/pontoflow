@@ -790,7 +790,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                           )}
 
                           {/* Ajustes manuais no período */}
-                          {lancamentosValidos && lancamentosValidos.length > 0 && (
+                          {Array.isArray(lancamentosValidos) && lancamentosValidos.length > 0 && (
                             <AjustesManualSection>
                               <DetalheHeader style={{ marginTop: 16 }}>
                                 <FiPlus size={14} />

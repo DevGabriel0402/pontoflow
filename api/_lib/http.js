@@ -55,6 +55,9 @@ export async function handleApi(req, res, options, callback) {
 
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
     res.setHeader("Allow", methods.join(", "));
@@ -76,7 +79,10 @@ export async function handleApi(req, res, options, callback) {
     if (!apiError) {
       console.error("[api] Erro nao tratado:", error);
       return res.status(500).json({
-        error: { code: "internal", message: "Erro interno. Tente novamente em instantes." },
+        error: {
+          code: "internal",
+          message: error?.message ? `Erro interno: ${error.message}` : "Erro interno. Tente novamente em instantes.",
+        },
       });
     }
 
