@@ -125,8 +125,16 @@ export default function HomeColaborador() {
     return pontosHoje.find(p => p.type === TIPOS.SAIDA);
   }, [pontosHoje]);
 
+  // ✅ Verifica se a entrada já foi registrada hoje
+  const temEntradaHoje = React.useMemo(() => {
+    return tiposFeitosHoje.has(TIPOS.ENTRADA);
+  }, [tiposFeitosHoje]);
+
   // ✅ Próxima ação inteligente (Entrada -> Saída)
   const proximoTipo = React.useMemo(() => {
+    if (!temEntradaHoje) {
+      return TIPOS.ENTRADA;
+    }
     if (tipoSelecionado && !tiposFeitosHoje.has(tipoSelecionado)) {
       return tipoSelecionado;
     }
@@ -136,7 +144,7 @@ export default function HomeColaborador() {
       }
     }
     return null;
-  }, [tipoSelecionado, tiposFeitosHoje, tiposAtivos]);
+  }, [tipoSelecionado, tiposFeitosHoje, tiposAtivos, temEntradaHoje]);
 
   const statusTexto = React.useMemo(() => {
     const exigirGeoEmpresa = empresaConfig?.config?.regras?.exigirGeo !== false;
@@ -208,6 +216,10 @@ export default function HomeColaborador() {
   }, [isAdmin, checou, validacao.ok, ehFimDeSemana, empresaConfig, perfil]);
 
   const handle = async (tipo) => {
+    if (!temEntradaHoje && tipo !== TIPOS.ENTRADA) {
+      toast.error("Você precisa primeiro registrar a Entrada antes de bater a Saída!");
+      return;
+    }
     if (permissaoGPS === "denied") {
       toast.error("Localização bloqueada. Ative nas configurações do navegador.");
       return;
@@ -232,6 +244,10 @@ export default function HomeColaborador() {
     const alvo = (typeof tipoManual === "string" ? tipoManual : null) || proximoTipo;
     if (!alvo) {
       toast.error("Você já concluiu todos os registros de hoje!");
+      return;
+    }
+    if (!temEntradaHoje && alvo !== TIPOS.ENTRADA) {
+      toast.error("Você precisa primeiro registrar a Entrada antes de bater a Saída!");
       return;
     }
     if (bloqueado && !isAdmin) {
@@ -404,8 +420,13 @@ export default function HomeColaborador() {
 
             <CardBatida
               $feito={tiposFeitosHoje.has(TIPOS.SAIDA)}
+              $desativado={!temEntradaHoje && !tiposFeitosHoje.has(TIPOS.SAIDA)}
               $selecionado={tipoSelecionado === TIPOS.SAIDA || (!tipoSelecionado && proximoTipo === TIPOS.SAIDA)}
               onClick={() => {
+                if (!temEntradaHoje) {
+                  toast.error("Você precisa primeiro registrar a Entrada antes de bater a Saída!");
+                  return;
+                }
                 if (!tiposFeitosHoje.has(TIPOS.SAIDA)) {
                   setTipoSelecionado(TIPOS.SAIDA);
                 }
@@ -415,6 +436,8 @@ export default function HomeColaborador() {
                 <span className="titulo">Saída</span>
                 {tiposFeitosHoje.has(TIPOS.SAIDA) ? (
                   <BadgeFeito>✓ Concluído</BadgeFeito>
+                ) : !temEntradaHoje ? (
+                  <BadgeBloqueado>🔒 Indisponível</BadgeBloqueado>
                 ) : (
                   <BadgePendente $destaque={proximoTipo === TIPOS.SAIDA}>
                     {proximoTipo === TIPOS.SAIDA ? "Próxima batida" : "Pendente"}
@@ -427,7 +450,11 @@ export default function HomeColaborador() {
                   : "--:--"}
               </CardBatidaHora>
               <CardBatidaSub>
-                {tiposFeitosHoje.has(TIPOS.SAIDA) ? "Registrado com sucesso" : "Término do expediente"}
+                {tiposFeitosHoje.has(TIPOS.SAIDA)
+                  ? "Registrado com sucesso"
+                  : !temEntradaHoje
+                  ? "Aguardando registro de entrada"
+                  : "Término do expediente"}
               </CardBatidaSub>
             </CardBatida>
           </PainelEntradaSaida>
@@ -440,16 +467,26 @@ export default function HomeColaborador() {
             { key: TIPOS.SAIDA, label: "Saída" },
           ]
             .filter(t => tiposAtivos.includes(t.key))
-            .map(({ key, label }) => (
-              <Chip
-                key={key}
-                $selecionado={tipoSelecionado === key || (!tipoSelecionado && proximoTipo === key)}
-                $feito={tiposFeitosHoje.has(key)}
-                onClick={() => !tiposFeitosHoje.has(key) && setTipoSelecionado(key)}
-              >
-                {tiposFeitosHoje.has(key) ? `✓ ${label}` : label}
-              </Chip>
-            ))}
+            .map(({ key, label }) => {
+              const desativado = !temEntradaHoje && key !== TIPOS.ENTRADA && !tiposFeitosHoje.has(key);
+              return (
+                <Chip
+                  key={key}
+                  $selecionado={tipoSelecionado === key || (!tipoSelecionado && proximoTipo === key)}
+                  $feito={tiposFeitosHoje.has(key)}
+                  $desativado={desativado}
+                  onClick={() => {
+                    if (desativado) {
+                      toast.error("Você precisa primeiro registrar a Entrada antes de bater outros pontos!");
+                      return;
+                    }
+                    if (!tiposFeitosHoje.has(key)) setTipoSelecionado(key);
+                  }}
+                >
+                  {tiposFeitosHoje.has(key) ? `✓ ${label}` : desativado ? `🔒 ${label}` : label}
+                </Chip>
+              );
+            })}
         </ChipsGrid>
         )}
 
@@ -822,14 +859,18 @@ const PainelEntradaSaida = styled.div`
 `;
 
 const CardBatida = styled.div`
-  background: ${({ theme, $feito, $selecionado }) =>
-    $feito
+  background: ${({ theme, $feito, $selecionado, $desativado }) =>
+    $desativado
+      ? "rgba(255, 255, 255, 0.01)"
+      : $feito
       ? "rgba(46, 204, 113, 0.08)"
       : $selecionado
       ? "rgba(79, 172, 254, 0.12)"
       : "rgba(255, 255, 255, 0.03)"};
-  border: 2px solid ${({ theme, $feito, $selecionado }) =>
-    $feito
+  border: 2px solid ${({ theme, $feito, $selecionado, $desativado }) =>
+    $desativado
+      ? "rgba(255, 255, 255, 0.04)"
+      : $feito
       ? "rgba(46, 204, 113, 0.4)"
       : $selecionado
       ? "var(--cor-primaria, #4facfe)"
@@ -839,14 +880,16 @@ const CardBatida = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
-  cursor: ${({ $feito }) => ($feito ? "default" : "pointer")};
+  opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
+  cursor: ${({ $feito, $desativado }) => ($desativado ? "not-allowed" : $feito ? "default" : "pointer")};
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: ${({ $selecionado }) =>
-    $selecionado ? "0 8px 24px rgba(79, 172, 254, 0.18)" : "none"};
+  box-shadow: ${({ $selecionado, $desativado }) =>
+    !$desativado && $selecionado ? "0 8px 24px rgba(79, 172, 254, 0.18)" : "none"};
 
   &:hover {
-    ${({ $feito }) =>
+    ${({ $feito, $desativado }) =>
       !$feito &&
+      !$desativado &&
       `
       transform: translateY(-2px);
       border-color: var(--cor-primaria, #4facfe);
@@ -855,7 +898,7 @@ const CardBatida = styled.div`
   }
 
   &:active {
-    ${({ $feito }) => !$feito && `transform: scale(0.98);`}
+    ${({ $feito, $desativado }) => !$feito && !$desativado && `transform: scale(0.98);`}
   }
 `;
 
@@ -880,6 +923,17 @@ const BadgeFeito = styled.span`
   font-weight: 800;
   padding: 3px 8px;
   border-radius: 999px;
+`;
+
+const BadgeBloqueado = styled.span`
+  background: rgba(255, 255, 255, 0.05);
+  color: #8d8d99;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  opacity: 0.8;
 `;
 
 const BadgePendente = styled.span`
@@ -929,31 +983,35 @@ const ChipsGrid = styled.div`
 const Chip = styled.button`
   height: 72px;
   border-radius: 14px;
-  border: 2px solid ${({ theme, $selecionado, $feito }) =>
+  border: 2px solid ${({ theme, $selecionado, $feito, $desativado }) =>
+    $desativado ? "rgba(255, 255, 255, 0.04)" :
     $feito ? theme.cores.sucesso + "66" :
       $selecionado ? theme.cores.azul :
         theme.cores.borda};
-  background: ${({ theme, $selecionado, $feito }) =>
+  background: ${({ theme, $selecionado, $feito, $desativado }) =>
+    $desativado ? "rgba(255, 255, 255, 0.01)" :
     $feito ? theme.cores.sucesso + "15" :
       $selecionado ? theme.cores.azul + "20" :
         theme.cores.superficie2};
-  color: ${({ theme, $selecionado, $feito }) =>
+  color: ${({ theme, $selecionado, $feito, $desativado }) =>
+    $desativado ? "#8d8d99" :
     $feito ? theme.cores.sucesso :
       $selecionado ? theme.cores.azul :
         theme.cores.texto2};
   font-weight: 700;
   font-size: 13px;
-  cursor: ${p => p.$feito ? "default" : "pointer"};
+  opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
+  cursor: ${({ $feito, $desativado }) => ($desativado ? "not-allowed" : $feito ? "default" : "pointer")};
   transition: all 0.15s ease;
   letter-spacing: 0.2px;
 
   &:hover:not(:disabled) {
-    border-color: ${({ theme, $feito }) => !$feito && theme.cores.azul};
-    background: ${({ theme, $feito }) => !$feito && theme.cores.azul + "15"};
+    border-color: ${({ theme, $feito, $desativado }) => !$feito && !$desativado && theme.cores.azul};
+    background: ${({ theme, $feito, $desativado }) => !$feito && !$desativado && theme.cores.azul + "15"};
   }
 
   &:active:not(:disabled) {
-    transform: scale(0.97);
+    ${({ $desativado }) => !$desativado && `transform: scale(0.97);`}
   }
 `;
 
