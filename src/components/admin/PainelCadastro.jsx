@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
 import { FiUserPlus, FiSave, FiInfo } from "react-icons/fi";
-import { db } from "../../services/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { criarFuncionarioFn } from "../../services/funcoes";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { useAuth } from "../../contexts/AuthContexto";
 import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
@@ -50,17 +49,13 @@ export default function PainelCadastro() {
 
     setCarregando(true);
     try {
-      await addDoc(collection(db, "users"), {
+      const resultado = await criarFuncionarioFn({
         nome: nome.trim(),
         email: email.trim().toLowerCase(),
         dataNascimento,
         role,
         funcao: funcao.trim() || null,
         matricula: unmaskMatricula(matricula, config?.regras?.digitosMatricula),
-        companyId: perfil.companyId,
-        ativo: true,
-        status: 'novo',
-        criadoEm: serverTimestamp(),
         // Jornada padrão vazia ou básica para ser editada depois
         jornadas: {
           segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -74,11 +69,14 @@ export default function PainelCadastro() {
         cargaHorariaSemanal: role === 'admin' ? 'Livre' : (config?.regras?.cargaHorariaSemanal ? `${config.regras.cargaHorariaSemanal} Horas` : "44 Horas")
       });
 
-      toast.success("Funcionário cadastrado como 'Novo'! Agora você pode editar os detalhes na lista de funcionários.");
+      toast.success(
+        `Funcionário cadastrado. Senha temporária: ${resultado.senhaTemporaria}`,
+        { duration: 10000 }
+      );
       resetar();
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao cadastrar no banco de dados.");
+      toast.error(err?.message || "Falha ao cadastrar o funcionário.");
     } finally {
       setCarregando(false);
     }

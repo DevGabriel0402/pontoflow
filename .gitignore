@@ -42,3 +42,6 @@ pubsub-debug.log*
 .idea
 .antigravity/
 .gemini/
+
+.vercel
+.env*

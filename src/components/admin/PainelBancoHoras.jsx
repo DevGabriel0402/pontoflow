@@ -5,8 +5,8 @@ import { toast } from "react-hot-toast";
 import {
   collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, updateDoc
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../../services/firebase";
+import { db } from "../../services/firebase";
+import { corrigirCompanyFn } from "../../services/funcoes";
 import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWeekend, startOfToday, subDays, parseISO } from "date-fns";
@@ -355,11 +355,10 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     setSincronizando(true);
     try {
       toast.loading("Sincronizando vínculos...", { id: "sync-bh" });
-      const func = httpsCallable(functions, "corrigirCompanyFuncionarios");
-      const res = await func();
+      const res = await corrigirCompanyFn();
 
-      if (res.data?.usersCorrigidos > 0 || res.data?.pontosCorrigidos > 0) {
-        toast.success(`Sincronizado! Foram corrigidos vínculos de ${res.data.usersCorrigidos} usuários e ${res.data.pontosCorrigidos} pontos/horas.`, { id: "sync-bh" });
+      if (res?.usersCorrigidos > 0 || res?.pontosCorrigidos > 0) {
+        toast.success(`Sincronizado! Foram corrigidos vínculos de ${res.usersCorrigidos} usuários e ${res.pontosCorrigidos} pontos/horas.`, { id: "sync-bh" });
       } else {
         toast.success("Tudo certo! Banco de horas e vínculos estão em dia.", { id: "sync-bh" });
       }

@@ -1,50 +1,34 @@
-import { httpsCallable } from "firebase/functions";
-import { auth, functions } from "./firebase";
+import { auth } from "./firebase";
 
-// ⚠️ ajuste a região se sua function estiver em outra (ou remova o 2º param pra default)
+export async function chamarApi(path, { method = "POST", data, autenticado = true } = {}) {
+  const headers = { "Content-Type": "application/json" };
 
-export const criarFuncionarioFn = async ({ nome, email, dataNascimento, role, jornadas, cargaHorariaSemanal, matricula }) => {
-    // garante que auth está pronto
+  if (autenticado) {
     if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functions, "criarFuncionario");
-    const res = await call({ nome, email, dataNascimento, role, jornadas, cargaHorariaSemanal, matricula });
-    return res.data;
-};
+    headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
+  }
 
-export const deletarFuncionarioFn = async (uid) => {
-    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functions, "deletarFuncionario");
-    const res = await call({ uid });
-    return res.data;
-};
+  const response = await fetch(path, {
+    method,
+    headers,
+    body: data === undefined ? undefined : JSON.stringify(data),
+  });
 
-export const criarAdminEmpresaFn = async ({ companyId, nome, email, dataNascimento }) => {
-    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functions, "criarAdminEmpresa");
-    const res = await call({ companyId, nome, email, dataNascimento });
-    return res.data;
-};
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error?.message || "Não foi possível concluir a operação.");
+    error.code = payload.error?.code;
+    error.details = payload.error?.details;
+    throw error;
+  }
 
-export const corrigirCompanyFn = async () => {
-    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functions, "corrigirCompanyFuncionarios");
-    const res = await call({});
-    return res.data;
-};
+  return payload.data;
+}
 
-// Helper function to simplify callable function calls
-const chamar = async (functionsInstance, functionName, data) => {
-    if (!auth.currentUser) throw new Error("Usuário não autenticado.");
-    const call = httpsCallable(functionsInstance, functionName);
-    const res = await call(data);
-    return res.data;
-};
-
-export const trocarSenhaPrimeiroAcessoFn = (dados) => chamar(functions, "trocarSenhaPrimeiroAcesso", dados);
-
-// Login por matrícula NÃO exige auth.currentUser (é chamado antes de autenticar)
-export const loginPorMatriculaFn = async (dados) => {
-    const call = httpsCallable(functions, "loginPorMatricula");
-    const res = await call(dados);
-    return res.data;
-};
+export const criarFuncionarioFn = (dados) => chamarApi("/api/usuarios/criar", { data: dados });
+export const deletarFuncionarioFn = (uid) => chamarApi("/api/usuarios/deletar", { data: { uid } });
+export const criarAdminEmpresaFn = (dados) => chamarApi("/api/admin/criar", { data: dados });
+export const corrigirCompanyFn = () => chamarApi("/api/admin/corrigir-vinculos", { data: {} });
+export const trocarSenhaPrimeiroAcessoFn = (dados) => chamarApi("/api/usuarios/trocar-senha", { data: dados });
+export const loginPorMatriculaFn = (dados) => chamarApi("/api/auth/matricula", { data: dados, autenticado: false });
+export const verificarAtrasosFn = () => chamarApi("/api/notificacoes/verificar-atrasos", { data: {} });

@@ -21,6 +21,7 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [slug, setSlug] = useState("");
   const [matricula, setMatricula] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
   const [modo, setModo] = useState("email"); // "email" ou "matricula"
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -95,8 +96,8 @@ export default function Login() {
 
     try {
       if (modo === "matricula") {
-        if (!slug || !matricula) {
-          toast.error("Selecione sua empresa e informe a matrícula.");
+        if (!slug || !matricula || !dataNascimento) {
+          toast.error("Selecione sua empresa e informe matrícula e data de nascimento.");
           setCarregando(false);
           return;
         }
@@ -104,7 +105,8 @@ export default function Login() {
         // Fluxo de login sem senha via Cloud Function (Custom Token)
         const res = await loginPorMatriculaFn({
           companyId: slug,
-          matricula: unmaskMatricula(matricula, empresaSelecionada?.digitosMatricula)
+          matricula: unmaskMatricula(matricula, empresaSelecionada?.digitosMatricula),
+          dataNascimento,
         });
 
         if (!res || !res.token) {
@@ -132,7 +134,7 @@ export default function Login() {
           } else {
             toast.success("Bem-vindo(a) ao PontoFlow!");
           }
-        } catch (err) {
+        } catch {
           toast.success("Bem-vindo(a) ao PontoFlow!");
         }
       }
@@ -225,6 +227,14 @@ export default function Login() {
                 value={matricula}
                 onChange={(e) => setMatricula(maskMatricula(e.target.value, empresaSelecionada?.digitosMatricula))}
                 placeholder={`${"0".repeat((empresaSelecionada?.digitosMatricula || 8) - 1)}-0`}
+                required
+              />
+
+              <label>Data de Nascimento</label>
+              <input
+                value={dataNascimento}
+                onChange={(e) => setDataNascimento(e.target.value)}
+                type="date"
                 required
               />
             </>

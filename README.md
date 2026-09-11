@@ -1,102 +1,74 @@
-<div align="center">
-  <img src="file:///C:/Users/gabri/.gemini/antigravity/brain/4d96574b-8a1c-438c-a768-51c964c203f3/ponto_flow_logo_clean_1771615419427.png" width="180" alt="PontoFlow Logo" />
-  <h1>PontoFlow</h1>
-  <p><strong>Gestão de Ponto Inteligente com Geofencing e Modo Offline</strong></p>
+# PontoFlow
 
-  [![Vercel Deployment](https://img.shields.io/badge/Deploy-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
-  [![Firebase](https://img.shields.io/badge/Backend-Firebase-ffca28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
-  [![React](https://img.shields.io/badge/Frontend-React-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
-</div>
+Sistema de ponto eletrônico para uma instituição, com React, Vercel e Firebase no plano gratuito Spark.
 
----
+## Arquitetura
 
-## 🚀 Sobre o Projeto
+- A aplicação React e as APIs ficam hospedadas na Vercel.
+- Firebase Authentication mantém o cadastro e o login dos usuários.
+- Firestore mantém pontos, jornadas, justificativas, banco de horas e configurações.
+- O modo offline e as atualizações em tempo real continuam sendo feitos pelo SDK do Firebase no navegador.
+- Operações privilegiadas usam as rotas em `api/` com Firebase Admin, sem Cloud Functions.
+- A Vercel executa uma rotina diária para avisos de pontos ausentes.
+- Avisos de atraso são verificados enquanto o colaborador estiver com o sistema aberto.
 
-O **PontoFlow** é uma solução moderna e robusta para controle de jornada de trabalho em instituições de ensino. Focado em mobilidade e precisão, o sistema garante que o registro de ponto seja feito apenas dentro da área permitida (Geofencing), mesmo em condições de internet instável.
+## Desenvolvimento local
 
-### ✨ Diferenciais
-- 📱 **PWA Ready**: Instale no celular como um aplicativo nativo.
-- 📍 **Geofencing**: Validação de coordenadas em tempo real com raio customizável.
-- 📶 **Modo Offline**: Registre o ponto sem internet; a sincronização acontece automaticamente quando a conexão volta.
-- 🛡️ **Painel Administrativo Pro**: Gestão completa de funcionários, histórico detalhado e configurações globais.
+Requisitos: Node.js 20 ou superior e um projeto Firebase.
 
----
-
-## 🛠️ Tecnologias Utilizadas
-
-O ecossistema do PontoFlow foi construído com o que há de mais moderno no desenvolvimento web:
-
-- **Frontend:** React 19 + Vite
-- **Estilização:** Styled Components (Design System Premium)
-- **Maps:** MapLibre GL para visualização de geofencing.
-- **Backend/DB:** Firebase (Firestore, Auth, Analytics).
-- **Functions:** Cloud Functions v2 para lógica de servidor persistente.
-- **Relatórios:** jsPDF + autoTable para exportação de dados.
-
----
-
-## 📸 Visual do Sistema
-
-<div align="center">
-  <img src="file:///C:/Users/gabri/.gemini/antigravity/brain/4d96574b-8a1c-438c-a768-51c964c203f3/debug_admin_render_final_1771612489368.webp" width="800" alt="Dashboard Admin" />
-  <p><i>Visão Geral do Painel Administrativo com Filtros Avançados e Status em Tempo Real.</i></p>
-</div>
-
----
-
-## ⚙️ Configuração Local
-
-### Pré-requisitos
-- Node.js (v18+)
-- Firebase CLI (`npm install -g firebase-tools`)
-
-### Instalação
-
-1. Clone o repositório:
-```bash
-git clone https://github.com/DevGabriel0402/pontoflow.git
-cd ponto-flow
-```
-
-2. Instale as dependências:
 ```bash
 npm install
-cd functions && npm install && cd ..
 ```
 
-3. Configure o ambiente:
-Crie um arquivo `.env` na raiz com as chaves do seu projeto Firebase:
-```env
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-# ... etc
-```
+Copie `.env.example` para `.env` e preencha as variáveis. Depois execute:
 
-4. Inicie o servidor de desenvolvimento:
 ```bash
 npm run dev
 ```
 
----
+O comando acima inicia somente o frontend. Para testar também as rotas de `api/`, use a CLI da Vercel:
 
-## 📦 Deploy
-
-### Vercel (Frontend)
-O projeto já conta com o `vercel.json` configurado para rotas SPA. Basta conectar o GitHub e configurar as Variáveis de Ambiente no painel da Vercel.
-
-### Cloud Functions
-Para publicar as funções de servidor:
 ```bash
-firebase deploy --only functions
+npx vercel dev
 ```
 
----
+## Configuração na Vercel
 
-## 📄 Licença
-Este projeto é privado e de uso exclusivo da instituição. Todos os direitos reservados.
+Conecte o repositório à Vercel e cadastre todas as variáveis de `.env.example` em **Settings > Environment Variables**.
 
----
-<div align="center">
-  Desenvolvido com ❤️ para <strong>PontoFlow</strong>
-</div>
+As variáveis `VITE_*` são públicas e vêm das configurações do aplicativo web no Firebase. Para as variáveis privadas:
+
+1. No Firebase/Google Cloud, crie uma conta de serviço com acesso ao Firebase Authentication e Firestore.
+2. Informe `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` e `FIREBASE_PRIVATE_KEY` na Vercel. A chave privada deve permanecer somente na Vercel.
+3. Gere uma sequência longa e aleatória para `CRON_SECRET`.
+4. Faça um novo deploy depois de salvar as variáveis.
+
+Também é possível fornecer a credencial inteira em `FIREBASE_SERVICE_ACCOUNT_JSON` no lugar das três variáveis separadas.
+
+## Firebase gratuito
+
+No Firebase, habilite:
+
+- Authentication com Email/Senha;
+- Firestore;
+- os domínios usados pela Vercel em **Authentication > Settings > Authorized domains**.
+
+Publique apenas regras e índices. O `firebase.json` não contém mais Cloud Functions:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+## Backup
+
+O administrador encontra **Backup dos Dados** na tela de configurações. O download gera um arquivo JSON da instituição. A restauração aceita apenas um backup da mesma instituição, mescla os registros e não apaga dados atuais.
+
+Guarde esse arquivo fora da Vercel e do Firebase. No plano gratuito, o download manual é a forma mais simples de manter uma cópia independente.
+
+## Deploy
+
+O `vercel.json` já contém a configuração da aplicação, das APIs e da rotina diária. O deploy pode ser feito automaticamente pelo GitHub ou manualmente:
+
+```bash
+npx vercel --prod
+```

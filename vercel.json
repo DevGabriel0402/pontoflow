@@ -1,8 +1,19 @@
 {
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/index.html"
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "regions": ["gru1"],
+    "functions": {
+        "api/**/*.js": {
+            "maxDuration": 60
         }
+    },
+    "crons": [
+        {
+            "path": "/api/cron/notificacoes",
+            "schedule": "0 6 * * *"
+        }
+    ],
+    "routes": [
+        { "handle": "filesystem" },
+        { "src": "/.*", "dest": "/index.html" }
     ]
 }

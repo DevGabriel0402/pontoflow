@@ -19,6 +19,7 @@ import { formatarSaldo } from "../../utils/pontoUtils";
 import { useNotificacoes } from "../../hooks/useNotificacoes";
 import NotificationBadge from "../../components/colaborador/NotificationBadge";
 import ModalNotificacoes from "../../components/colaborador/ModalNotificacoes";
+import { verificarAtrasosFn } from "../../services/funcoes";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
@@ -58,6 +59,17 @@ export default function HomeColaborador() {
   const [tipoSelecionado, setTipoSelecionado] = React.useState(null);
   const [modalFaceAberto, setModalFaceAberto] = React.useState(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!usuario?.uid) return undefined;
+
+    const verificar = () => {
+      if (navigator.onLine) verificarAtrasosFn().catch(() => {});
+    };
+    verificar();
+    const intervalo = window.setInterval(verificar, 5 * 60 * 1000);
+    return () => window.clearInterval(intervalo);
+  }, [usuario?.uid]);
 
   // ✅ Verifica se é final de semana
   const ehFimDeSemana = React.useMemo(() => isWeekend(new Date()), []);

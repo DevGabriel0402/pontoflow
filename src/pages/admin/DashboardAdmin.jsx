@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import {
   FiFileText, FiFile, FiSearch, FiGrid, FiClock, FiSettings, FiDownload, FiMapPin, FiAlertTriangle, FiAlertCircle, FiCheckSquare, FiMoreVertical, FiUserPlus, FiUsers, FiUserCheck, FiUserX, FiArrowLeft, FiMap, FiCalendar, FiCheckCircle, FiTrash2, FiMessageSquare, FiEdit2, FiDatabase, FiLock, FiLogOut, FiKey,
-  FiShield, FiBell, FiPlus
+  FiShield, FiBell, FiPlus, FiUpload
 } from "react-icons/fi";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,6 +38,7 @@ import { maskMatricula } from "../../utils/mascaras";
 import DateRangePicker from "../../components/DateRangePicker";
 import ChatSuporte from "../../components/ChatSuporte";
 import { INITIAL_MANUAL_DATA, gerarManualHtml } from "../../utils/manualTemplate";
+import { baixarBackup, restaurarBackup } from "../../services/backup";
 
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
@@ -122,6 +123,38 @@ export default function DashboardAdmin() {
   const [pontoParaMapa, setPontoParaMapa] = React.useState(null);
   const [salvandoConfig, setSalvandoConfig] = React.useState(false);
   const [bancoHoras, setBancoHoras] = React.useState([]);
+  const backupInputRef = React.useRef(null);
+  const [processandoBackup, setProcessandoBackup] = React.useState(false);
+
+  const handleBaixarBackup = async () => {
+    setProcessandoBackup(true);
+    try {
+      await baixarBackup();
+      toast.success("Backup baixado com sucesso.");
+    } catch (error) {
+      toast.error(error?.message || "Não foi possível gerar o backup.");
+    } finally {
+      setProcessandoBackup(false);
+    }
+  };
+
+  const handleRestaurarBackup = async (event) => {
+    const arquivo = event.target.files?.[0];
+    event.target.value = "";
+    if (!arquivo) return;
+    if (!window.confirm("Restaurar este backup? Os dados serão mesclados e nenhum registro atual será apagado.")) return;
+
+    setProcessandoBackup(true);
+    try {
+      const backup = JSON.parse(await arquivo.text());
+      const resultado = await restaurarBackup(backup);
+      toast.success(`${resultado.registrosRestaurados} registros restaurados.`);
+    } catch (error) {
+      toast.error(error?.message || "Arquivo de backup inválido.");
+    } finally {
+      setProcessandoBackup(false);
+    }
+  };
 
   // Estados para Calendário e Ausências
   const [listaFeriados, setListaFeriados] = React.useState([]);
@@ -1006,7 +1039,7 @@ export default function DashboardAdmin() {
 
                   <ConfigBox>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(47, 129, 247, 0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(47, 129, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <FiCalendar size={18} color="var(--cor-primaria, #2f81f7)" />
                       </div>
                       <h4 style={{ margin: 0 }}>Calendário e Ausências</h4>
@@ -1194,6 +1227,23 @@ export default function DashboardAdmin() {
                   </ConfigBox>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <ConfigBox>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <FiDatabase size={18} color="#fff" />
+                        <h4 style={{ margin: 0 }}>Backup dos Dados</h4>
+                      </div>
+                      <p>Baixe os dados da instituição ou restaure um arquivo salvo anteriormente.</p>
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <BotaoGhost onClick={handleBaixarBackup} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                          <FiDownload size={16} /> Baixar Backup
+                        </BotaoGhost>
+                        <BotaoGhost onClick={() => backupInputRef.current?.click()} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                          <FiUpload size={16} /> Restaurar Backup
+                        </BotaoGhost>
+                        <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleRestaurarBackup} hidden />
+                      </div>
+                    </ConfigBox>
+
                     <ConfigBox>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                         <FiUsers size={18} color="#fff" />

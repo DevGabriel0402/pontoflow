@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getFunctions } from "firebase/functions";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -25,8 +24,6 @@ export const db = initializeFirestore(app, {
         tabManager: persistentMultipleTabManager()
     })
 });
-
-export const functions = getFunctions(app, "southamerica-east1");
 
 // Analytics pode falhar em alguns navegadores/ambientes
 export let analytics = null;
