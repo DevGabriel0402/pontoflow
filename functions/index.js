@@ -12,17 +12,21 @@ admin.initializeApp();
  * @param {string} dataNasc (formato YYYY-MM-DD)
  */
 function gerarSenhaPadrao(nome, dataNasc) {
-    const primeiroNome = (nome || "Ponto").split(" ")[0];
-
-    let ddmm = "0101"; // fallback
-    if (dataNasc && dataNasc.includes("-")) {
+    if (!dataNasc) return "01012000";
+    if (dataNasc.includes("-")) {
         const parts = dataNasc.split("-"); // [YYYY, MM, DD]
         if (parts.length === 3) {
-            ddmm = parts[2] + parts[1]; // DD + MM
+            return `${parts[2]}${parts[1]}${parts[0]}`; // DDMMYYYY (ex: 23011998)
         }
     }
-
-    return primeiroNome + ddmm;
+    if (dataNasc.includes("/")) {
+        const parts = dataNasc.split("/");
+        if (parts.length === 3) {
+            return `${parts[0].padStart(2, '0')}${parts[1].padStart(2, '0')}${parts[2]}`;
+        }
+    }
+    const apenasNumeros = dataNasc.replace(/\D/g, "");
+    return apenasNumeros || "01012000";
 }
 
 exports.criarFuncionario = onCall({ region: "southamerica-east1", cors: true }, async (request) => {
