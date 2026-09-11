@@ -23,8 +23,6 @@ import { verificarAtrasosFn } from "../../services/funcoes";
 
 const TIPOS = {
   ENTRADA: "ENTRADA",
-  INICIO_INTERVALO: "INICIO_INTERVALO",
-  FIM_INTERVALO: "FIM_INTERVALO",
   SAIDA: "SAIDA",
 };
 

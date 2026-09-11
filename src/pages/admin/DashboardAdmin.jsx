@@ -43,8 +43,6 @@ import { baixarBackup, restaurarBackup } from "../../services/backup";
 const TIPOS = [
   { value: "TODOS", label: "Todos" },
   { value: "ENTRADA", label: "Entrada" },
-  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
-  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
   { value: "SAIDA", label: "Saída" },
 ];
 
@@ -56,8 +54,6 @@ const getMotivoLabel = (motivoValue) => {
 function formatarTipo(tipo) {
   const map = {
     ENTRADA: "Entrada",
-    INICIO_INTERVALO: "Início Intervalo",
-    FIM_INTERVALO: "Fim Intervalo",
     SAIDA: "Saída",
   };
   return map[tipo] || tipo;
@@ -1004,32 +1000,7 @@ export default function DashboardAdmin() {
                         </p>
                       </div>
 
-                      <div
-                        onClick={() => setConfigPontosAtivos(['entrada', 'intervalo_saida', 'intervalo_entrada', 'saida'])}
-                        style={{
-                          padding: '16px',
-                          borderRadius: '14px',
-                          cursor: 'pointer',
-                          border: '2px solid',
-                          borderColor: (configPontosAtivos.length === 4)
-                            ? 'var(--cor-primaria, #2f81f7)'
-                            : 'rgba(255,255,255,0.06)',
-                          background: (configPontosAtivos.length === 4)
-                            ? 'rgba(47, 129, 247, 0.08)'
-                            : 'rgba(255,255,255,0.02)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <strong style={{ color: '#fff', fontSize: '14px' }}>Completo com Intervalo (4 batidas)</strong>
-                          {(configPontosAtivos.length === 4) && (
-                            <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
-                          )}
-                        </div>
-                        <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
-                          Inclui batidas de Início e Término do intervalo de almoço/refeição.
-                        </p>
-                      </div>
+
                     </div>
                   </ConfigBox>
                   <ConfigBox>

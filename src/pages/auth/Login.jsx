@@ -5,31 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
-import SeletorAcordeao from "../../components/SeletorAcordeao";
-import { loginPorMatriculaFn } from "../../services/funcoes";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
-import { db, auth } from "../../services/firebase";
-import { signInWithCustomToken } from "firebase/auth";
-import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../services/firebase";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, usuario, perfil } = useAuth();
   const { nomePainel } = useConfig();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [slug, setSlug] = useState("");
-  const [matricula, setMatricula] = useState("");
-  const [dataNascimento, setDataNascimento] = useState("");
-  const [modo, setModo] = useState("email"); // "email" ou "matricula"
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [empresas, setEmpresas] = useState([]);
-  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
-  const empresaSelecionada = empresas.find(e => e.id === slug);
-
-  const { usuario, perfil } = useAuth();
 
   // Redireciona se já estiver logado
   useEffect(() => {
@@ -40,107 +27,33 @@ export default function Login() {
     }
   }, [usuario, perfil, navigate]);
 
-  useEffect(() => {
-    const buscarEmpresas = async () => {
-      if (modo !== "matricula") return;
-
-      setCarregandoEmpresas(true);
-      try {
-        let snap;
-        try {
-          // Tenta buscar apenas empresas que permitem login por matrícula (lado servidor)
-          const q = query(
-            collection(db, "companies"),
-            where("config.regras.loginPorMatricula", "==", true)
-          );
-          snap = await getDocs(q);
-        } catch (permerr) {
-          console.warn("Filtro no servidor falhou (possível erro de permissão), buscando todas como fallback.", permerr);
-          // Fallback: Busca todas as empresas e filtra no frontend
-          snap = await getDocs(collection(db, "companies"));
-        }
-
-        const lista = snap.docs
-          .map(doc => ({
-            id: doc.id,
-            nome: doc.data().nomeFantasia || doc.data().nome || doc.id,
-            permitido: doc.data().config?.regras?.loginPorMatricula === true,
-            digitosMatricula: doc.data().config?.regras?.digitosMatricula || 8
-          }))
-          .filter(emp => emp.permitido);
-
-        setEmpresas(lista);
-        if (lista.length > 0 && !slug) {
-          setSlug(lista[0].id);
-        }
-      } catch (err) {
-        console.error("Erro ao carregar empresas:", err);
-        // Se ambos falharem, mostramos erro ao usuário
-        if (modo === "matricula") {
-          toast.error("Erro de permissão ao listar empresas. Verifique as regras do Firestore.");
-        }
-      } finally {
-        setCarregandoEmpresas(false);
-      }
-    };
-
-    buscarEmpresas();
-  }, [modo, slug]); // slug aqui para não resetar se mudar modo, mas buscarEmpresas tem proteção
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (carregando) return;
 
     setCarregando(true);
-    let userRecord = null;
 
     try {
-      if (modo === "matricula") {
-        if (!slug || !matricula || !dataNascimento) {
-          toast.error("Selecione sua empresa e informe matrícula e data de nascimento.");
-          setCarregando(false);
-          return;
-        }
-
-        // Fluxo de login sem senha via Cloud Function (Custom Token)
-        const res = await loginPorMatriculaFn({
-          companyId: slug,
-          matricula: unmaskMatricula(matricula, empresaSelecionada?.digitosMatricula),
-          dataNascimento,
-        });
-
-        if (!res || !res.token) {
-          throw new Error("Token de acesso não gerado.");
-        }
-
-        const cred = await signInWithCustomToken(auth, res.token);
-        userRecord = cred.user;
-
-        // Saudação personalizada para login por matrícula
-        const nomeFunc = res.nome || "Colaborador";
-        toast.success(`Olá, ${nomeFunc}! 👋`);
-      } else {
-        // Fluxo normal via Firebase Auth (Email/Senha)
-        userRecord = await login(email, senha);
-
-        try {
-          // Buscar nome do usuário no Firestore para saudação personalizada
-          const userDoc = await getDoc(doc(db, "users", userRecord.uid));
-          const nomeUsuario = userDoc.exists() ? userDoc.data().nome : "";
-          const primeiroNome = nomeUsuario ? nomeUsuario.split(" ")[0] : "";
-
-          if (primeiroNome) {
-            toast.success(`Bem-vindo(a) de volta, ${primeiroNome}!`);
-          } else {
-            toast.success("Bem-vindo(a) ao PontoFlow!");
-          }
-        } catch {
-          toast.success("Bem-vindo(a) ao PontoFlow!");
-        }
-      }
+      // Fluxo direto via Firebase Auth (Email/Senha)
+      const userRecord = await login(email, senha);
 
       if (!userRecord) {
         throw new Error("Falha na identificação do usuário.");
+      }
+
+      try {
+        // Buscar nome do usuário no Firestore para saudação personalizada
+        const userDoc = await getDoc(doc(db, "users", userRecord.uid));
+        const nomeUsuario = userDoc.exists() ? userDoc.data().nome : "";
+        const primeiroNome = nomeUsuario ? nomeUsuario.split(" ")[0] : "";
+
+        if (primeiroNome) {
+          toast.success(`Bem-vindo(a) de volta, ${primeiroNome}! 👋`);
+        } else {
+          toast.success("Bem-vindo(a) ao PontoFlow!");
+        }
+      } catch {
+        toast.success("Bem-vindo(a) ao PontoFlow!");
       }
 
       // Buscar perfil para redirecionamento
@@ -153,7 +66,7 @@ export default function Login() {
 
     } catch (err) {
       console.error("Erro no login:", err);
-      toast.error("Acesso negado. Verifique seus dados.");
+      toast.error("Acesso negado. Verifique seu e-mail e senha.");
     } finally {
       setCarregando(false);
     }
@@ -163,84 +76,43 @@ export default function Login() {
     <Tela>
       <Card>
         <Topo>
-          <Logo src="/icons/pwa-512x512.png" alt={nomePainel} />
-          <h1>PontoFlow</h1>
+          <Logo src="/icons/pwa-512x512.png" alt={nomePainel || "PontoFlow"} />
+          <h1>{nomePainel || "PontoFlow"}</h1>
         </Topo>
 
         <Sub>Sua plataforma de gestão de ponto inteligente.</Sub>
 
-        <SeletorModo>
-          <button
-            type="button"
-            className={modo === 'email' ? 'active' : ''}
-            onClick={() => setModo('email')}
-          >
-            Email
-          </button>
-          <button
-            type="button"
-            className={modo === 'matricula' ? 'active' : ''}
-            onClick={() => setModo('matricula')}
-          >
-            Matrícula
-          </button>
-        </SeletorModo>
-
         <Form onSubmit={handleSubmit}>
-          {modo === "email" ? (
-            <>
-              <label>Seu Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                placeholder="email@exemplo.com"
-                required
-              />
+          <label>Seu Email</label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder="email@exemplo.com"
+            required
+            autoComplete="username"
+          />
 
-              <label>Sua Senha</label>
-              <InputSenhaWrapper>
-                <input
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  type={mostrarSenha ? "text" : "password"}
-                  placeholder="********"
-                  required
-                />
-                <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)}>
-                  {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                </button>
-              </InputSenhaWrapper>
-            </>
-          ) : (
-            <>
-              <SeletorAcordeao
-                label="Empresa"
-                opcoes={empresas.map(e => ({ value: e.id, label: e.nome }))}
-                value={slug}
-                onChange={setSlug}
-                carregando={carregandoEmpresas}
-              />
+          <label>Sua Senha</label>
+          <InputSenhaWrapper>
+            <input
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              type={mostrarSenha ? "text" : "password"}
+              placeholder="********"
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setMostrarSenha(!mostrarSenha)}
+              title={mostrarSenha ? "Ocultar senha" : "Ver senha"}
+            >
+              {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </InputSenhaWrapper>
 
-              <label style={{ marginTop: '10px' }}>Número da Matrícula</label>
-              <input
-                value={matricula}
-                onChange={(e) => setMatricula(maskMatricula(e.target.value, empresaSelecionada?.digitosMatricula))}
-                placeholder={`${"0".repeat((empresaSelecionada?.digitosMatricula || 8) - 1)}-0`}
-                required
-              />
-
-              <label>Data de Nascimento</label>
-              <input
-                value={dataNascimento}
-                onChange={(e) => setDataNascimento(e.target.value)}
-                type="date"
-                required
-              />
-            </>
-          )}
-
-          <Botao disabled={carregando}>
+          <Botao type="submit" disabled={carregando}>
             <FiLogIn size={18} />
             {carregando ? "Autenticando..." : "Entrar"}
           </Botao>
@@ -265,7 +137,7 @@ const Card = styled.div`
   background: ${({ theme }) => theme.cores.superficie2};
   border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: ${({ theme }) => theme.raio.xl};
-  padding: 24px;
+  padding: 28px 24px;
   box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
@@ -279,6 +151,7 @@ const Topo = styled.div`
     margin: 0;
     font-size: 20px;
     font-weight: 800;
+    color: ${({ theme }) => theme.cores.texto};
   }
 `;
 
@@ -295,42 +168,10 @@ const Sub = styled.p`
   font-size: 14px;
 `;
 
-const SeletorModo = styled.div`
-  display: flex;
-  background: ${({ theme }) => theme.cores.superficie};
-  padding: 4px;
-  border-radius: ${({ theme }) => theme.raio.lg};
-  border: 1px solid ${({ theme }) => theme.cores.borda};
-  gap: 4px;
-  margin-bottom: 24px;
-
-  button {
-    flex: 1;
-    height: 40px;
-    border: 0;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: transparent;
-    color: ${({ theme }) => theme.cores.texto2};
-
-    &.active {
-      background: ${({ theme }) => theme.cores.azul};
-      color: #fff;
-    }
-
-    &:hover:not(.active) {
-      background: rgba(255, 255, 255, 0.05);
-    }
-  }
-`;
-
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 
   label {
     font-size: 12px;
@@ -390,7 +231,7 @@ const InputSenhaWrapper = styled.div`
 `;
 
 const Botao = styled.button`
-  margin-top: 12px;
+  margin-top: 8px;
   height: 50px;
   border: 0;
   border-radius: ${({ theme }) => theme.raio.lg};

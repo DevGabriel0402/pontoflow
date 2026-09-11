@@ -5,7 +5,7 @@ import { FiUserPlus, FiSave, FiInfo } from "react-icons/fi";
 import { criarFuncionarioFn } from "../../services/funcoes";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { useAuth } from "../../contexts/AuthContexto";
-import { maskMatricula, unmaskMatricula } from "../../utils/mascaras";
+
 
 export default function PainelCadastro() {
   const { config } = useConfig();
@@ -16,7 +16,7 @@ export default function PainelCadastro() {
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
   const [funcao, setFuncao] = useState("");
-  const [matricula, setMatricula] = useState("");
+
   const [carregando, setCarregando] = useState(false);
 
   const FUNCOES_ADMIN = [
@@ -37,7 +37,7 @@ export default function PainelCadastro() {
     setDataNascimento("");
     setRole("colaborador");
     setFuncao("");
-    setMatricula("");
+
   };
 
   const handleCadastrar = async (e) => {
@@ -55,7 +55,7 @@ export default function PainelCadastro() {
         dataNascimento,
         role,
         funcao: funcao.trim() || null,
-        matricula: unmaskMatricula(matricula, config?.regras?.digitosMatricula),
+
         // Jornada padrão vazia ou básica para ser editada depois
         jornadas: {
           segunda: { entrada: "08:00", inicioIntervalo: "12:00", fimIntervalo: "13:00", saida: "17:00", ativo: true },
@@ -130,15 +130,15 @@ export default function PainelCadastro() {
             />
           </Campo>
 
-          <Campo>
-            <label>Matrícula / ID</label>
+          {/* Removido campo de matricula
+
             <input
-              value={matricula}
-              onChange={(e) => setMatricula(maskMatricula(e.target.value, config?.regras?.digitosMatricula))}
-              placeholder={`${"0".repeat((config?.regras?.digitosMatricula || 8) - 1)}-0`}
-              required={config?.regras?.loginPorMatricula}
+
+
+
+
             />
-          </Campo>
+          */}
 
           <Campo>
             <label>Tipo de Acesso</label>
