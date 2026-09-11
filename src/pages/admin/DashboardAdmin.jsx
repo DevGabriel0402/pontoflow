@@ -440,12 +440,26 @@ export default function DashboardAdmin() {
       funcsProcessar.forEach(func => {
         const pontosUser = itens.filter(p => p.userId === func.id);
         const feriados = config?.feriados || [];
-        const dataCriacao = func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null);
-        
+
+        const dZerado = func.bancoHorasZeradoEm?.toDate
+          ? func.bancoHorasZeradoEm.toDate()
+          : (func.bancoHorasZeradoEm ? new Date(func.bancoHorasZeradoEm) : null);
+
+        const dataCriacao = dZerado || (func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null));
+
+        // Filtrar apenas lançamentos feitos após a data de zeramento
+        const lancamentosValidos = (bancoHoras || []).filter((l) => {
+          if (l.userId !== func.id) return false;
+          if (!dZerado) return true;
+          let dLanc = l.criadoEm?.toDate ? l.criadoEm.toDate() : (l.dataReferencia ? new Date(`${l.dataReferencia}T12:00:00`) : null);
+          if (dLanc && dLanc < dZerado) return false;
+          return true;
+        });
+
         // Extrair abonos (justificativas aprovadas ou abonos manuais) para este funcionário
         const abonosFunc = {};
-        bancoHoras
-          .filter(l => l.userId === func.id && (
+        lancamentosValidos
+          .filter(l => (
             (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
             (l.origem === "ABONO_MANUAL")
           ))
@@ -479,7 +493,7 @@ export default function DashboardAdmin() {
           }
         });
 
-        const dataCriacaoTotal = dataCriacao || new Date(2025, 0, 1);
+        const dataCriacaoTotal = dataCriacao || new Date();
         
         // Calcular resumo HISTÓRICO TOTAL (para o Saldo Total)
         const resumoHistorico = calcularResumoDiario(
@@ -494,8 +508,7 @@ export default function DashboardAdmin() {
         );
 
         const somaAuto = resumoHistorico.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
-        const somaManual = bancoHoras
-          .filter(l => l.userId === func.id)
+        const somaManual = lancamentosValidos
           .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
         
         const saldoTotal = somaAuto + somaManual;

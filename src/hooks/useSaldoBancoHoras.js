@@ -53,10 +53,18 @@ export function useSaldoBancoHoras(userId, perfil) {
         const periodoInicio = format(dataCriacao, "yyyy-MM-dd");
         const periodoFim = format(new Date(), "yyyy-MM-dd");
 
+        const dZerado = perfil?.bancoHorasZeradoEm?.toDate ? perfil.bancoHorasZeradoEm.toDate() : (perfil?.bancoHorasZeradoEm ? new Date(perfil.bancoHorasZeradoEm) : null);
+        const lancamentosValidos = lancamentos.filter((l) => {
+            if (!dZerado) return true;
+            let dLanc = l.criadoEm?.toDate ? l.criadoEm.toDate() : (l.dataReferencia ? new Date(`${l.dataReferencia}T12:00:00`) : null);
+            if (dLanc && dLanc < dZerado) return false;
+            return true;
+        });
+
         // Extrair todos os abonos
         const abonosFunc = {};
         
-        lancamentos
+        lancamentosValidos
             .filter(l => (
                 (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
                 (l.origem === "ABONO_MANUAL")
@@ -107,7 +115,7 @@ export function useSaldoBancoHoras(userId, perfil) {
         const somaAutoMinutos = dias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
 
         // Saldo manual (ajustes)
-        const somaManualMinutos = lancamentos.reduce((acc, l) =>
+        const somaManualMinutos = lancamentosValidos.reduce((acc, l) =>
             acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0
         );
 

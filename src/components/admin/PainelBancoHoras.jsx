@@ -161,10 +161,23 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
       try {
         const pontosFunc = pontosAtePeriodo.filter((p) => p.userId === f.id);
 
-        // Extrair todos os abonos até o fim do período
+        const dZerado = f.bancoHorasZeradoEm?.toDate
+          ? f.bancoHorasZeradoEm.toDate()
+          : (f.bancoHorasZeradoEm ? new Date(f.bancoHorasZeradoEm) : null);
+
+        // Filtrar apenas lançamentos feitos após a data de zeramento
+        const lancamentosValidos = lancamentosAtePeriodo.filter((l) => {
+          if (l.userId !== f.id) return false;
+          if (!dZerado) return true;
+          let dLanc = l.criadoEm?.toDate ? l.criadoEm.toDate() : (l.dataReferencia ? new Date(`${l.dataReferencia}T12:00:00`) : null);
+          if (dLanc && dLanc < dZerado) return false;
+          return true;
+        });
+
+        // Extrair todos os abonos válidos até o fim do período
         const abonosFunc = {};
-        lancamentosAtePeriodo
-          .filter(l => l.userId === f.id && (
+        lancamentosValidos
+          .filter(l => (
             (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
             (l.origem === "ABONO_MANUAL")
           ))
@@ -199,9 +212,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         });
 
         // Calcula o resumo histórico até o fim do período (considerando zeramento anterior se houver)
-        const dataCriacao = f.bancoHorasZeradoEm?.toDate
-          ? f.bancoHorasZeradoEm.toDate()
-          : (f.bancoHorasZeradoEm ? new Date(f.bancoHorasZeradoEm) : (f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1))));
+        const dataCriacao = dZerado || (f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1)));
         const periodoInicioGeral = format(dataCriacao, "yyyy-MM-dd");
         const periodoFimGeral = format(fimDoPeriodo, "yyyy-MM-dd");
 
@@ -236,8 +247,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
 
         // Totais Acumulados (Saldo Histórico)
         const somaAutoMinutos = todosDias.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
-        const somaManualMinutos = lancamentosAtePeriodo
-          .filter((l) => l.userId === f.id)
+        const somaManualMinutos = lancamentosValidos
           .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
         const saldoTotal = somaAutoMinutos + somaManualMinutos;
 
@@ -274,6 +284,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         return {
           func: f,
           dias,
+          lancamentosValidos,
           totalTrabalhadoMinutos,
           totalEsperadoMinutos,
           somaAutoMinutos,
@@ -768,7 +779,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                           )}
 
                           {/* Ajustes manuais no período */}
-                          {lancamentosAtePeriodo.filter(l => l.userId === func.id && l.criadoEm?.toDate && l.criadoEm.toDate() >= startOfMonth(new Date(anoSelecionado, mesSelecionado, 1))).length > 0 && (
+                          {lancamentosValidos && lancamentosValidos.length > 0 && (
                             <AjustesManualSection>
                               <DetalheHeader style={{ marginTop: 16 }}>
                                 <FiPlus size={14} />
@@ -784,8 +795,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {lancamentosAtePeriodo
-                                    .filter(l => l.userId === func.id && l.criadoEm?.toDate && l.criadoEm.toDate() >= startOfMonth(new Date(anoSelecionado, mesSelecionado, 1)))
+                                  {lancamentosValidos
                                     .map((l) => (
                                       <tr key={l.id}>
                                         <td>
