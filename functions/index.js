@@ -558,8 +558,6 @@ exports.verificarAtrasosHoje = onSchedule({
             // Tipos para verificar
             const verificacoes = [
                 { tipo: "ENTRADA", hora: jDia.entrada, label: "entrada" },
-                { tipo: "INICIO_INTERVALO", hora: jDia.inicioIntervalo, label: "início de intervalo" },
-                { tipo: "FIM_INTERVALO", hora: jDia.fimIntervalo, label: "fim de intervalo" },
                 { tipo: "SAIDA", hora: jDia.saida, label: "saída" }
             ];
 

@@ -7,8 +7,6 @@ import { useConfig } from "../../contexts/ConfigContexto";
 const TIPOS = [
   { value: "TODOS", label: "Todos os Registros" },
   { value: "ENTRADA", label: "Entrada" },
-  { value: "INICIO_INTERVALO", label: "Início Intervalo" },
-  { value: "FIM_INTERVALO", label: "Fim Intervalo" },
   { value: "SAIDA", label: "Saída" },
 ];
 

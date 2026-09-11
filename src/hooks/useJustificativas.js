@@ -19,22 +19,22 @@ export function useJustificativas(userId) {
         setCarregando(true);
         setErro(null);
 
-        const filtros = [where("userId", "==", userId)];
-        if (perfil?.companyId) {
-            filtros.push(where("companyId", "==", perfil.companyId));
-        }
-
-        // Note: You might need a Firestore index for this query (userId + companyId + criadoEm)
+        // Query by userId only to avoid composite index requirements
         const q = query(
             collection(db, "justificativas"),
-            ...filtros,
-            orderBy("criadoEm", "desc")
+            where("userId", "==", userId)
         );
 
         const unsub = onSnapshot(
             q,
             (snap) => {
-                const lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                const lista = snap.docs
+                    .map((d) => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => {
+                        const tA = a.criadoEm?.toDate ? a.criadoEm.toDate().getTime() : (a.criadoEm ? new Date(a.criadoEm).getTime() : 0);
+                        const tB = b.criadoEm?.toDate ? b.criadoEm.toDate().getTime() : (b.criadoEm ? new Date(b.criadoEm).getTime() : 0);
+                        return tB - tA;
+                    });
                 setItens(lista);
                 setCarregando(false);
             },

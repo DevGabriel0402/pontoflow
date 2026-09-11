@@ -493,7 +493,7 @@ export default function HomeColaborador() {
             {pontosHoje.map((p) => (
               <ItemHistorico key={p.id}>
                 <ItemInfo>
-                  <TipoPonto>{p.type === 'ENTRADA' ? 'Entrada' : p.type === 'SAIDA' ? 'Saída' : p.type === 'INICIO_INTERVALO' ? 'Início Int.' : 'Fim Int.'}</TipoPonto>
+                  <TipoPonto>{p.type === 'ENTRADA' ? 'Entrada' : p.type === 'SAIDA' ? 'Saída' : p.type}</TipoPonto>
                   <DataHora>{new Date(getDataPonto(p)).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</DataHora>
                 </ItemInfo>
                 <ItemAcoes>

@@ -97,6 +97,11 @@ service cloud.firestore {
       // Aprovação/rejeição por admin
       allow update: if isSuperAdmin() ||
                       (hasRole('admin') && belongsTo(resource.data.companyId));
+
+      // Exclusão pelo próprio colaborador, admin da empresa ou superAdmin
+      allow delete: if isSuperAdmin() ||
+                      request.auth.uid == resource.data.userId ||
+                      (hasRole('admin') && belongsTo(resource.data.companyId));
     }
 
     // Coleção de Banco de Horas

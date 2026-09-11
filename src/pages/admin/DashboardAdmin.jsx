@@ -560,8 +560,6 @@ export default function DashboardAdmin() {
       
       // Verifica o que falta baseado nos pontos ativos e no que foi batido
       if (temPonto('entrada') && !j.check.entrada) pendencias.push({ label: "entrada", tipo: "ENTRADA" });
-      if (temPonto('intervalo_saida') && !j.check.iniInt) pendencias.push({ label: "início de intervalo", tipo: "INICIO_INTERVALO" });
-      if (temPonto('intervalo_entrada') && !j.check.fimInt) pendencias.push({ label: "fim de intervalo", tipo: "FIM_INTERVALO" });
       if (temPonto('saida') && !j.check.saida) pendencias.push({ label: "saída", tipo: "SAIDA" });
 
       if (pendencias.length === 0) {

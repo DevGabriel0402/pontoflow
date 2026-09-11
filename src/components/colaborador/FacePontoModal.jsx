@@ -108,8 +108,6 @@ export default function FacePontoModal({ tipo, onSucesso, onCancelar }) {
 
     const tipoLabel = {
         ENTRADA: "Entrada",
-        INICIO_INTERVALO: "Início Intervalo",
-        FIM_INTERVALO: "Fim Intervalo",
         SAIDA: "Saída",
     }[tipo] || tipo;
 

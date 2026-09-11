@@ -69,8 +69,6 @@ export async function runDailyNotifications() {
       const completed = new Set(yesterdayPoints.map((point) => point.data().type));
       const typeMap = {
         entrada: ["ENTRADA", "Entrada"],
-        intervalo_saida: ["INICIO_INTERVALO", "Inicio do intervalo"],
-        intervalo_entrada: ["FIM_INTERVALO", "Fim do intervalo"],
         saida: ["SAIDA", "Saida"],
       };
       const missing = activeTypes
@@ -127,8 +125,6 @@ export async function runDelayNotifications({ companyId = null, userId = null } 
     const completed = new Set(points.docs.map((point) => point.data().type));
     const checks = [
       ["ENTRADA", schedule.entrada, "entrada"],
-      ["INICIO_INTERVALO", schedule.inicioIntervalo, "inicio do intervalo"],
-      ["FIM_INTERVALO", schedule.fimIntervalo, "fim do intervalo"],
       ["SAIDA", schedule.saida, "saida"],
     ];
 

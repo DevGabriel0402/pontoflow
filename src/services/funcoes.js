@@ -31,4 +31,9 @@ export const criarAdminEmpresaFn = (dados) => chamarApi("/api/admin/criar", { da
 export const corrigirCompanyFn = () => chamarApi("/api/admin/corrigir-vinculos", { data: {} });
 export const trocarSenhaPrimeiroAcessoFn = (dados) => chamarApi("/api/usuarios/trocar-senha", { data: dados });
 export const loginPorMatriculaFn = (dados) => chamarApi("/api/auth/matricula", { data: dados, autenticado: false });
-export const verificarAtrasosFn = () => chamarApi("/api/notificacoes/verificar-atrasos", { data: {} });
+export const verificarAtrasosFn = () => {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return Promise.resolve(null);
+  }
+  return chamarApi("/api/notificacoes/verificar-atrasos", { data: {} }).catch(() => null);
+};
