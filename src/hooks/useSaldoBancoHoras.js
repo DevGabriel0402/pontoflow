@@ -47,7 +47,9 @@ export function useSaldoBancoHoras(userId, perfil) {
     const feriados = config?.feriados || [];
 
     const saldo = useMemo(() => {
-        const dataCriacao = perfil.criadoEm?.toDate ? perfil.criadoEm.toDate() : (perfil.criadoEm ? new Date(perfil.criadoEm) : new Date(2025, 0, 1));
+        const dataCriacao = perfil?.bancoHorasZeradoEm?.toDate
+            ? perfil.bancoHorasZeradoEm.toDate()
+            : (perfil?.bancoHorasZeradoEm ? new Date(perfil.bancoHorasZeradoEm) : (perfil?.criadoEm?.toDate ? perfil.criadoEm.toDate() : (perfil?.criadoEm ? new Date(perfil.criadoEm) : new Date(2025, 0, 1))));
         const periodoInicio = format(dataCriacao, "yyyy-MM-dd");
         const periodoFim = format(new Date(), "yyyy-MM-dd");
 

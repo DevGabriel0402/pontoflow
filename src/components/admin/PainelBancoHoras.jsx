@@ -88,8 +88,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Modal Confirmação (Excluir dia inteiro - Master)
   const [confirmarExclusaoDia, setConfirmarExclusaoDia] = useState({ aberto: false, userId: null, dataKey: null, userName: null });
 
-  // Modal Confirmação (Zerar Horas de Todos)
+  // Modal Confirmação (Zerar Horas de Todos / Individual)
   const [confirmarZerar, setConfirmarZerar] = useState(false);
+  const [confirmarZerarFunc, setConfirmarZerarFunc] = useState({ aberto: false, funcId: null, funcNome: null });
   const [zerandoHoras, setZerandoHoras] = useState(false);
 
   // Busca lançamentos manuais do Firestore
@@ -197,9 +198,10 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           }
         });
 
-        // Calcula o resumo histórico até o fim do período
-        // Para o saldo total, passamos desde o início (criadoEm) até o fim do período selecionado
-        const dataCriacao = f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1));
+        // Calcula o resumo histórico até o fim do período (considerando zeramento anterior se houver)
+        const dataCriacao = f.bancoHorasZeradoEm?.toDate
+          ? f.bancoHorasZeradoEm.toDate()
+          : (f.bancoHorasZeradoEm ? new Date(f.bancoHorasZeradoEm) : (f.criadoEm?.toDate ? f.criadoEm.toDate() : (f.criadoEm ? new Date(f.criadoEm) : new Date(2025, 0, 1))));
         const periodoInicioGeral = format(dataCriacao, "yyyy-MM-dd");
         const periodoFimGeral = format(fimDoPeriodo, "yyyy-MM-dd");
 
@@ -383,32 +385,53 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     if (!companyId) return;
     setZerandoHoras(true);
     try {
-      const agora = new Date();
-      const dataReferencia = format(agora, 'yyyy-MM-dd');
-      const promises = resumoPorFunc.map(async (r) => {
-        const saldoAtualMin = r.saldoTotal;
-        if (saldoAtualMin === 0) return;
-        const tipoLanc = saldoAtualMin > 0 ? 'DEBITO' : 'CREDITO';
-        await addDoc(collection(db, 'banco_horas'), {
-          userId: r.func.id,
-          companyId,
-          tipo: tipoLanc,
-          minutos: Math.abs(saldoAtualMin),
-          descricao: 'Zeragem de saldo pelo administrador',
-          origem: 'ZERAGEM',
-          dataReferencia,
-          criadoEm: serverTimestamp(),
-          criadoPor: perfil?.uid || 'admin',
-        });
-      });
-      await Promise.all(promises);
-      toast.success('Saldo de horas zerado para todos os colaboradores!');
+      // 1. Deletar todos os lançamentos manuais em banco_horas da empresa no Firestore
+      const bhRef = collection(db, "banco_horas");
+      const bhSnap = await getDocs(query(bhRef, where("companyId", "==", companyId)));
+      const deletePromises = bhSnap.docs.map((d) => deleteDoc(doc(db, "banco_horas", d.id)));
+      await Promise.all(deletePromises);
+
+      // 2. Atualizar todos os colaboradores no Firestore registrando a data de zeramento
+      const userPromises = colaboradores.map((f) =>
+        updateDoc(doc(db, "users", f.id), {
+          bancoHorasZeradoEm: serverTimestamp(),
+        })
+      );
+      await Promise.all(userPromises);
+
+      toast.success("Saldo de horas zerado no Firestore para todos os colaboradores!");
     } catch (err) {
-      console.error('Erro ao zerar horas:', err);
-      toast.error('Erro ao zerar saldos.');
+      console.error("Erro ao zerar horas no Firestore:", err);
+      toast.error("Erro ao zerar saldos no Firestore.");
     } finally {
       setZerandoHoras(false);
       setConfirmarZerar(false);
+    }
+  };
+
+  const handleZerarHorasFunc = async () => {
+    const { funcId, funcNome } = confirmarZerarFunc;
+    if (!funcId) return;
+    setZerandoHoras(true);
+    try {
+      // 1. Deletar os lançamentos manuais do banco_horas deste usuário no Firestore
+      const bhRef = collection(db, "banco_horas");
+      const bhSnap = await getDocs(query(bhRef, where("userId", "==", funcId)));
+      const deletePromises = bhSnap.docs.map((d) => deleteDoc(doc(db, "banco_horas", d.id)));
+      await Promise.all(deletePromises);
+
+      // 2. Marcar data de zeramento no documento do usuário no Firestore
+      await updateDoc(doc(db, "users", funcId), {
+        bancoHorasZeradoEm: serverTimestamp(),
+      });
+
+      toast.success(`Saldo de horas de ${funcNome} zerado no Firestore!`);
+    } catch (err) {
+      console.error("Erro ao zerar horas do colaborador:", err);
+      toast.error("Erro ao zerar saldo no Firestore.");
+    } finally {
+      setZerandoHoras(false);
+      setConfirmarZerarFunc({ aberto: false, funcId: null, funcNome: null });
     }
   };
 
@@ -519,10 +542,12 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
             Ajuste Manual
           </BotaoAjuste>
 
-          <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger>
-            <FiTrash2 size={15} />
-            Zerar Horas de Todos
-          </BotaoAjuste>
+          {isSuperAdmin && (
+            <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger>
+              <FiTrash2 size={15} />
+              Zerar Horas de Todos
+            </BotaoAjuste>
+          )}
 
           <BotaoAjuste $sincronizar onClick={handleSincronizar} disabled={sincronizando}>
             <FiRefreshCw size={15} className={sincronizando ? "spin" : ""} />
@@ -611,9 +636,16 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                       </SaldoDias>
                     </td>
                     <td>
-                      <BtnAjusteLinha onClick={(e) => { e.stopPropagation(); abrirModal(func.id); }}>
-                        <FiPlus size={12} /> Ajuste
-                      </BtnAjusteLinha>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <BtnAjusteLinha onClick={(e) => { e.stopPropagation(); abrirModal(func.id); }}>
+                          <FiPlus size={12} /> Ajuste
+                        </BtnAjusteLinha>
+                        {isSuperAdmin && (
+                          <BtnAjusteLinha $danger onClick={(e) => { e.stopPropagation(); setConfirmarZerarFunc({ aberto: true, funcId: func.id, funcNome: func.nome }); }}>
+                            <FiTrash2 size={12} /> Zerar
+                          </BtnAjusteLinha>
+                        )}
+                      </div>
                     </td>
                   </TrPrincipal>
 
@@ -876,10 +908,22 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         aberto={confirmarZerar}
         onFechar={() => setConfirmarZerar(false)}
         onConfirmar={handleZerarTodasHoras}
-        titulo="Zerar Horas de Todos"
-        mensagem="Tem certeza de que deseja zerar o saldo de horas de TODOS os colaboradores? Um lançamento de ajuste compensatório será inserido para cada funcionário para zerar o saldo atual."
+        titulo="Zerar Horas de Todos no Firestore"
+        mensagem="Tem certeza de que deseja zerar o saldo de horas de TODOS os colaboradores? Todos os lançamentos manuais no Firestore serão apagados e o saldo será resetado para zero a partir de agora."
         perigoso={true}
-        textoConfirmar="Zerar Banco de Horas"
+        textoConfirmar="Zerar Banco de Horas de Todos"
+        carregando={zerandoHoras}
+      />
+
+      {/* ── Modal Confirmação (Zerar Horas Individual) ── */}
+      <ModalConfirmacao
+        aberto={confirmarZerarFunc.aberto}
+        onFechar={() => setConfirmarZerarFunc({ aberto: false, funcId: null, funcNome: null })}
+        onConfirmar={handleZerarHorasFunc}
+        titulo={`Zerar Horas de ${confirmarZerarFunc.funcNome}`}
+        mensagem={`Tem certeza de que deseja zerar o saldo de horas de ${confirmarZerarFunc.funcNome}? Os lançamentos manuais no Firestore serão excluídos e o saldo recomeçará do zero.`}
+        perigoso={true}
+        textoConfirmar="Zerar Saldo do Colaborador"
         carregando={zerandoHoras}
       />
 
@@ -1153,16 +1197,17 @@ const BtnAjusteLinha = styled.button`
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border: 1px solid ${({ theme, $danger }) => $danger ? "rgba(231,76,60,0.4)" : theme.cores.borda};
   background: transparent;
-  color: ${({ theme }) => theme.cores.texto2};
+  color: ${({ theme, $danger }) => $danger ? "#e74c3c" : theme.cores.texto2};
   border-radius: 8px;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
   &:hover {
-    border-color: ${({ theme }) => theme.cores.azul};
-    color: ${({ theme }) => theme.cores.azul};
+    border-color: ${({ theme, $danger }) => $danger ? "#e74c3c" : theme.cores.azul};
+    color: ${({ theme, $danger }) => $danger ? "#e74c3c" : theme.cores.azul};
+    background: ${({ $danger }) => $danger ? "rgba(231,76,60,0.1)" : "transparent"};
   }
 `;
 
