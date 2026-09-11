@@ -16,6 +16,7 @@ export default function PainelCadastro() {
   const [dataNascimento, setDataNascimento] = useState("");
   const [role, setRole] = useState("colaborador");
   const [funcao, setFuncao] = useState("");
+  const [exigirGeo, setExigirGeo] = useState(true);
 
   const [carregando, setCarregando] = useState(false);
 
@@ -37,7 +38,7 @@ export default function PainelCadastro() {
     setDataNascimento("");
     setRole("colaborador");
     setFuncao("");
-
+    setExigirGeo(true);
   };
 
   const handleCadastrar = async (e) => {
@@ -55,6 +56,7 @@ export default function PainelCadastro() {
         dataNascimento,
         role,
         funcao: funcao.trim() || null,
+        exigirGeo,
 
         // Jornada padrão vazia ou básica para ser editada depois
         jornadas: {
@@ -128,6 +130,23 @@ export default function PainelCadastro() {
               onChange={(e) => setDataNascimento(e.target.value)} 
               required
             />
+          </Campo>
+
+          <Campo style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', cursor: 'pointer', margin: 0 }}>
+              <div>
+                <strong style={{ display: 'block', fontSize: 13, color: '#fff' }}>📍 Exigir Localização (Geofencing)</strong>
+                <span style={{ fontSize: 11, color: '#8d8d99', fontWeight: 400, display: 'block', marginTop: 2 }}>
+                  {exigirGeo ? "Ativado: exige estar dentro do raio da empresa para bater ponto." : "Desativado: permite bater ponto de qualquer local sem restrição de raio."}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={exigirGeo}
+                onChange={(e) => setExigirGeo(e.target.checked)}
+                style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#2f81f7', flexShrink: 0, marginLeft: 12 }}
+              />
+            </label>
           </Campo>
 
           {/* Removido campo de matricula

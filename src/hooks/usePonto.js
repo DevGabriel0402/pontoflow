@@ -83,8 +83,12 @@ export function usePonto() {
 
             const { ok, distance, coords } = await validarLocal();
 
-            // colaborador bloqueia fora do raio; admin pode (auditoria)
-            if (!ok && !isAdmin) {
+            const exigirGeoEmpresa = config?.regras?.exigirGeo !== false;
+            const exigirGeoUser = perfil?.exigirGeo !== false;
+            const exigirGeo = exigirGeoEmpresa && exigirGeoUser;
+
+            // colaborador bloqueia fora do raio (se geofencing ativado); admin pode
+            if (exigirGeo && !ok && !isAdmin) {
                 toast.error(`Fora do raio permitido! Distância: ${distance}m`);
                 return;
             }

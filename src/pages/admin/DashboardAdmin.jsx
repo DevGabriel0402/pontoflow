@@ -894,6 +894,16 @@ export default function DashboardAdmin() {
                                     textTransform: 'uppercase'
                                   }}>Novo</span>
                                 )}
+                                {f.exigirGeo === false && (
+                                  <span title="Geofencing desativado para este colaborador" style={{ 
+                                    background: '#f39c12', 
+                                    color: '#000', 
+                                    fontSize: '10px', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '700'
+                                  }}>GPS Livre</span>
+                                )}
                               </div>
                             </td>
                             <td style={{ fontSize: 13, fontWeight: 700, color: 'var(--cor-primaria)' }}>{maskMatricula(f.matricula) || "—"}</td>

@@ -139,12 +139,17 @@ export default function HomeColaborador() {
   }, [tipoSelecionado, tiposFeitosHoje, tiposAtivos]);
 
   const statusTexto = React.useMemo(() => {
+    const exigirGeoEmpresa = empresaConfig?.config?.regras?.exigirGeo !== false;
+    const exigirGeoUser = perfil?.exigirGeo !== false;
+    const exigirGeo = exigirGeoEmpresa && exigirGeoUser;
+
+    if (!exigirGeo) return "Geofencing Desativado (Livre para registrar de qualquer local)";
     if (!checou) return "Validando localização...";
     if (validacao.ok) return `Localização Validada: ${empresaConfig?.nome || "Sede"}`;
     if (validacao.ok === false)
       return `Fora do raio permitido (${validacao.distance}m)`;
     return "Localização não verificada";
-  }, [checou, validacao]);
+  }, [checou, validacao, empresaConfig, perfil]);
 
   // ✅ validar local ao entrar na tela (e quando voltar pro app)
   React.useEffect(() => {
@@ -192,12 +197,15 @@ export default function HomeColaborador() {
     // colaborador bloqueia fora do raio ou fim de semana; admin não bloqueia
     if (isAdmin) return false;
 
-    // Regra personalizada: se a empresa não exige geolocalização, não bloqueia
-    const exigirGeo = empresaConfig?.config?.regras?.exigirGeo !== false;
+    // Regra personalizada: se a empresa ou o usuário individual não exige geolocalização, não bloqueia
+    const exigirGeoEmpresa = empresaConfig?.config?.regras?.exigirGeo !== false;
+    const exigirGeoUser = perfil?.exigirGeo !== false;
+    const exigirGeo = exigirGeoEmpresa && exigirGeoUser;
+
     const foraDoRaio = checou && validacao.ok === false;
 
     return (exigirGeo && foraDoRaio) || ehFimDeSemana;
-  }, [isAdmin, checou, validacao.ok, ehFimDeSemana, empresaConfig]);
+  }, [isAdmin, checou, validacao.ok, ehFimDeSemana, empresaConfig, perfil]);
 
   const handle = async (tipo) => {
     if (permissaoGPS === "denied") {
