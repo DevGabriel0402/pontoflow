@@ -29,6 +29,7 @@ import { useAdminFuncionarios } from "../../hooks/useAdminFuncionarios";
 import SeletorAcordeao from "../SeletorAcordeao";
 import ModalConfirmacao from "../ModalConfirmacao";
 import ModalEditarPonto from "./ModalEditarPonto";
+import ModalAjusteIntervalo from "./ModalAjusteIntervalo";
 import { MOTIVOS_JUSTIFICATIVA } from "../colaborador/ModalJustificativa";
 
 // Wrapper seguro contra "Invalid Date"
@@ -87,6 +88,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
 
   // Modal Confirmação (Excluir dia inteiro - Master)
   const [confirmarExclusaoDia, setConfirmarExclusaoDia] = useState({ aberto: false, userId: null, dataKey: null, userName: null });
+
+  // Modal Ajuste em Lote por Intervalo (Master)
+  const [modalIntervaloAberto, setModalIntervaloAberto] = useState(false);
 
   // Modal Confirmação (Zerar Horas de Todos / Individual)
   const [confirmarZerar, setConfirmarZerar] = useState(false);
@@ -554,6 +558,13 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           </BotaoAjuste>
 
           {isSuperAdmin && (
+            <BotaoAjuste onClick={() => setModalIntervaloAberto(true)} $purple>
+              <FiCalendar size={15} />
+              Ajustar por Intervalo
+            </BotaoAjuste>
+          )}
+
+          {isSuperAdmin && (
             <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger>
               <FiTrash2 size={15} />
               Zerar Horas de Todos
@@ -597,7 +608,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                 </td>
               </tr>
             )}
-            {resumoPorFunc.map(({ func, dias, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => {
+            {resumoPorFunc.map(({ func, dias, lancamentosValidos, totalTrabalhadoMinutos, totalEsperadoMinutos, somaAutoMinutos, somaManualMinutos, saldoTotal, mediaTrabalhadaDia, saldoTotalDias }) => {
               const temJornadaSemanal = !!func.jornadas;
               const temJornadaLegada = !!func.jornada?.entrada && !!func.jornada?.saida;
               const lblJornada = temJornadaSemanal
@@ -902,6 +913,16 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           </ModalBox>
         </Overlay>
       )}
+      {/* ── Modal de Ajuste de Intervalo (Master) ── */}
+      {isSuperAdmin && modalIntervaloAberto && (
+        <ModalAjusteIntervalo
+          aberto={modalIntervaloAberto}
+          onFechar={() => setModalIntervaloAberto(false)}
+          colaboradores={colaboradores}
+          companyId={perfil?.companyId}
+        />
+      )}
+
       {/* ── Modal de Confirmação (Excluir Ajuste) ── */}
       <ModalConfirmacao
         aberto={confirmarExclusao.aberto}
@@ -1037,7 +1058,11 @@ const BotaoAjuste = styled.button`
   gap: 6px;
   padding: 0 16px;
   height: 38px;
-  background: ${({ theme, $sincronizar }) => $sincronizar ? theme.cores.sucesso : theme.cores.azul};
+  background: ${({ theme, $sincronizar, $danger, $purple }) =>
+    $danger ? "#e74c3c" :
+    $purple ? "#8e44ad" :
+    $sincronizar ? theme.cores.sucesso :
+    theme.cores.azul};
   color: #fff;
   font-weight: 700;
   border: 0;

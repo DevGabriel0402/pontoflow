@@ -271,38 +271,18 @@ export default function ModalEditarFuncionario({ aberto, funcionario, onFechar }
 
                     {conf.ativo && (
                       <HorariosInputs>
-                        {temPonto('entrada') && (
-                          <InputSlim
-                            type="time"
-                            value={conf.entrada}
-                            title="Entrada"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
-                          />
-                        )}
-                        {temPonto('intervalo_saida') && (
-                          <InputSlim
-                            type="time"
-                            value={conf.inicioIntervalo}
-                            title="Início Intervalo"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, inicioIntervalo: e.target.value } }))}
-                          />
-                        )}
-                        {temPonto('intervalo_entrada') && (
-                          <InputSlim
-                            type="time"
-                            value={conf.fimIntervalo}
-                            title="Fim Intervalo"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, fimIntervalo: e.target.value } }))}
-                          />
-                        )}
-                        {temPonto('saida') && (
-                          <InputSlim
-                            type="time"
-                            value={conf.saida}
-                            title="Saída"
-                            onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
-                          />
-                        )}
+                        <InputSlim
+                          type="time"
+                          value={conf.entrada}
+                          title="Entrada"
+                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, entrada: e.target.value } }))}
+                        />
+                        <InputSlim
+                          type="time"
+                          value={conf.saida}
+                          title="Saída"
+                          onChange={e => setJornadas(pd => ({ ...pd, [dia.key]: { ...conf, saida: e.target.value } }))}
+                        />
                       </HorariosInputs>
                     )}
                   </DiaRow>
