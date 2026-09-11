@@ -88,6 +88,10 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   // Modal Confirmação (Excluir dia inteiro - Master)
   const [confirmarExclusaoDia, setConfirmarExclusaoDia] = useState({ aberto: false, userId: null, dataKey: null, userName: null });
 
+  // Modal Confirmação (Zerar Horas de Todos)
+  const [confirmarZerar, setConfirmarZerar] = useState(false);
+  const [zerandoHoras, setZerandoHoras] = useState(false);
+
   // Busca lançamentos manuais do Firestore
   useEffect(() => {
     if (!perfil?.companyId) return;
@@ -374,7 +378,39 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
     }
   };
 
-
+  const handleZerarTodasHoras = async () => {
+    const companyId = perfil?.companyId;
+    if (!companyId) return;
+    setZerandoHoras(true);
+    try {
+      const agora = new Date();
+      const dataReferencia = format(agora, 'yyyy-MM-dd');
+      const promises = resumoPorFunc.map(async (r) => {
+        const saldoAtualMin = r.saldoTotal;
+        if (saldoAtualMin === 0) return;
+        const tipoLanc = saldoAtualMin > 0 ? 'DEBITO' : 'CREDITO';
+        await addDoc(collection(db, 'banco_horas'), {
+          userId: r.func.id,
+          companyId,
+          tipo: tipoLanc,
+          minutos: Math.abs(saldoAtualMin),
+          descricao: 'Zeragem de saldo pelo administrador',
+          origem: 'ZERAGEM',
+          dataReferencia,
+          criadoEm: serverTimestamp(),
+          criadoPor: perfil?.uid || 'admin',
+        });
+      });
+      await Promise.all(promises);
+      toast.success('Saldo de horas zerado para todos os colaboradores!');
+    } catch (err) {
+      console.error('Erro ao zerar horas:', err);
+      toast.error('Erro ao zerar saldos.');
+    } finally {
+      setZerandoHoras(false);
+      setConfirmarZerar(false);
+    }
+  };
 
   const handleExcluirLancamento = async () => {
     const id = confirmarExclusao.id;
@@ -481,6 +517,11 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           <BotaoAjuste onClick={() => setModalAberto(true)}>
             <FiPlus size={15} />
             Ajuste Manual
+          </BotaoAjuste>
+
+          <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger>
+            <FiTrash2 size={15} />
+            Zerar Horas de Todos
           </BotaoAjuste>
 
           <BotaoAjuste $sincronizar onClick={handleSincronizar} disabled={sincronizando}>
@@ -841,7 +882,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           </ModalBox>
         </Overlay>
       )}
-      {/* ── Modal de Confirmação ── */}
+      {/* ── Modal de Confirmação (Excluir Ajuste) ── */}
       <ModalConfirmacao
         aberto={confirmarExclusao.aberto}
         onFechar={() => setConfirmarExclusao({ aberto: false, id: null })}
@@ -850,6 +891,18 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
         mensagem="Certeza que deseja excluir este ajuste manual? Essa ação não pode ser desfeita e o banco de horas será recalculado."
         perigoso={true}
         textoConfirmar="Excluir"
+      />
+
+      {/* ── Modal Confirmação (Zerar Horas de Todos) ── */}
+      <ModalConfirmacao
+        aberto={confirmarZerar}
+        onFechar={() => setConfirmarZerar(false)}
+        onConfirmar={handleZerarTodasHoras}
+        titulo="Zerar Horas de Todos"
+        mensagem="Tem certeza de que deseja zerar o saldo de horas de TODOS os colaboradores? Um lançamento de ajuste compensatório será inserido para cada funcionário para zerar o saldo atual."
+        perigoso={true}
+        textoConfirmar="Zerar Banco de Horas"
+        carregando={zerandoHoras}
       />
 
       {/* ── Modal de Edição de Ponto (Master) ── */}
