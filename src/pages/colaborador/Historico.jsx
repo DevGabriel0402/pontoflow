@@ -140,65 +140,24 @@ export default function Historico() {
       });
     } else {
       if (aba === "HOJE") {
-        const hoje = startOfToday();
+        const hoje = new Date();
         final = final.filter(p => {
           const d = getDataPreferida(p);
-          return d && isAfter(d, hoje);
+          return d && isSameDay(d, hoje);
         });
       } else if (aba === "SEMANA") {
         const semana = startOfWeek(new Date(), { locale: ptBR });
         final = final.filter(p => {
           const d = getDataPreferida(p);
-          return d && isAfter(d, semana);
+          return d && (isAfter(d, semana) || isSameDay(d, semana));
         });
       }
     }
 
     final.sort((a, b) => getDataPreferida(b) - getDataPreferida(a));
 
-    if (aba !== "JUSTIFICATIVAS" && config) {
-       const ausenciasMock = [];
-       (config?.ausencias || []).forEach(aus => {
-         if (aus.userId === usuario?.uid || !aus.userId) {
-           try {
-             let d = new Date(`${aus.dataInicio}T12:00:00`);
-             const f = new Date(`${aus.dataFim}T12:00:00`);
-             eachDayOfInterval({ start: d, end: f }).forEach(day => {
-               const jaTemPonto = final.some(p => isSameDay(getDataPreferida(p), day));
-               if (!jaTemPonto) {
-                 ausenciasMock.push({
-                   id: `aus-${aus.id}-${format(day, 'yyyyMMdd')}`,
-                   type: aus.tipo,
-                   motivo: aus.motivo,
-                   dataHoraOriginal: day.toISOString(),
-                   dentroDoRaio: true,
-                   isAusencia: true
-                 });
-               }
-             });
-           } catch (e) { console.error("Erro ao processar ausência:", e); }
-         }
-       });
-       (config?.feriados || []).forEach(fDate => {
-          const d = new Date(`${fDate}T12:00:00`);
-          const jaTemPonto = final.some(p => isSameDay(getDataPreferida(p), d));
-          if (!jaTemPonto) {
-            ausenciasMock.push({
-              id: `feriado-${fDate}`,
-              type: 'FERIADO',
-              motivo: 'Feriado Nacional',
-              dataHoraOriginal: d.toISOString(),
-              dentroDoRaio: true,
-              isAusencia: true
-            });
-          }
-       });
-       final = [...final, ...ausenciasMock];
-       final.sort((a, b) => getDataPreferida(b) - getDataPreferida(a));
-    }
-
     return final;
-  }, [itens, filaOffline, tipo, dataInicio, dataFim, aba, usuario?.uid, config]);
+  }, [itens, filaOffline, tipo, dataInicio, dataFim, aba, usuario?.uid]);
 
 
   return (

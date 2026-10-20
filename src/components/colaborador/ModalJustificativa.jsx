@@ -106,7 +106,7 @@ export default function ModalJustificativa({ aberto, onFechar, editandoObj = nul
                 motivoRejeicao: null,
             };
 
-            if (editandoObj) {
+            if (editandoObj && editandoObj.id) {
                 await updateDoc(doc(db, "justificativas", editandoObj.id), payload);
                 toast.success("Justificativa atualizada com sucesso!");
             } else {

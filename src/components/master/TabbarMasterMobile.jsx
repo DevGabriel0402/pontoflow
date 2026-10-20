@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "styled-components";
-import { FiGrid, FiFileText, FiMessageSquare, FiLock } from "react-icons/fi";
+import { FiGrid, FiFileText, FiLock } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContexto";
 
 export default function TabbarMasterMobile({ abaAtiva, setAbaAtiva }) {
@@ -10,7 +10,6 @@ export default function TabbarMasterMobile({ abaAtiva, setAbaAtiva }) {
     { id: "DASHBOARD", label: "Global", icon: <FiGrid size={20} /> },
     { id: "ADMINS", label: "Admins", icon: <FiLock size={20} /> },
     { id: "MANUAL", label: "Manual", icon: <FiFileText size={20} /> },
-    { id: "SUPORTE", label: "Suporte", icon: <FiMessageSquare size={20} /> },
   ];
 
   return (
@@ -43,7 +42,7 @@ const Barra = styled.nav`
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 0 10px;
   z-index: 999;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);

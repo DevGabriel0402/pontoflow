@@ -145,7 +145,8 @@ export function useSaldoBancoHoras(userId, perfil) {
 
         return {
             saldoMinutos: saldoTotalMinutos,
-            saldoDias: saldoTotalDias
+            saldoDias: saldoTotalDias,
+            dias
         };
     }, [pontos, lancamentos, perfil]);
 

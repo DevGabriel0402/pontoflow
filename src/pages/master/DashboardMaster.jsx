@@ -1,18 +1,18 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock, FiZap, FiCheckCircle, FiClock, FiMessageSquare, FiFileText } from "react-icons/fi";
+import { FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock, FiZap, FiCheckCircle, FiClock, FiFileText } from "react-icons/fi";
 import { db } from "../../services/firebase";
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { FiSave, FiInfo, FiTag, FiPhone, FiMail, FiChevronDown, FiChevronUp, FiTrash, FiMove, FiBold, FiType, FiMaximize, FiArchive, FiLogOut } from "react-icons/fi";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useMasterCompanies } from "../../hooks/useMasterCompanies";
 import { useAuth } from "../../contexts/AuthContexto";
 import ModalNovaEmpresa from "../../components/master/ModalNovaEmpresa";
+import ModalConfirmacao from "../../components/ModalConfirmacao";
 import TabbarMasterMobile from "../../components/master/TabbarMasterMobile";
 import AbaAdminsMaster from "../../components/master/AbaAdminsMaster";
-import ChatSuporte from "../../components/ChatSuporte";
 import { INITIAL_MANUAL_DATA } from "../../utils/manualTemplate";
 
 /* --- COMPONENTES DO EDITOR VISUAL DO MANUAL --- */
@@ -548,6 +548,25 @@ export default function DashboardMaster() {
     const [modalAberto, setModalAberto] = React.useState(false);
     const [empresaEditando, setEmpresaEditando] = React.useState(null);
 
+    // Exclusão de Empresa
+    const [empresaExcluir, setEmpresaExcluir] = React.useState(null);
+    const [excluindoEmpresa, setExcluindoEmpresa] = React.useState(false);
+
+    const handleExcluirEmpresa = async () => {
+        if (!empresaExcluir?.id) return;
+        setExcluindoEmpresa(true);
+        try {
+            await deleteDoc(doc(db, "companies", empresaExcluir.id));
+            toast.success(`Empresa "${empresaExcluir.nome}" excluída com sucesso!`);
+            setEmpresaExcluir(null);
+        } catch (err) {
+            console.error("Erro ao excluir empresa:", err);
+            toast.error("Erro ao excluir empresa: " + (err.message || "Tente novamente"));
+        } finally {
+            setExcluindoEmpresa(false);
+        }
+    };
+
     // Configurações SaaS
     const [saasConfig, setSaasConfig] = React.useState({
         nomeSaaS: "PontoFlow",
@@ -738,9 +757,6 @@ export default function DashboardMaster() {
                     <NavItem $ativo={abaAtiva === "MANUAL"} onClick={() => setAbaAtiva("MANUAL")}>
                         <FiFileText /> <span>Manual do Sistema</span>
                     </NavItem>
-                    <NavItem $ativo={abaAtiva === "SUPORTE"} onClick={() => setAbaAtiva("SUPORTE")}>
-                        <FiMessageSquare /> <span>Suporte / Chat</span>
-                    </NavItem>
 
                     <NavSeparador />
 
@@ -836,11 +852,14 @@ export default function DashboardMaster() {
                                                 </td>
                                                 <td>
                                                     <GroupAcoes>
-                                                        <BotaoIcone onClick={() => { setEmpresaEditando(c); setModalAberto(true); }}>
+                                                        <BotaoIcone onClick={() => { setEmpresaEditando(c); setModalAberto(true); }} title="Editar Empresa">
                                                             <FiEdit2 size={14} />
                                                         </BotaoIcone>
-                                                        <BotaoIcone onClick={() => handleToggleStatus(c)}>
+                                                        <BotaoIcone onClick={() => handleToggleStatus(c)} title={c.status === "bloqueado" ? "Desbloquear Empresa" : "Bloquear Empresa"}>
                                                             {c.status === "bloqueado" ? <FiUnlock size={14} /> : <FiLock size={14} />}
+                                                        </BotaoIcone>
+                                                        <BotaoIcone $danger onClick={() => setEmpresaExcluir(c)} title="Excluir Empresa Permanentemente">
+                                                            <FiTrash size={14} />
                                                         </BotaoIcone>
                                                     </GroupAcoes>
                                                 </td>
@@ -1081,47 +1100,23 @@ export default function DashboardMaster() {
                         </div>
                     </ConfigContainer>
                 )}
-
-                {abaAtiva === "SUPORTE" && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px' }}>
-                        <TabelaContainer style={{ height: '600px', overflowY: 'auto' }}>
-                            <Tabela>
-                                <thead>
-                                    <tr><th>Empresas</th></tr>
-                                </thead>
-                                <tbody>
-                                    {companies.map(c => (
-                                        <tr 
-                                            key={c.id} 
-                                            onClick={() => setEmpresaEditando(c)}
-                                            style={{ 
-                                                cursor: 'pointer', 
-                                                background: empresaEditando?.id === c.id ? 'rgba(47, 129, 247, 0.1)' : 'transparent' 
-                                            }}
-                                        >
-                                            <td>
-                                                <div style={{ fontWeight: 600 }}>{c.nome}</div>
-                                                <div style={{ fontSize: 11, opacity: 0.6 }}>ID: {c.id}</div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Tabela>
-                        </TabelaContainer>
-
-                        <ChatSuporte 
-                            companyId={empresaEditando?.id} 
-                            isMaster={true}
-                            userName={"Master Suporte"}
-                        />
-                    </div>
-                )}
             </Conteudo>
 
             <ModalNovaEmpresa
                 aberto={modalAberto}
                 onFechar={() => setModalAberto(false)}
                 empresa={empresaEditando}
+            />
+
+            <ModalConfirmacao
+                aberto={!!empresaExcluir}
+                onFechar={() => setEmpresaExcluir(null)}
+                onConfirmar={handleExcluirEmpresa}
+                titulo="Excluir Empresa"
+                mensagem={`Tem certeza de que deseja excluir permanentemente a empresa "${empresaExcluir?.nome}" (${empresaExcluir?.id})? Todos os acessos a ela deixarão de existir. Esta ação não pode ser desfeita.`}
+                textoConfirmar={excluindoEmpresa ? "Excluindo..." : "Excluir Empresa"}
+                textoCancelar="Cancelar"
+                perigoso={true}
             />
 
             <TabbarMasterMobile

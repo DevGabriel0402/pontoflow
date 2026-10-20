@@ -9,12 +9,16 @@ import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefres
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
-import { startOfToday, isSameDay, isWeekend } from "date-fns";
+import { startOfToday, isSameDay, isWeekend, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
+import ModalPontosSemSaida from "../../components/colaborador/ModalPontosSemSaida";
+import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
+import { useJustificativas } from "../../hooks/useJustificativas";
 import { formatarSaldo } from "../../utils/pontoUtils";
 import { useNotificacoes } from "../../hooks/useNotificacoes";
 import NotificationBadge from "../../components/colaborador/NotificationBadge";
@@ -46,8 +50,9 @@ export default function HomeColaborador() {
   const { pendentes, online, sincronizando, syncAgora } = useSync();
   const { itens: historico, carregando: carregandoHist } = useHistoricoPontos(usuario?.uid);
   const { registrarPonto, validarLocal, validacao, carregandoGeo } = usePonto();
-  const { saldoMinutos, saldoDias, carregando: carregandoSaldo } = useSaldoBancoHoras(usuario?.uid, perfil);
+  const { saldoMinutos, saldoDias, dias, carregando: carregandoSaldo } = useSaldoBancoHoras(usuario?.uid, perfil);
   const { notificacoes, naoLidasCount, marcarComoLida, marcarTodasComoLidas, excluirNotificacao } = useNotificacoes(usuario?.uid);
+  const { itens: justificativas } = useJustificativas(usuario?.uid);
 
   const [checou, setChecou] = React.useState(false);
   const [modalTrocaSenhaAberto, setModalTrocaSenhaAberto] = React.useState(false);
@@ -57,6 +62,56 @@ export default function HomeColaborador() {
   const [tipoSelecionado, setTipoSelecionado] = React.useState(null);
   const [modalFaceAberto, setModalFaceAberto] = React.useState(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = React.useState(false);
+
+  // Controle do popup de saídas não registradas
+  const [modalSemSaidaAberto, setModalSemSaidaAberto] = React.useState(false);
+  const [modalJustificativaAberto, setModalJustificativaAberto] = React.useState(false);
+  const [justificativaPreenchida, setJustificativaPreenchida] = React.useState(null);
+  const [popupAutoDisparado, setPopupAutoDisparado] = React.useState(false);
+
+  // Identifica dias anteriores em que o colaborador bateu a entrada mas não registrou saída
+  const diasSemSaida = React.useMemo(() => {
+    if (!dias || dias.length === 0) return [];
+    const hojeKey = format(new Date(), "yyyy-MM-dd");
+    return dias.filter((d) => {
+      if (d.dataKey >= hojeKey) return false;
+      const temEntrada = !!d.ponto_indices?.entrada;
+      const temSaida = !!d.ponto_indices?.saida;
+      const isAbonado = d.status === "Abonado" || d.status === "Férias" || d.status === "Recesso";
+      return temEntrada && !temSaida && !isAbonado;
+    }).sort((a, b) => b.dataKey.localeCompare(a.dataKey));
+  }, [dias]);
+
+  // Dispara o popup automaticamente ao abrir caso haja pendências (1x por sessão)
+  React.useEffect(() => {
+    if (carregandoSaldo || diasSemSaida.length === 0 || popupAutoDisparado) return;
+    const vistoSessao = sessionStorage.getItem("popup_sem_saida_visto");
+    if (!vistoSessao) {
+      setModalSemSaidaAberto(true);
+      setPopupAutoDisparado(true);
+    }
+  }, [carregandoSaldo, diasSemSaida.length, popupAutoDisparado]);
+
+  const handleFecharModalSemSaida = () => {
+    setModalSemSaidaAberto(false);
+    sessionStorage.setItem("popup_sem_saida_visto", "true");
+  };
+
+  const handleJustificarDiaSemSaida = (dia) => {
+    const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+    const diaData = dia.data || new Date(`${dia.dataKey}T12:00:00`);
+    const diaSemana = mapDias[diaData.getDay()];
+    const jornadaDia = perfil?.jornadas?.[diaSemana] || perfil?.jornada;
+    const horaSaida = jornadaDia?.saida || "18:00";
+
+    setJustificativaPreenchida({
+      tipo: "SAIDA",
+      dataHoraSolicitada: `${dia.dataKey}T${horaSaida}`,
+      justificativa: `Esqueci de registrar a saída do dia ${format(diaData, "dd/MM/yyyy", { locale: ptBR })}.`,
+      motivo: "ESQUECI_PONTO"
+    });
+    setModalJustificativaAberto(true);
+  };
 
   React.useEffect(() => {
     if (!usuario?.uid) return undefined;
@@ -382,6 +437,18 @@ export default function HomeColaborador() {
           </ContainerSaldo>
         )}
 
+        {diasSemSaida.length > 0 && (
+          <BannerSemSaida onClick={() => setModalSemSaidaAberto(true)}>
+            <BannerSemSaidaIcone>
+              <FiAlertTriangle size={18} />
+            </BannerSemSaidaIcone>
+            <BannerSemSaidaInfo>
+              <strong>Atenção:</strong> Você possui {diasSemSaida.length} saída(s) pendente(s) de dias anteriores.
+            </BannerSemSaidaInfo>
+            <BannerSemSaidaBotao>Ver dias</BannerSemSaidaBotao>
+          </BannerSemSaida>
+        )}
+
         <Status>
           <PontoStatus $ok={validacao.ok === true} $bad={validacao.ok === false} />
           <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
@@ -587,6 +654,23 @@ export default function HomeColaborador() {
         onMarcarLida={marcarComoLida}
         onMarcarTodasLidas={marcarTodasComoLidas}
         onExcluir={excluirNotificacao}
+      />
+
+      <ModalPontosSemSaida
+        aberto={modalSemSaidaAberto}
+        onFechar={handleFecharModalSemSaida}
+        diasSemSaida={diasSemSaida}
+        justificativas={justificativas}
+        onJustificar={handleJustificarDiaSemSaida}
+      />
+
+      <ModalJustificativa
+        aberto={modalJustificativaAberto}
+        onFechar={() => {
+          setModalJustificativaAberto(false);
+          setJustificativaPreenchida(null);
+        }}
+        editandoObj={justificativaPreenchida}
       />
 
       {permissaoGPS === "denied" && (
@@ -805,6 +889,64 @@ const SubSaldo = styled.div`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+`;
+
+const BannerSemSaida = styled.div`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 14px;
+  background: rgba(243, 156, 18, 0.1);
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    background: rgba(243, 156, 18, 0.16);
+    border-color: rgba(243, 156, 18, 0.45);
+    transform: translateY(-1px);
+  }
+`;
+
+const BannerSemSaidaIcone = styled.div`
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const BannerSemSaidaInfo = styled.div`
+  flex: 1;
+  font-size: 12px;
+  color: #e2e8f0;
+  line-height: 1.4;
+
+  strong {
+    color: #f39c12;
+  }
+`;
+
+const BannerSemSaidaBotao = styled.span`
+  font-size: 10px;
+  font-weight: 800;
+  color: #f39c12;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(243, 156, 18, 0.15);
+  border: 1px solid rgba(243, 156, 18, 0.25);
+  white-space: nowrap;
 `;
 
 const Relogio = styled.div`

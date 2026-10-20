@@ -130,7 +130,13 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             minutosTrabalhados = Math.max(0, differenceInMinutes(saida, entrada));
             status = "Ok";
         } else if (entrada && !saida) {
-            status = "Sem Saída";
+            if (feriados.includes(dataKey)) {
+                status = "Feriado";
+            } else if (dataKey < hojeKey) {
+                status = "Falta";
+            } else {
+                status = "Sem Saída";
+            }
         } else if (!entrada && !saida) {
             if (feriados.includes(dataKey)) status = "Feriado";
             else if (dataKey > hojeKey) status = "Futuro";
@@ -151,7 +157,7 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
         let diferenca = 0;
         if (saida && minutosEsperadosDia !== null) {
             diferenca = minutosTrabalhados - minutosEsperadosDia;
-        } else if (!saida && status === "Falta" && minutosEsperadosDia > 0) {
+        } else if (!saida && (status === "Falta" || (status === "Sem Saída" && dataKey < hojeKey)) && minutosEsperadosDia > 0) {
             // REGRA DE DESCONTO AUTOMÁTICO SOLICITADA PELO USUÁRIO:
             // 44h -> 9h (540 min)
             // 40h -> 8h (480 min)

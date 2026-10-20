@@ -589,10 +589,7 @@ export default function DashboardAdmin() {
       );
     } catch (err) {
       console.error("Erro ao resetar senha:", err);
-      const msg = err.message?.includes("Erro interno") || err.message?.includes("500")
-        ? "Serviço de reset indisponível na Vercel de produção. Faça o deploy (git push) para ativar o endpoint."
-        : (err.message || "Erro ao resetar senha.");
-      toast.error(msg, { id: tId, duration: 6000 });
+      toast.error(err.message || "Erro ao resetar senha.", { id: tId, duration: 8000 });
     } finally {
       setResetandoSenha(false);
       setConfirmarResetSenha({ aberto: false, func: null });
@@ -1420,24 +1417,28 @@ export default function DashboardAdmin() {
 
                     {secoesAbertasConfig.identidade && (
                       <AccordionBody>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>Personalize o nome que aparece no topo e na barra lateral do painel.</p>
-                        <div className="input-row" style={{ marginBottom: '16px' }}>
-                          <span>Nome do Painel</span>
-                          <input
-                            type="text"
-                            value={tempNomePainel}
-                            onChange={(e) => setTempNomePainel(e.target.value)}
-                            placeholder="Ex: Minha Empresa"
-                          />
-                        </div>
-                        <Botao
-                          onClick={handleSalvarConfig}
-                          disabled={salvandoConfig}
-                          style={{ width: '100%', justifyContent: 'center' }}
-                        >
-                          {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
-                          Salvar Identidade
-                        </Botao>
+                        <ConfigBox style={{ background: 'transparent', padding: 0, border: 'none' }}>
+                          <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>
+                            Personalize o nome que aparece no topo e na barra lateral do painel.
+                          </p>
+                          <div className="input-group" style={{ marginBottom: '20px' }}>
+                            <label>Nome do Painel</label>
+                            <input
+                              type="text"
+                              value={tempNomePainel}
+                              onChange={(e) => setTempNomePainel(e.target.value)}
+                              placeholder="Ex: Minha Empresa"
+                            />
+                          </div>
+                          <Botao
+                            onClick={handleSalvarConfig}
+                            disabled={salvandoConfig}
+                            style={{ width: '100%', justifyContent: 'center', height: '48px' }}
+                          >
+                            {salvandoConfig ? <FiSettings className="spin" /> : <FiCheckSquare size={18} />}
+                            Salvar Identidade
+                          </Botao>
+                        </ConfigBox>
                       </AccordionBody>
                     )}
                   </AccordionCard>

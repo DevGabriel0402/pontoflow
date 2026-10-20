@@ -32,19 +32,23 @@ export function parseBody(req) {
 }
 
 function firebaseErrorToApi(error) {
-  const code = error?.code || "";
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
 
   if (code === "auth/email-already-exists") {
-    return new ApiError(409, code, "Ja existe um usuario com este email.");
+    return new ApiError(409, code, "Já existe um usuário com este e-mail.");
   }
   if (code === "auth/user-not-found") {
-    return new ApiError(404, code, "Usuario nao encontrado.");
+    return new ApiError(404, code, "Usuário não encontrado.");
   }
   if (code === "auth/invalid-password") {
-    return new ApiError(400, code, "A senha informada e invalida.");
+    return new ApiError(400, code, "A senha informada é inválida.");
   }
   if (code === "auth/id-token-expired" || code === "auth/argument-error") {
-    return new ApiError(401, code, "Sessao expirada ou invalida.");
+    return new ApiError(401, code, "Sessão expirada ou inválida.");
+  }
+  if (code.includes("8") || message.includes("RESOURCE_EXHAUSTED") || message.includes("Quota exceeded")) {
+    return new ApiError(429, "quota-exceeded", "Cota diária do Firebase excedida (RESOURCE_EXHAUSTED). Alterne o projeto Firebase para o plano Blaze ou aguarde a renovação da cota diária.");
   }
 
   return null;
