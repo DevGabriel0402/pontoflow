@@ -11,7 +11,7 @@ export default function TabbarMobile({ mostrarAdmin }) {
 
   return (
     <Barra $cols={cols} style={{ "--cor-primaria": corPrimaria }}>
-      <Item to="/" end>
+      <Item to="/home">
         <FiHome size={18} />
         <span>Home</span>
       </Item>
