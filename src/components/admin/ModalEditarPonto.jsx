@@ -244,8 +244,8 @@ const ModalBox = styled.div`
   border-radius: 16px;
   width: 100%;
   max-width: 450px;
-  overflow: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  position: relative;
 `;
 
 const Header = styled.div`
