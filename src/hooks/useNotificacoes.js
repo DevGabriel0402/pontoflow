@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-  doc,
-  updateDoc,
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy, 
+  doc, 
+  updateDoc, 
   writeBatch,
   deleteDoc
 } from "firebase/firestore";
