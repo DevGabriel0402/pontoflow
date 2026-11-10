@@ -6,7 +6,7 @@ import { doc, onSnapshot, getDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContexto";
 
 export default function BannerNovaAtualizacao() {
-    const { perfil } = useAuth();
+    const { perfil, usuario, isAdmin } = useAuth();
     const [novaAtualizacao, setNovaAtualizacao] = React.useState(null);
     const [expanded, setExpanded] = React.useState(false);
     const [dispensado, setDispensado] = React.useState(false);
@@ -15,52 +15,82 @@ export default function BannerNovaAtualizacao() {
     React.useEffect(() => {
         const unsub = onSnapshot(doc(db, "settings", "saas"), async (snap) => {
             if (!snap.exists()) return;
-            const { ultimaAtualizacaoId, ultimaVersao } = snap.data();
+            const { ultimaAtualizacaoId } = snap.data();
             if (!ultimaAtualizacaoId) return;
 
-            // Verifica se a empresa já viu esta versão
-            const companyId = perfil?.companyId;
-            if (!companyId) return;
+            const isUserAdmin = isAdmin || perfil?.role === "admin";
+            const userId = usuario?.uid || perfil?.id;
 
-            const companySnap = await getDoc(doc(db, "companies", companyId));
-            const ultimaVersaoLida = companySnap.data()?.ultimaVersaoLida;
+            // Checa se o usuário atual já dispensou esta versão no dispositivo
+            if (userId) {
+                const lidaUser = localStorage.getItem(`ultimaVersaoLida_${userId}`);
+                if (lidaUser === ultimaAtualizacaoId) {
+                    setNovaAtualizacao(null);
+                    return;
+                }
+            }
 
-            if (ultimaVersaoLida === ultimaAtualizacaoId) return; // já lida
+            // Se for admin, também checa se a empresa já marcou como lida globalmente
+            if (isUserAdmin && perfil?.companyId) {
+                try {
+                    const companySnap = await getDoc(doc(db, "companies", perfil.companyId));
+                    const ultimaVersaoLida = companySnap.data()?.ultimaVersaoLida;
+                    if (ultimaVersaoLida === ultimaAtualizacaoId) {
+                        setNovaAtualizacao(null);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Erro ao verificar versão da empresa:", e);
+                }
+            }
 
             // Busca o changelog desta versão
-            const changelogSnap = await getDoc(doc(db, "changelog", ultimaAtualizacaoId));
-            if (changelogSnap.exists()) {
-                const data = changelogSnap.data();
-                const destinatario = data.destinatario || "TODOS";
-                const isUserAdmin = perfil?.role === "admin";
+            try {
+                const changelogSnap = await getDoc(doc(db, "changelog", ultimaAtualizacaoId));
+                if (changelogSnap.exists()) {
+                    const data = changelogSnap.data();
+                    const destinatario = data.destinatario || "TODOS";
 
-                // Lógica de filtragem
-                let mostrar = false;
-                if (destinatario === "TODOS") mostrar = true;
-                else if (destinatario === "ADMIN" && isUserAdmin) mostrar = true;
-                else if (destinatario === "COLABORADOR" && !isUserAdmin) mostrar = true;
+                    // Lógica de exibição por público-alvo
+                    let mostrar = false;
+                    if (destinatario === "TODOS") mostrar = true;
+                    else if (destinatario === "ADMIN" && isUserAdmin) mostrar = true;
+                    else if (destinatario === "COLABORADOR" && !isUserAdmin) mostrar = true;
 
-                if (mostrar) {
-                    setNovaAtualizacao({ id: ultimaAtualizacaoId, ...data });
-                    setDispensado(false);
-                } else {
-                    setNovaAtualizacao(null);
+                    if (mostrar) {
+                        setNovaAtualizacao({ id: ultimaAtualizacaoId, ...data });
+                        setDispensado(false);
+                    } else {
+                        setNovaAtualizacao(null);
+                    }
                 }
+            } catch (e) {
+                console.error("Erro ao carregar detalhes da atualização:", e);
             }
         });
         return () => unsub();
-    }, [perfil?.companyId]);
+    }, [perfil?.companyId, usuario?.uid, isAdmin, perfil?.role]);
 
     const handleDispensar = async () => {
         setDispensado(true);
-        // Marca como lida na empresa
-        if (perfil?.companyId && novaAtualizacao?.id) {
+        const isUserAdmin = isAdmin || perfil?.role === "admin";
+        const userId = usuario?.uid || perfil?.id;
+
+        // Salva leitura individual do usuário
+        if (userId && novaAtualizacao?.id) {
+            try {
+                localStorage.setItem(`ultimaVersaoLida_${userId}`, novaAtualizacao.id);
+            } catch (e) {}
+        }
+
+        // Se for admin, marca como lida para a empresa também
+        if (isUserAdmin && perfil?.companyId && novaAtualizacao?.id) {
             try {
                 await updateDoc(doc(db, "companies", perfil.companyId), {
                     ultimaVersaoLida: novaAtualizacao.id
                 });
             } catch (e) {
-                console.error("Erro ao marcar atualização como lida:", e);
+                console.error("Erro ao marcar atualização como lida na empresa:", e);
             }
         }
     };
@@ -102,9 +132,11 @@ const slideDown = keyframes`
 `;
 
 const Banner = styled.div`
+    width: 100%;
+    box-sizing: border-box;
     background: linear-gradient(135deg, rgba(47,129,247,0.12), rgba(124,58,237,0.12));
     border: 1px solid rgba(47,129,247,0.25);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 12px 16px;
     margin-bottom: 20px;
     animation: ${slideDown} 0.3s ease;

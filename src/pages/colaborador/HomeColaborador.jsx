@@ -17,6 +17,7 @@ import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimen
 import ModalPontosSemSaida from "../../components/colaborador/ModalPontosSemSaida";
 import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import ModalConfirmarPonto from "../../components/colaborador/ModalConfirmarPonto";
+import ModalNovaAtualizacao from "../../components/ModalNovaAtualizacao";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
 import { useJustificativas } from "../../hooks/useJustificativas";
@@ -801,6 +802,8 @@ export default function HomeColaborador() {
         aberto={showConsentModal}
         onAceitar={handleAceitarConsentimento}
       />
+
+      <ModalNovaAtualizacao corPrimaria={corPrimaria} />
 
       <ModalConfirmarPonto
         aberto={!!pontoConfirmando}
