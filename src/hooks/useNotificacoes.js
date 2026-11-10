@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy, 
-  doc, 
-  updateDoc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  doc,
+  updateDoc,
   writeBatch,
   deleteDoc
 } from "firebase/firestore";
@@ -36,12 +36,24 @@ export function useNotificacoes(userId) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lista = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Converte timestamp do Firebase para Date se necessário
-        data: doc.data().data?.toDate ? doc.data().data.toDate() : new Date(doc.data().data)
-      }));
+      const lista = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          // Converte timestamp do Firebase para Date se necessário
+          data: doc.data().data?.toDate ? doc.data().data.toDate() : new Date(doc.data().data)
+        }))
+        .filter(item => {
+          // Desconsidera notificações de atraso no mesmo dia
+          if (item.tipo === "ponto_atrasado_realtime") return false;
+          // Desconsidera notificações de ausência de entrada
+          if (item.tipoAlerta === "ENTRADA" && item.tipo !== "justificativa") return false;
+          if (typeof item.mensagem === "string") {
+            if (item.mensagem.includes("sua entrada prevista")) return false;
+            if (item.mensagem.includes("esqueceu de registrar Entrada,")) return false;
+          }
+          return true;
+        });
 
       setNotificacoes(lista);
       setNaoLidasCount(lista.filter(n => !n.lida).length);

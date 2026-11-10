@@ -168,12 +168,12 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                 </Alerta>
 
                 <Form onSubmit={handleSalvar}>
-                    <AbonoToggle 
-                        type="button" 
-                        $ativo={abonado} 
+                    <AbonoToggle
+                        type="button"
+                        $ativo={abonado}
                         onClick={() => setAbonado(!abonado)}
                     >
-                        {abonado ? <FiCheckCircle size={20} /> : <div style={{width: 20, height: 20, border: '1.5px solid #8d8d99', borderRadius: '50%'}} />}
+                        {abonado ? <FiCheckCircle size={20} /> : <div style={{ width: 20, height: 20, border: '1.5px solid #8d8d99', borderRadius: '50%' }} />}
                         <div>
                             <strong>Abonar todo o horário</strong>
                             <span>Marque para justificar a falta deste dia</span>
@@ -183,7 +183,7 @@ export default function ModalEditarPonto({ aberto, onFechar, registro, userId, c
                     {abonado && (
                         <div style={{ marginBottom: 24, marginTop: -8 }}>
                             <label style={{ fontSize: 12, fontWeight: 700, color: '#8d8d99', textTransform: 'uppercase', marginBottom: 8, display: 'block' }}>Motivo do Abono</label>
-                            <SeletorAcordeao 
+                            <SeletorAcordeao
                                 opcoes={MOTIVOS_JUSTIFICATIVA}
                                 value={motivoAbono}
                                 onChange={setMotivoAbono}

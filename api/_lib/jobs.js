@@ -32,146 +32,104 @@ function firestoreDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-export async function runDailyNotifications() {
-  const db = getAdminDb();
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const yesterdayKey = dateKey(yesterday);
-  const companies = await db.collection("companies").get();
-  let created = 0;
-
-  for (const companyDoc of companies.docs) {
-    const companyId = companyDoc.id;
-    const activeTypes = companyDoc.data().config?.regras?.pontosAtivos || ["entrada", "saida"];
-    const users = await db.collection("users")
-      .where("companyId", "==", companyId)
-      .where("ativo", "==", true)
-      .get();
-
-    for (const userDoc of users.docs) {
-      if (["admin", "master"].includes(userDoc.data().role)) continue;
-      const existing = await db.collection("notificacoes")
-        .where("userId", "==", userDoc.id)
-        .where("diaReferencia", "==", yesterdayKey)
-        .limit(1)
-        .get();
-      if (!existing.empty) continue;
-
-      const points = await db.collection("pontos")
-        .where("userId", "==", userDoc.id)
-        .where("companyId", "==", companyId)
-        .get();
-      const yesterdayPoints = points.docs.filter((point) => {
-        const value = point.data();
-        if (value.dataKey) return value.dataKey === yesterdayKey;
-        const createdAt = firestoreDate(value.criadoEm);
-        return createdAt && dateKey(createdAt) === yesterdayKey;
-      });
-      const completed = new Set(yesterdayPoints.map((point) => point.data().type));
-      const typeMap = {
-        entrada: ["ENTRADA", "Entrada"],
-        saida: ["SAIDA", "Saida"],
-      };
-      const missing = activeTypes
-        .map((type) => typeMap[type])
-        .filter((type) => type && !completed.has(type[0]))
-        .map((type) => type[1]);
-
-      if (missing.length) {
-        await db.collection("notificacoes").add({
-          userId: userDoc.id,
-          companyId,
-          mensagem: `Voce esqueceu de registrar ${missing.join(", ")} em ${formatBr(yesterday)}. Envie uma justificativa ao administrador.`,
-          data: FieldValue.serverTimestamp(),
-          lida: false,
-          tipo: "ponto_faltante_auto",
-          diaReferencia: yesterdayKey,
-        });
-        created += 1;
-      }
-    }
-  }
-
-  return { success: true, diaReferencia: yesterdayKey, notificacoesCriadas: created };
-}
-
-export async function runDelayNotifications({ companyId = null, userId = null } = {}) {
+export async function runDailyNotifications({ companyId = null, userId = null } = {}) {
   try {
     const db = getAdminDb();
-    const now = new Date();
-    const parts = zonedParts(now);
-    const todayKey = dateKey(now);
-    const weekdays = { Sun: "domingo", Mon: "segunda", Tue: "terca", Wed: "quarta", Thu: "quinta", Fri: "sexta", Sat: "sabado" };
-    const weekday = weekdays[parts.weekday] || "segunda";
-    const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
-
     let usersDocs = [];
+
     if (userId) {
       const userSnap = await db.collection("users").doc(userId).get();
       if (userSnap.exists) usersDocs = [userSnap];
+    } else if (companyId) {
+      const snap = await db.collection("users")
+        .where("companyId", "==", companyId)
+        .where("ativo", "==", true)
+        .get();
+      usersDocs = snap.docs;
     } else {
-      let usersQuery = db.collection("users").where("ativo", "==", true);
-      if (companyId) usersQuery = usersQuery.where("companyId", "==", companyId);
-      const snap = await usersQuery.get();
+      const snap = await db.collection("users")
+        .where("ativo", "==", true)
+        .get();
       usersDocs = snap.docs;
     }
 
     let created = 0;
 
+    // Verificar os últimos 3 dias anteriores (ontem até 3 dias atrás para cobrir finais de semana)
+    const daysToCheck = [];
+    for (let i = 1; i <= 3; i++) {
+      const pastDate = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      daysToCheck.push({
+        date: pastDate,
+        key: dateKey(pastDate),
+      });
+    }
+
     for (const userDoc of usersDocs) {
       try {
         const user = userDoc.data();
         if (!user || ["admin", "master"].includes(user.role)) continue;
-        if (companyId && user.companyId !== companyId) continue;
-        const schedules = user.jornadas || user.jornada;
-        if (!schedules) continue;
-        const schedule = schedules.segunda || schedules.domingo ? schedules[weekday] : schedules;
-        if (!schedule || schedule.ativo === false) continue;
+        const userCompanyId = user.companyId || companyId || "";
 
-        const points = await db.collection("pontos")
+        // Buscar pontos do usuário
+        const pointsSnap = await db.collection("pontos")
           .where("userId", "==", userDoc.id)
-          .where("dataKey", "==", todayKey)
           .get();
-        const completed = new Set(points.docs.map((point) => point.data().type));
-        const checks = [
-          ["ENTRADA", schedule.entrada, "entrada"],
-          ["SAIDA", schedule.saida, "saida"],
-        ];
 
-        // Buscar notificações existentes deste usuário no dia de hoje em memória (evita necessidade de índice composto)
-        const existingNotifs = await db.collection("notificacoes")
-          .where("userId", "==", userDoc.id)
-          .where("diaReferencia", "==", todayKey)
-          .get();
-        const tiposExistentes = new Set(existingNotifs.docs.map(doc => doc.data().tipoAlerta));
-
-        for (const [type, time, label] of checks) {
-          if (!time || typeof time !== "string" || !time.includes(":") || completed.has(type)) continue;
-          if (tiposExistentes.has(type)) continue;
-
-          const [hours, minutes] = time.split(":").map(Number);
-          if (Number.isNaN(hours) || Number.isNaN(minutes)) continue;
-          if (currentMinutes <= hours * 60 + minutes + 15) continue;
-
-          await db.collection("notificacoes").add({
-            userId: userDoc.id,
-            companyId: user.companyId || "",
-            mensagem: `Atenção: sua ${label} prevista para ${time} ainda não foi registrada.`,
-            data: FieldValue.serverTimestamp(),
-            lida: false,
-            tipo: "ponto_atrasado_realtime",
-            tipoAlerta: type,
-            diaReferencia: todayKey,
+        for (const pastDay of daysToCheck) {
+          const dayPoints = pointsSnap.docs.filter((p) => {
+            const val = p.data();
+            if (val.dataKey) return val.dataKey === pastDay.key;
+            const createdAt = firestoreDate(val.criadoEm);
+            return createdAt && dateKey(createdAt) === pastDay.key;
           });
-          created += 1;
+
+          const completed = new Set(dayPoints.map((p) => (p.data().type || "").toUpperCase()));
+          const temEntrada = completed.has("ENTRADA");
+          const temSaida = completed.has("SAIDA");
+
+          // Notificar SOMENTE se bateu entrada e NÃO bateu a saída
+          if (temEntrada && !temSaida) {
+            // Verifica se já notificou este dia
+            const existingNotifs = await db.collection("notificacoes")
+              .where("userId", "==", userDoc.id)
+              .where("diaReferencia", "==", pastDay.key)
+              .get();
+
+            const jaNotificado = existingNotifs.docs.some((doc) => {
+              const d = doc.data();
+              return d.tipoAlerta === "SAIDA" || d.tipo === "ponto_faltante_saida";
+            });
+
+            if (!jaNotificado) {
+              await db.collection("notificacoes").add({
+                userId: userDoc.id,
+                companyId: userCompanyId,
+                mensagem: `Atenção: Você registrou a entrada mas esqueceu de registrar a saída do dia ${formatBr(pastDay.date)}. Envie uma justificativa ao administrador.`,
+                data: FieldValue.serverTimestamp(),
+                lida: false,
+                tipo: "ponto_faltante_saida",
+                tipoAlerta: "SAIDA",
+                diaReferencia: pastDay.key,
+              });
+              created += 1;
+            }
+          }
         }
       } catch (errUser) {
-        console.error("Erro ao verificar atraso do usuário", userDoc.id, errUser);
+        console.error("Erro ao verificar pendência de saída do usuário", userDoc.id, errUser);
       }
     }
 
-    return { success: true, diaReferencia: todayKey, notificacoesCriadas: created };
+    return { success: true, notificacoesCriadas: created };
   } catch (err) {
-    console.error("Erro em runDelayNotifications:", err);
+    console.error("Erro em runDailyNotifications:", err);
     return { success: false, error: err.message };
   }
+}
+
+export async function runDelayNotifications({ companyId = null, userId = null } = {}) {
+  // Conforme regra de negócio: não disparar notificações de atraso no mesmo dia durante o expediente.
+  // Notificações só devem aparecer no dia seguinte caso a saída não tenha sido registrada.
+  return runDailyNotifications({ companyId, userId });
 }
