@@ -5,7 +5,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useClock } from "../../hooks/useClock";
 import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
-import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefreshCw } from "react-icons/fi";
+import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefreshCw, FiCheckCircle } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
@@ -16,10 +16,11 @@ import ModalMapaPonto from "../../components/ModalMapaPonto";
 import ModalConsentimentoGPS from "../../components/colaborador/ModalConsentimentoGPS";
 import ModalPontosSemSaida from "../../components/colaborador/ModalPontosSemSaida";
 import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
+import ModalConfirmarPonto from "../../components/colaborador/ModalConfirmarPonto";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
 import { useJustificativas } from "../../hooks/useJustificativas";
-import { formatarSaldo } from "../../utils/pontoUtils";
+import { formatarSaldo, horaParaMin } from "../../utils/pontoUtils";
 import { useNotificacoes } from "../../hooks/useNotificacoes";
 import NotificationBadge from "../../components/colaborador/NotificationBadge";
 import ModalNotificacoes from "../../components/colaborador/ModalNotificacoes";
@@ -28,7 +29,24 @@ import { verificarAtrasosFn } from "../../services/funcoes";
 const TIPOS = {
   ENTRADA: "ENTRADA",
   SAIDA: "SAIDA",
+  INICIO_INTERVALO: "INICIO_INTERVALO",
+  FIM_INTERVALO: "FIM_INTERVALO",
 };
+
+function formatarTempoHms(totalSegundos) {
+  const abs = Math.max(0, Math.floor(totalSegundos));
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  const s = abs % 60;
+  return `${h.toString().padStart(2, "0")}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+}
+
+function formatarTempoHm(totalSegundos) {
+  const abs = Math.max(0, Math.floor(totalSegundos));
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
+  return `${h}h ${m.toString().padStart(2, "0")}min`;
+}
 
 /** 
  * Helper para pegar a data do ponto 
@@ -43,7 +61,7 @@ function getDataPonto(p) {
 
 export default function HomeColaborador() {
   const { usuario, perfil, isAdmin, logout, recarregarPerfil, temModulo, empresaConfig } = useAuth();
-  const { hora, data } = useClock();
+  const { hora, data, agora } = useClock();
 
   const corPrimaria = empresaConfig?.config?.visual?.corPrimaria || "#4facfe";
   const logoUrl = empresaConfig?.config?.visual?.logoUrl || "/icons/pwa-512x512.png";
@@ -62,6 +80,8 @@ export default function HomeColaborador() {
   const [tipoSelecionado, setTipoSelecionado] = React.useState(null);
   const [modalFaceAberto, setModalFaceAberto] = React.useState(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = React.useState(false);
+  const [pontoConfirmando, setPontoConfirmando] = React.useState(null);
+  const [registrandoPonto, setRegistrandoPonto] = React.useState(false);
 
   // Controle do popup de saídas não registradas
   const [modalSemSaidaAberto, setModalSemSaidaAberto] = React.useState(false);
@@ -117,7 +137,7 @@ export default function HomeColaborador() {
     if (!usuario?.uid) return undefined;
 
     const verificar = () => {
-      if (navigator.onLine) verificarAtrasosFn().catch(() => {});
+      if (navigator.onLine) verificarAtrasosFn().catch(() => { });
     };
     verificar();
     const intervalo = window.setInterval(verificar, 5 * 60 * 1000);
@@ -146,21 +166,12 @@ export default function HomeColaborador() {
     return new Set(feitos);
   }, [historico, pendentes, usuario?.uid]);
 
-  // ✅ Filtra quais tipos de ponto a empresa utiliza
-  const tiposAtivos = React.useMemo(() => {
-    const config = empresaConfig?.config?.regras?.pontosAtivos || ['entrada', 'saida'];
-    const mapa = {
-      'entrada': TIPOS.ENTRADA,
-      'intervalo_saida': TIPOS.INICIO_INTERVALO,
-      'intervalo_entrada': TIPOS.FIM_INTERVALO,
-      'saida': TIPOS.SAIDA
-    };
-    return config.map(c => mapa[c]).filter(Boolean);
-  }, [empresaConfig]);
+  // ✅ Padrão fixo de Entrada e Saída
+  const tiposAtivos = React.useMemo(() => [TIPOS.ENTRADA, TIPOS.SAIDA], []);
 
   const todosConcluidos = React.useMemo(() => {
-    return tiposAtivos.every(t => tiposFeitosHoje.has(t));
-  }, [tiposFeitosHoje, tiposAtivos]);
+    return tiposFeitosHoje.has(TIPOS.ENTRADA) && tiposFeitosHoje.has(TIPOS.SAIDA);
+  }, [tiposFeitosHoje]);
 
   // ✅ Filtra pontos de hoje para a lista de histórico
   const pontosHoje = React.useMemo(() => {
@@ -193,13 +204,98 @@ export default function HomeColaborador() {
     if (tipoSelecionado && !tiposFeitosHoje.has(tipoSelecionado)) {
       return tipoSelecionado;
     }
-    for (const t of tiposAtivos) {
-      if (!tiposFeitosHoje.has(t)) {
-        return t;
-      }
+    if (!tiposFeitosHoje.has(TIPOS.SAIDA)) {
+      return TIPOS.SAIDA;
     }
     return null;
-  }, [tipoSelecionado, tiposFeitosHoje, tiposAtivos, temEntradaHoje]);
+  }, [tipoSelecionado, tiposFeitosHoje, temEntradaHoje]);
+
+  // ✅ Cálculo da meta diária esperada de trabalho (em minutos)
+  const metaMinutosHoje = React.useMemo(() => {
+    const mapDias = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"];
+    const diaSemana = mapDias[(agora || new Date()).getDay()];
+    const jornadaDia = perfil?.jornadas?.[diaSemana] || perfil?.jornada;
+
+    if (jornadaDia?.ativo !== false && jornadaDia?.entrada && jornadaDia?.saida) {
+      const ini = horaParaMin(jornadaDia.entrada);
+      const fim = horaParaMin(jornadaDia.saida);
+      if (ini !== null && fim !== null && fim > ini) {
+        return fim - ini;
+      }
+    }
+
+    const cargaSemanal = Number(perfil?.cargaHorariaSemanal || empresaConfig?.config?.regras?.cargaHorariaSemanal || 44);
+    if (cargaSemanal >= 44) return 540; // 9 horas (540min)
+    if (cargaSemanal >= 40) return 480; // 8 horas (480min)
+    if (cargaSemanal >= 30) return 360; // 6 horas (360min)
+    return 540;
+  }, [perfil, empresaConfig, agora]);
+
+  // ✅ Monitor em tempo real: tempo trabalhado, quanto falta para o expediente e horas extras
+  const statusExpediente = React.useMemo(() => {
+    if (!temEntradaHoje || !pontoEntradaHoje) {
+      return {
+        iniciado: false,
+        finalizado: false,
+        segundosTrabalhados: 0,
+        segundosRestantes: metaMinutosHoje * 60,
+        segundosExtras: 0,
+        progressoPct: 0,
+        ehHoraExtra: false,
+        previsaoSaida: null,
+      };
+    }
+
+    const dEntrada = getDataPonto(pontoEntradaHoje);
+    if (!dEntrada) {
+      return {
+        iniciado: false,
+        finalizado: false,
+        segundosTrabalhados: 0,
+        segundosRestantes: metaMinutosHoje * 60,
+        segundosExtras: 0,
+        progressoPct: 0,
+        ehHoraExtra: false,
+        previsaoSaida: null,
+      };
+    }
+
+    const dSaida = pontoSaidaHoje ? getDataPonto(pontoSaidaHoje) : null;
+    const refAgora = agora || new Date();
+    const finalizado = !!dSaida;
+
+    let segundosTrabalhados = 0;
+    if (finalizado) {
+      segundosTrabalhados = Math.max(0, Math.floor((dSaida.getTime() - dEntrada.getTime()) / 1000));
+    } else {
+      segundosTrabalhados = Math.max(0, Math.floor((refAgora.getTime() - dEntrada.getTime()) / 1000));
+    }
+
+    const metaSegundos = metaMinutosHoje * 60;
+    const ehHoraExtra = segundosTrabalhados >= metaSegundos;
+    const segundosRestantes = ehHoraExtra ? 0 : Math.max(0, metaSegundos - segundosTrabalhados);
+    const segundosExtras = ehHoraExtra ? segundosTrabalhados - metaSegundos : 0;
+    const progressoPct = Math.min(100, Math.max(0, (segundosTrabalhados / metaSegundos) * 100));
+
+    let previsaoSaida = null;
+    try {
+      const timestampFim = dEntrada.getTime() + (metaMinutosHoje * 60 * 1000);
+      previsaoSaida = format(new Date(timestampFim), "HH:mm");
+    } catch (e) {
+      // ignore
+    }
+
+    return {
+      iniciado: true,
+      finalizado,
+      segundosTrabalhados,
+      segundosRestantes,
+      segundosExtras,
+      progressoPct,
+      ehHoraExtra,
+      previsaoSaida,
+    };
+  }, [temEntradaHoje, pontoEntradaHoje, pontoSaidaHoje, metaMinutosHoje, agora]);
 
   const statusTexto = React.useMemo(() => {
     const exigirGeoEmpresa = empresaConfig?.config?.regras?.exigirGeo !== false;
@@ -310,11 +406,24 @@ export default function HomeColaborador() {
       return;
     }
 
+    setPontoConfirmando(alvo);
+  };
+
+  const handleEfetivarPonto = async () => {
+    const alvo = pontoConfirmando;
+    if (!alvo) return;
+    setPontoConfirmando(null);
+
     if (temModulo('face')) {
       setTipoSelecionado(alvo);
       setModalFaceAberto(true);
     } else {
-      handle(alvo);
+      setRegistrandoPonto(true);
+      try {
+        await handle(alvo);
+      } finally {
+        setRegistrandoPonto(false);
+      }
     }
   };
 
@@ -379,9 +488,9 @@ export default function HomeColaborador() {
             </BotaoTopo>
           )}
 
-          <NotificationBadge 
-            count={naoLidasCount} 
-            onClick={() => setModalNotificacoesAberto(true)} 
+          <NotificationBadge
+            count={naoLidasCount}
+            onClick={() => setModalNotificacoesAberto(true)}
           />
 
           <BotaoTopo onClick={() => setModalTrocaSenhaAberto(true)} title="Trocar Senha">
@@ -454,108 +563,162 @@ export default function HomeColaborador() {
           <span>{carregandoGeo ? "Obtendo GPS..." : statusTexto}</span>
         </Status>
 
-        {tiposAtivos.length <= 2 ? (
-          <PainelEntradaSaida>
-            <CardBatida
-              $feito={tiposFeitosHoje.has(TIPOS.ENTRADA)}
-              $selecionado={tipoSelecionado === TIPOS.ENTRADA || (!tipoSelecionado && proximoTipo === TIPOS.ENTRADA)}
-              onClick={() => {
-                if (!tiposFeitosHoje.has(TIPOS.ENTRADA)) {
-                  setTipoSelecionado(TIPOS.ENTRADA);
-                }
-              }}
-            >
-              <CardBatidaTopo>
-                <span className="titulo">Entrada</span>
-                {tiposFeitosHoje.has(TIPOS.ENTRADA) ? (
-                  <BadgeFeito>✓ Concluído</BadgeFeito>
-                ) : (
-                  <BadgePendente $destaque={proximoTipo === TIPOS.ENTRADA}>
-                    {proximoTipo === TIPOS.ENTRADA ? "Próxima batida" : "Pendente"}
-                  </BadgePendente>
-                )}
-              </CardBatidaTopo>
-              <CardBatidaHora>
-                {pontoEntradaHoje
-                  ? new Date(getDataPonto(pontoEntradaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                  : "--:--"}
-              </CardBatidaHora>
-              <CardBatidaSub>
-                {tiposFeitosHoje.has(TIPOS.ENTRADA) ? "Registrado com sucesso" : "Início do expediente"}
-              </CardBatidaSub>
-            </CardBatida>
+        <PainelEntradaSaida>
+          <CardBatida
+            $feito={tiposFeitosHoje.has(TIPOS.ENTRADA)}
+            $selecionado={tipoSelecionado === TIPOS.ENTRADA || (!tipoSelecionado && proximoTipo === TIPOS.ENTRADA)}
+            onClick={() => {
+              if (!tiposFeitosHoje.has(TIPOS.ENTRADA)) {
+                setTipoSelecionado(TIPOS.ENTRADA);
+              }
+            }}
+          >
+            <CardBatidaTopo>
+              <span className="titulo">Entrada</span>
+              {tiposFeitosHoje.has(TIPOS.ENTRADA) ? (
+                <BadgeFeito>✓ Concluído</BadgeFeito>
+              ) : (
+                <BadgePendente $destaque={proximoTipo === TIPOS.ENTRADA}>
+                  {proximoTipo === TIPOS.ENTRADA ? "Próxima batida" : "Pendente"}
+                </BadgePendente>
+              )}
+            </CardBatidaTopo>
+            <CardBatidaHora>
+              {pontoEntradaHoje
+                ? new Date(getDataPonto(pontoEntradaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                : "--:--"}
+            </CardBatidaHora>
+            <CardBatidaSub>
+              {tiposFeitosHoje.has(TIPOS.ENTRADA) ? "Registrado com sucesso" : "Início do expediente"}
+            </CardBatidaSub>
+          </CardBatida>
 
-            <CardBatida
-              $feito={tiposFeitosHoje.has(TIPOS.SAIDA)}
-              $desativado={!temEntradaHoje && !tiposFeitosHoje.has(TIPOS.SAIDA)}
-              $selecionado={tipoSelecionado === TIPOS.SAIDA || (!tipoSelecionado && proximoTipo === TIPOS.SAIDA)}
-              onClick={() => {
-                if (!temEntradaHoje) {
-                  toast.error("Você precisa primeiro registrar a Entrada antes de bater a Saída!");
-                  return;
-                }
-                if (!tiposFeitosHoje.has(TIPOS.SAIDA)) {
-                  setTipoSelecionado(TIPOS.SAIDA);
-                }
-              }}
-            >
-              <CardBatidaTopo>
-                <span className="titulo">Saída</span>
-                {tiposFeitosHoje.has(TIPOS.SAIDA) ? (
-                  <BadgeFeito>✓ Concluído</BadgeFeito>
-                ) : !temEntradaHoje ? (
-                  <BadgeBloqueado>🔒 Indisponível</BadgeBloqueado>
-                ) : (
-                  <BadgePendente $destaque={proximoTipo === TIPOS.SAIDA}>
-                    {proximoTipo === TIPOS.SAIDA ? "Próxima batida" : "Pendente"}
-                  </BadgePendente>
-                )}
-              </CardBatidaTopo>
-              <CardBatidaHora>
-                {pontoSaidaHoje
-                  ? new Date(getDataPonto(pontoSaidaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                  : "--:--"}
-              </CardBatidaHora>
-              <CardBatidaSub>
-                {tiposFeitosHoje.has(TIPOS.SAIDA)
-                  ? "Registrado com sucesso"
-                  : !temEntradaHoje
+          <CardBatida
+            $feito={tiposFeitosHoje.has(TIPOS.SAIDA)}
+            $desativado={!temEntradaHoje && !tiposFeitosHoje.has(TIPOS.SAIDA)}
+            $selecionado={tipoSelecionado === TIPOS.SAIDA || (!tipoSelecionado && proximoTipo === TIPOS.SAIDA)}
+            onClick={() => {
+              if (!temEntradaHoje) {
+                toast.error("Você precisa primeiro registrar a Entrada antes de bater a Saída!");
+                return;
+              }
+              if (!tiposFeitosHoje.has(TIPOS.SAIDA)) {
+                setTipoSelecionado(TIPOS.SAIDA);
+              }
+            }}
+          >
+            <CardBatidaTopo>
+              <span className="titulo">Saída</span>
+              {tiposFeitosHoje.has(TIPOS.SAIDA) ? (
+                <BadgeFeito>✓ Concluído</BadgeFeito>
+              ) : !temEntradaHoje ? (
+                <BadgeBloqueado>🔒 Indisponível</BadgeBloqueado>
+              ) : (
+                <BadgePendente $destaque={proximoTipo === TIPOS.SAIDA}>
+                  {proximoTipo === TIPOS.SAIDA ? "Próxima batida" : "Pendente"}
+                </BadgePendente>
+              )}
+            </CardBatidaTopo>
+            <CardBatidaHora>
+              {pontoSaidaHoje
+                ? new Date(getDataPonto(pontoSaidaHoje)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                : "--:--"}
+            </CardBatidaHora>
+            <CardBatidaSub>
+              {tiposFeitosHoje.has(TIPOS.SAIDA)
+                ? "Registrado com sucesso"
+                : !temEntradaHoje
                   ? "Aguardando registro de entrada"
                   : "Término do expediente"}
-              </CardBatidaSub>
-            </CardBatida>
-          </PainelEntradaSaida>
-        ) : (
-          <ChipsGrid>
-          {[
-            { key: TIPOS.ENTRADA, label: "Entrada" },
-            { key: TIPOS.INICIO_INTERVALO, label: "Início Intervalo" },
-            { key: TIPOS.FIM_INTERVALO, label: "Fim Intervalo" },
-            { key: TIPOS.SAIDA, label: "Saída" },
-          ]
-            .filter(t => tiposAtivos.includes(t.key))
-            .map(({ key, label }) => {
-              const desativado = !temEntradaHoje && key !== TIPOS.ENTRADA && !tiposFeitosHoje.has(key);
-              return (
-                <Chip
-                  key={key}
-                  $selecionado={tipoSelecionado === key || (!tipoSelecionado && proximoTipo === key)}
-                  $feito={tiposFeitosHoje.has(key)}
-                  $desativado={desativado}
-                  onClick={() => {
-                    if (desativado) {
-                      toast.error("Você precisa primeiro registrar a Entrada antes de bater outros pontos!");
-                      return;
-                    }
-                    if (!tiposFeitosHoje.has(key)) setTipoSelecionado(key);
-                  }}
-                >
-                  {tiposFeitosHoje.has(key) ? `✓ ${label}` : desativado ? `🔒 ${label}` : label}
-                </Chip>
-              );
-            })}
-        </ChipsGrid>
-        )}
+            </CardBatidaSub>
+          </CardBatida>
+        </PainelEntradaSaida>
+
+        {/* ⏱️ Monitor de Expediente & Horas Extras (Discreto & Compacto) */}
+        <CardMonitorExpediente
+          $tipo={
+            !statusExpediente.iniciado
+              ? "aguardando"
+              : statusExpediente.finalizado
+                ? "finalizado"
+                : statusExpediente.ehHoraExtra
+                  ? "verde"
+                  : "vermelho"
+          }
+        >
+          {!statusExpediente.iniciado ? (
+            <MonitorLinhaPrincipal>
+              <MonitorTag $tipo="aguardando">
+                <FiClock size={12} />
+                <span>Jornada: {formatarTempoHm(metaMinutosHoje * 60)}</span>
+              </MonitorTag>
+              <MonitorInfoSecundaria>Aguardando entrada</MonitorInfoSecundaria>
+            </MonitorLinhaPrincipal>
+          ) : statusExpediente.finalizado ? (
+            <MonitorLinhaPrincipal>
+              <MonitorTag $tipo={statusExpediente.ehHoraExtra ? "verde" : "neutro"}>
+                <FiCheckCircle size={12} />
+                <span>Expediente Finalizado</span>
+              </MonitorTag>
+              <MonitorTempoDestaque $cor={statusExpediente.ehHoraExtra ? "#22c55e" : "#cbd5e1"}>
+                {formatarTempoHm(statusExpediente.segundosTrabalhados)}
+                {statusExpediente.ehHoraExtra && ` (+${formatarTempoHm(statusExpediente.segundosExtras)} extra)`}
+              </MonitorTempoDestaque>
+            </MonitorLinhaPrincipal>
+          ) : statusExpediente.ehHoraExtra ? (
+            <>
+              <MonitorLinhaPrincipal>
+                <MonitorTag $tipo="verde">
+                  <span className="dot pulse" />
+                  <span>Horas extras:</span>
+                  <strong>+{formatarTempoHms(statusExpediente.segundosExtras)}</strong>
+                </MonitorTag>
+                <MonitorTempoDestaque $cor="#22c55e">
+                  Total: {formatarTempoHms(statusExpediente.segundosTrabalhados)}
+                </MonitorTempoDestaque>
+              </MonitorLinhaPrincipal>
+
+              <BarraProgressoTrilho>
+                <BarraProgressoPreenchimento
+                  $cor="linear-gradient(90deg, #22c55e, #4ade80)"
+                  $largura="100%"
+                />
+              </BarraProgressoTrilho>
+
+              <MonitorLinhaSub>
+                <span>Meta de {formatarTempoHm(metaMinutosHoje * 60)} atingida</span>
+                <span>Bata a saída ao finalizar</span>
+              </MonitorLinhaSub>
+            </>
+          ) : (
+            <>
+              <MonitorLinhaPrincipal>
+                <MonitorTag $tipo="vermelho">
+                  <span className="dot" />
+                  <span>Faltam:</span>
+                  <strong>{formatarTempoHms(statusExpediente.segundosRestantes)}</strong>
+                </MonitorTag>
+                <MonitorTempoDestaque $cor="#ef4444">
+                  Decorrido: {formatarTempoHms(statusExpediente.segundosTrabalhados)}
+                </MonitorTempoDestaque>
+              </MonitorLinhaPrincipal>
+
+              <BarraProgressoTrilho>
+                <BarraProgressoPreenchimento
+                  $cor="linear-gradient(90deg, #ef4444, #f87171)"
+                  $largura={`${statusExpediente.progressoPct}%`}
+                />
+              </BarraProgressoTrilho>
+
+              <MonitorLinhaSub>
+                <span>Meta: {formatarTempoHm(metaMinutosHoje * 60)}</span>
+                {statusExpediente.previsaoSaida && (
+                  <span>Saída prevista: <strong>{statusExpediente.previsaoSaida}</strong></span>
+                )}
+              </MonitorLinhaSub>
+            </>
+          )}
+        </CardMonitorExpediente>
 
         <BotaoFace
           onClick={() => handleConfirmar()}
@@ -639,6 +802,17 @@ export default function HomeColaborador() {
         onAceitar={handleAceitarConsentimento}
       />
 
+      <ModalConfirmarPonto
+        aberto={!!pontoConfirmando}
+        onFechar={() => setPontoConfirmando(null)}
+        onConfirmar={handleEfetivarPonto}
+        tipo={pontoConfirmando}
+        hora={hora}
+        data={data}
+        corPrimaria={corPrimaria}
+        carregando={registrandoPonto}
+      />
+
       {modalFaceAberto && (
         <FacePontoModal
           tipo={tipoSelecionado}
@@ -647,7 +821,7 @@ export default function HomeColaborador() {
         />
       )}
 
-      <ModalNotificacoes 
+      <ModalNotificacoes
         aberto={modalNotificacoesAberto}
         onFechar={() => setModalNotificacoesAberto(false)}
         notificacoes={notificacoes}
@@ -1005,18 +1179,18 @@ const CardBatida = styled.div`
     $desativado
       ? "rgba(255, 255, 255, 0.01)"
       : $feito
-      ? "rgba(46, 204, 113, 0.08)"
-      : $selecionado
-      ? "rgba(79, 172, 254, 0.12)"
-      : "rgba(255, 255, 255, 0.03)"};
+        ? "rgba(46, 204, 113, 0.08)"
+        : $selecionado
+          ? "rgba(79, 172, 254, 0.12)"
+          : "rgba(255, 255, 255, 0.03)"};
   border: 2px solid ${({ theme, $feito, $selecionado, $desativado }) =>
     $desativado
       ? "rgba(255, 255, 255, 0.04)"
       : $feito
-      ? "rgba(46, 204, 113, 0.4)"
-      : $selecionado
-      ? "var(--cor-primaria, #4facfe)"
-      : "rgba(255, 255, 255, 0.08)"};
+        ? "rgba(46, 204, 113, 0.4)"
+        : $selecionado
+          ? "var(--cor-primaria, #4facfe)"
+          : "rgba(255, 255, 255, 0.08)"};
   border-radius: 18px;
   padding: 16px 14px;
   display: flex;
@@ -1025,14 +1199,13 @@ const CardBatida = styled.div`
   opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
   cursor: ${({ $feito, $desativado }) => ($desativado ? "not-allowed" : $feito ? "default" : "pointer")};
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: ${({ $selecionado, $desativado }) =>
-    !$desativado && $selecionado ? "0 8px 24px rgba(79, 172, 254, 0.18)" : "none"};
+  box-shadow: none;
 
   &:hover {
     ${({ $feito, $desativado }) =>
-      !$feito &&
-      !$desativado &&
-      `
+    !$feito &&
+    !$desativado &&
+    `
       transform: translateY(-2px);
       border-color: var(--cor-primaria, #4facfe);
       background: rgba(79, 172, 254, 0.08);
@@ -1084,7 +1257,7 @@ const BadgePendente = styled.span`
   color: ${({ $destaque }) => ($destaque ? "var(--cor-primaria, #4facfe)" : "#8d8d99")};
   border: 1px solid
     ${({ $destaque }) =>
-      $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+    $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1127,19 +1300,19 @@ const Chip = styled.button`
   border-radius: 14px;
   border: 2px solid ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.04)" :
-    $feito ? theme.cores.sucesso + "66" :
-      $selecionado ? theme.cores.azul :
-        theme.cores.borda};
+      $feito ? theme.cores.sucesso + "66" :
+        $selecionado ? theme.cores.azul :
+          theme.cores.borda};
   background: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.01)" :
-    $feito ? theme.cores.sucesso + "15" :
-      $selecionado ? theme.cores.azul + "20" :
-        theme.cores.superficie2};
+      $feito ? theme.cores.sucesso + "15" :
+        $selecionado ? theme.cores.azul + "20" :
+          theme.cores.superficie2};
   color: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "#8d8d99" :
-    $feito ? theme.cores.sucesso :
-      $selecionado ? theme.cores.azul :
-        theme.cores.texto2};
+      $feito ? theme.cores.sucesso :
+        $selecionado ? theme.cores.azul :
+          theme.cores.texto2};
   font-weight: 700;
   font-size: 13px;
   opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
@@ -1154,6 +1327,140 @@ const Chip = styled.button`
 
   &:active:not(:disabled) {
     ${({ $desativado }) => !$desativado && `transform: scale(0.97);`}
+  }
+`;
+
+const CardMonitorExpediente = styled.div`
+  width: 100%;
+  max-width: 420px;
+  margin-top: 12px;
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.25s ease;
+
+  ${({ $tipo }) => {
+    switch ($tipo) {
+      case "vermelho":
+        return `
+          background: rgba(239, 68, 68, 0.05);
+          border: 1px solid rgba(239, 68, 68, 0.25);
+        `;
+      case "verde":
+        return `
+          background: rgba(34, 197, 94, 0.06);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+        `;
+      case "finalizado":
+        return `
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+        `;
+      default:
+        return `
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        `;
+    }
+  }}
+`;
+
+const MonitorLinhaPrincipal = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+const MonitorTag = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+
+  strong {
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  ${({ $tipo }) => {
+    if ($tipo === "vermelho") {
+      return `
+        color: #f87171;
+        .dot { background: #ef4444; }
+      `;
+    }
+    if ($tipo === "verde") {
+      return `
+        color: #4ade80;
+        .dot {
+          background: #22c55e;
+          animation: pulseDot 1.5s infinite;
+        }
+      `;
+    }
+    return `
+      color: #94a3b8;
+      .dot { background: #94a3b8; }
+    `;
+  }}
+
+  @keyframes pulseDot {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+  }
+`;
+
+const MonitorTempoDestaque = styled.div`
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: ${({ $cor }) => $cor || "#94a3b8"};
+`;
+
+const MonitorInfoSecundaria = styled.div`
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+`;
+
+const BarraProgressoTrilho = styled.div`
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+`;
+
+const BarraProgressoPreenchimento = styled.div`
+  height: 100%;
+  width: ${({ $largura }) => $largura || "0%"};
+  background: ${({ $cor }) => $cor || "#4facfe"};
+  border-radius: 999px;
+  transition: width 0.3s ease;
+`;
+
+const MonitorLinhaSub = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
+
+  strong {
+    color: #94a3b8;
+    font-weight: 600;
   }
 `;
 
@@ -1173,14 +1480,12 @@ const BotaoFace = styled.button`
   justify-content: center;
   gap: 10px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(79,172,254,0.35);
   transition: all 0.2s ease;
   letter-spacing: 0.3px;
 
   &:hover:not(:disabled) {
     filter: brightness(1.08);
     transform: translateY(-1px);
-    box-shadow: 0 6px 28px rgba(79,172,254,0.45);
   }
 
   &:active:not(:disabled) {
@@ -1190,7 +1495,6 @@ const BotaoFace = styled.button`
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
-    box-shadow: none;
   }
 `;
 
