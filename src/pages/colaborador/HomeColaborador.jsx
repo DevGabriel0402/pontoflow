@@ -137,7 +137,7 @@ export default function HomeColaborador() {
     if (!usuario?.uid) return undefined;
 
     const verificar = () => {
-      if (navigator.onLine) verificarAtrasosFn().catch(() => { });
+      if (navigator.onLine) verificarAtrasosFn().catch(() => {});
     };
     verificar();
     const intervalo = window.setInterval(verificar, 5 * 60 * 1000);
@@ -488,9 +488,9 @@ export default function HomeColaborador() {
             </BotaoTopo>
           )}
 
-          <NotificationBadge
-            count={naoLidasCount}
-            onClick={() => setModalNotificacoesAberto(true)}
+          <NotificationBadge 
+            count={naoLidasCount} 
+            onClick={() => setModalNotificacoesAberto(true)} 
           />
 
           <BotaoTopo onClick={() => setModalTrocaSenhaAberto(true)} title="Trocar Senha">
@@ -628,8 +628,8 @@ export default function HomeColaborador() {
               {tiposFeitosHoje.has(TIPOS.SAIDA)
                 ? "Registrado com sucesso"
                 : !temEntradaHoje
-                  ? "Aguardando registro de entrada"
-                  : "Término do expediente"}
+                ? "Aguardando registro de entrada"
+                : "Término do expediente"}
             </CardBatidaSub>
           </CardBatida>
         </PainelEntradaSaida>
@@ -640,10 +640,10 @@ export default function HomeColaborador() {
             !statusExpediente.iniciado
               ? "aguardando"
               : statusExpediente.finalizado
-                ? "finalizado"
-                : statusExpediente.ehHoraExtra
-                  ? "verde"
-                  : "vermelho"
+              ? "finalizado"
+              : statusExpediente.ehHoraExtra
+              ? "verde"
+              : "vermelho"
           }
         >
           {!statusExpediente.iniciado ? (
@@ -821,7 +821,7 @@ export default function HomeColaborador() {
         />
       )}
 
-      <ModalNotificacoes
+      <ModalNotificacoes 
         aberto={modalNotificacoesAberto}
         onFechar={() => setModalNotificacoesAberto(false)}
         notificacoes={notificacoes}
@@ -1179,18 +1179,18 @@ const CardBatida = styled.div`
     $desativado
       ? "rgba(255, 255, 255, 0.01)"
       : $feito
-        ? "rgba(46, 204, 113, 0.08)"
-        : $selecionado
-          ? "rgba(79, 172, 254, 0.12)"
-          : "rgba(255, 255, 255, 0.03)"};
+      ? "rgba(46, 204, 113, 0.08)"
+      : $selecionado
+      ? "rgba(79, 172, 254, 0.12)"
+      : "rgba(255, 255, 255, 0.03)"};
   border: 2px solid ${({ theme, $feito, $selecionado, $desativado }) =>
     $desativado
       ? "rgba(255, 255, 255, 0.04)"
       : $feito
-        ? "rgba(46, 204, 113, 0.4)"
-        : $selecionado
-          ? "var(--cor-primaria, #4facfe)"
-          : "rgba(255, 255, 255, 0.08)"};
+      ? "rgba(46, 204, 113, 0.4)"
+      : $selecionado
+      ? "var(--cor-primaria, #4facfe)"
+      : "rgba(255, 255, 255, 0.08)"};
   border-radius: 18px;
   padding: 16px 14px;
   display: flex;
@@ -1203,9 +1203,9 @@ const CardBatida = styled.div`
 
   &:hover {
     ${({ $feito, $desativado }) =>
-    !$feito &&
-    !$desativado &&
-    `
+      !$feito &&
+      !$desativado &&
+      `
       transform: translateY(-2px);
       border-color: var(--cor-primaria, #4facfe);
       background: rgba(79, 172, 254, 0.08);
@@ -1257,7 +1257,7 @@ const BadgePendente = styled.span`
   color: ${({ $destaque }) => ($destaque ? "var(--cor-primaria, #4facfe)" : "#8d8d99")};
   border: 1px solid
     ${({ $destaque }) =>
-    $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+      $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1300,19 +1300,19 @@ const Chip = styled.button`
   border-radius: 14px;
   border: 2px solid ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.04)" :
-      $feito ? theme.cores.sucesso + "66" :
-        $selecionado ? theme.cores.azul :
-          theme.cores.borda};
+    $feito ? theme.cores.sucesso + "66" :
+      $selecionado ? theme.cores.azul :
+        theme.cores.borda};
   background: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.01)" :
-      $feito ? theme.cores.sucesso + "15" :
-        $selecionado ? theme.cores.azul + "20" :
-          theme.cores.superficie2};
+    $feito ? theme.cores.sucesso + "15" :
+      $selecionado ? theme.cores.azul + "20" :
+        theme.cores.superficie2};
   color: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "#8d8d99" :
-      $feito ? theme.cores.sucesso :
-        $selecionado ? theme.cores.azul :
-          theme.cores.texto2};
+    $feito ? theme.cores.sucesso :
+      $selecionado ? theme.cores.azul :
+        theme.cores.texto2};
   font-weight: 700;
   font-size: 13px;
   opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
