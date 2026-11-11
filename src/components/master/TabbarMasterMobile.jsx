@@ -36,16 +36,17 @@ const Barra = styled.nav`
   width: calc(100% - 32px);
   max-width: 600px;
   height: 66px;
-  background: rgba(28, 28, 30, 0.8);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: ${({ theme }) => theme.cores.tabbarFundo};
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid ${({ theme }) => theme.cores.tabbarBorda};
   border-radius: 22px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   padding: 0 10px;
   z-index: 999;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: ${({ theme }) => theme.sombra.forte};
+  transition: background 0.2s ease, border-color 0.2s ease;
 
   @media (min-width: 901px) {
     display: none;
@@ -62,7 +63,8 @@ const Item = styled.button`
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
-  color: ${({ $ativo }) => $ativo ? "#2f81f7" : "rgba(255, 255, 255, 0.45)"};
+  color: ${({ $ativo, theme }) => $ativo ? theme.cores.azul : theme.cores.texto2};
+  opacity: ${({ $ativo }) => ($ativo ? 1 : 0.75)};
   cursor: pointer;
   transition: all 0.2s ease;
 

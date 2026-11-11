@@ -21,6 +21,7 @@ import { db } from "../../services/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
+import BotaoTema from "../../components/BotaoTema";
 
 function formatarTipo(tipo) {
   const map = {
@@ -167,10 +168,13 @@ export default function Historico() {
           <Logo src="/icons/pwa-512x512.png" alt="PontoFlow" />
           ClickPonto
         </Branding>
-        <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
-          <FiFilter size={20} />
-          {(tipo !== "TODOS" || dataInicio || dataFim) && <BadgeNotificacao />}
-        </BotaoFiltro>
+        <AcoesTopo>
+          <BotaoTema compacto={true} />
+          <BotaoFiltro onClick={() => setModalFiltroAberto(true)}>
+            <FiFilter size={20} />
+            {(tipo !== "TODOS" || dataInicio || dataFim) && <BadgeNotificacao />}
+          </BotaoFiltro>
+        </AcoesTopo>
       </Topo>
 
       <ModalFiltroHistorico
@@ -411,8 +415,8 @@ export default function Historico() {
 const Tela = styled.div`
   min-height: 100vh;
   padding-bottom: 90px;
-  background: #000;
-  color: #fff;
+  background: ${({ theme }) => theme.cores.fundo};
+  color: ${({ theme }) => theme.cores.texto};
 `;
 
 const Topo = styled.header`
@@ -421,6 +425,12 @@ const Topo = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
+`;
+
+const AcoesTopo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
 `;
 
 const Branding = styled.div`
@@ -441,7 +451,7 @@ const Logo = styled.img`
 const BotaoFiltro = styled.button`
   background: transparent;
   border: 0;
-  color: #fff;
+  color: ${({ theme }) => theme.cores.texto};
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -453,7 +463,7 @@ const BotaoFiltro = styled.button`
   transition: background 0.2s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.destaqueHover};
   }
 `;
 
@@ -465,7 +475,7 @@ const BadgeNotificacao = styled.div`
   height: 8px;
   background: #4facfe;
   border-radius: 50%;
-  border: 2px solid #000;
+  border: 2px solid ${({ theme }) => theme.cores.superficie};
 `;
 
 const Corpo = styled.div`
@@ -480,6 +490,7 @@ const TituloPrincipal = styled.h1`
   font-size: 24px;
   font-weight: 700;
   margin: 0 0 16px;
+  color: ${({ theme }) => theme.cores.texto};
 `;
 
 const Tabs = styled.div`
@@ -500,8 +511,8 @@ const Tab = styled.div`
     border-bottom: 2px solid #4facfe;
     border-radius: 0;
   ` : `
-    background: #1c1c1e;
-    color: #8e8e93;
+    background: ${theme.cores.superficie2};
+    color: ${theme.cores.texto2};
   `}
 `;
 
@@ -522,7 +533,7 @@ const DataSeparador = styled.div`
 
 const ItemFlow = styled.div`
   padding: 16px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
 `;
 
 const LinhaPrincipal = styled.div`
@@ -540,7 +551,7 @@ const IconCol = styled.div`
   justify-content: center;
   font-size: 18px;
   
-  ${({ $tipo, $raio, theme }) => {
+  ${({ $tipo, $raio }) => {
     if (!$raio) return "background: #f39c12; color: #fff;"; // Fora do raio
     if ($tipo === "ENTRADA" || $tipo === "SAIDA") return "background: #2ecc71; color: #fff;";
     return "background: #f1c40f; color: #fff;"; // Intervalos
@@ -555,8 +566,7 @@ const TextoTipo = styled.div`
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
-  color: ${p => p.$ausencia ? '#f1c40f' : '#fff'};
-
+  color: ${({ $ausencia, theme }) => $ausencia ? '#f1c40f' : theme.cores.texto};
 `;
 
 const TextoLocal = styled.div`
@@ -683,10 +693,11 @@ const ListaJustificativas = styled.div`
 `;
 
 const CardJustificativa = styled.div`
-  background: #1c1c1e;
+  background: ${({ theme }) => theme.cores.card};
   border-radius: 16px;
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const CardHeader = styled.div`

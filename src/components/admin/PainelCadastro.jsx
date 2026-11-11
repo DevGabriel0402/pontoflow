@@ -10,7 +10,7 @@ import { useAuth } from "../../contexts/AuthContexto";
 export default function PainelCadastro() {
   const { config } = useConfig();
   const { perfil } = useAuth();
-  
+
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
@@ -103,31 +103,31 @@ export default function PainelCadastro() {
         <Grid>
           <Campo>
             <label>Nome Completo</label>
-            <input 
-              value={nome} 
-              onChange={(e) => setNome(e.target.value)} 
-              placeholder="Ex: João Silva" 
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex: João Silva"
               required
             />
           </Campo>
 
           <Campo>
             <label>Email Corporativo / Pessoal</label>
-            <input 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               type="email"
-              placeholder="ex: joao@empresa.com" 
+              placeholder="ex: joao@empresa.com"
               required
             />
           </Campo>
 
           <Campo>
             <label>Data de Nascimento</label>
-            <input 
-              type="date" 
-              value={dataNascimento} 
-              onChange={(e) => setDataNascimento(e.target.value)} 
+            <input
+              type="date"
+              value={dataNascimento}
+              onChange={(e) => setDataNascimento(e.target.value)}
               required
             />
           </Campo>
@@ -229,32 +229,33 @@ const Header = styled.div`
   gap: 16px;
   margin-bottom: 24px;
 
-  h2 { margin: 0; font-size: 24px; color: #fff; }
-  p { margin: 4px 0 0; color: #8d8d99; font-size: 14px; }
+  h2 { margin: 0; font-size: 24px; color: ${({ theme }) => theme.cores.texto}; }
+  p { margin: 4px 0 0; color: ${({ theme }) => theme.cores.texto2}; font-size: 14px; }
 `;
 
 const InfoCard = styled.div`
-  background: rgba(47, 129, 247, 0.1);
-  border: 1px solid rgba(47, 129, 247, 0.2);
+  background: ${({ theme }) => theme.cores.azul + "12"};
+  border: 1px solid ${({ theme }) => theme.cores.azul + "25"};
   border-radius: 12px;
   padding: 16px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
   margin-bottom: 32px;
-  color: #adbac7;
+  color: ${({ theme }) => theme.cores.texto};
   font-size: 14px;
   line-height: 1.5;
 
   svg { color: var(--cor-primaria); flex-shrink: 0; margin-top: 2px; }
-  strong { color: #fff; }
+  strong { color: ${({ theme }) => theme.cores.texto}; }
 `;
 
 const Form = styled.form`
-  background: #19191b;
-  border: 1px solid rgba(255,255,255,0.05);
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: 16px;
   padding: 32px;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 
   @media (max-width: 600px) {
     padding: 20px;
@@ -280,16 +281,16 @@ const Campo = styled.div`
   label {
     font-size: 13px;
     font-weight: 600;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
   }
 
   input, select {
     height: 48px;
     padding: 0 16px;
-    background: #121214;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1px solid ${({ theme }) => theme.cores.inputBorda};
     border-radius: 8px;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     font-size: 14px;
     outline: none;
     transition: all 0.2s;
@@ -299,17 +300,16 @@ const Campo = styled.div`
       box-shadow: 0 0 0 2px rgba(47, 129, 247, 0.1);
     }
 
-    &::placeholder { color: #444; }
-    &::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+    &::placeholder { color: ${({ theme }) => theme.cores.texto2}88; }
   }
 `;
 
 const RoleSelector = styled.div`
   display: flex;
-  background: #121214;
+  background: ${({ theme }) => theme.cores.superficie2};
   padding: 4px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   gap: 4px;
 `;
 
@@ -323,16 +323,16 @@ const RoleOption = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   background: ${({ $ativo }) => $ativo ? "var(--cor-primaria)" : "transparent"};
-  color: ${({ $ativo }) => $ativo ? "#fff" : "#8d8d99"};
+  color: ${({ $ativo, theme }) => $ativo ? "#fff" : theme.cores.texto2};
 
   &:hover {
-    background: ${({ $ativo }) => $ativo ? "var(--cor-primaria)" : "rgba(255,255,255,0.05)"};
+    background: ${({ $ativo, theme }) => $ativo ? "var(--cor-primaria)" : theme.cores.destaqueHover};
   }
 `;
 
 const Select = styled.select`
   cursor: pointer;
-  option { background: #19191b; }
+  option { background: ${({ theme }) => theme.cores.superficie}; color: ${({ theme }) => theme.cores.texto}; }
 `;
 
 const Footer = styled.div`
@@ -341,15 +341,15 @@ const Footer = styled.div`
   gap: 16px;
   margin-top: 40px;
   padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid ${({ theme }) => theme.cores.borda};
 
   .btn-ghost {
     background: transparent;
     border: 0;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     font-weight: 600;
     cursor: pointer;
-    &:hover { color: #fff; }
+    &:hover { color: ${({ theme }) => theme.cores.texto}; }
   }
 
   .btn-primary {

@@ -5,7 +5,8 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useClock } from "../../hooks/useClock";
 import { usePonto } from "../../hooks/usePonto";
 import { toast } from "react-hot-toast";
-import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefreshCw, FiCheckCircle } from "react-icons/fi";
+import { GoPasskeyFill } from "react-icons/go";
+import { FiShield, FiClock, FiMap, FiAlertTriangle, FiMapPin, FiCamera, FiRefreshCw, FiCheckCircle, FiLogOut } from "react-icons/fi";
 import { useSync } from "../../hooks/useSync";
 import { useHistoricoPontos } from "../../hooks/useHistoricoPontos";
 import { obterFila } from "../../services/offlineQueue";
@@ -25,6 +26,7 @@ import { formatarSaldo, horaParaMin } from "../../utils/pontoUtils";
 import { useNotificacoes } from "../../hooks/useNotificacoes";
 import NotificationBadge from "../../components/colaborador/NotificationBadge";
 import ModalNotificacoes from "../../components/colaborador/ModalNotificacoes";
+import BotaoTema from "../../components/BotaoTema";
 import { verificarAtrasosFn } from "../../services/funcoes";
 
 const TIPOS = {
@@ -138,7 +140,7 @@ export default function HomeColaborador() {
     if (!usuario?.uid) return undefined;
 
     const verificar = () => {
-      if (navigator.onLine) verificarAtrasosFn().catch(() => {});
+      if (navigator.onLine) verificarAtrasosFn().catch(() => { });
     };
     verificar();
     const intervalo = window.setInterval(verificar, 5 * 60 * 1000);
@@ -489,17 +491,19 @@ export default function HomeColaborador() {
             </BotaoTopo>
           )}
 
-          <NotificationBadge 
-            count={naoLidasCount} 
-            onClick={() => setModalNotificacoesAberto(true)} 
+          <NotificationBadge
+            count={naoLidasCount}
+            onClick={() => setModalNotificacoesAberto(true)}
           />
 
+          <BotaoTema compacto={true} />
+
           <BotaoTopo onClick={() => setModalTrocaSenhaAberto(true)} title="Trocar Senha">
-            Trocar Senha
+            <GoPasskeyFill size={18} />
           </BotaoTopo>
 
           <BotaoTopo onClick={logout} title="Sair">
-            Sair
+            <FiLogOut size={18} />
           </BotaoTopo>
         </AcoesTopo>
       </Topo>
@@ -629,8 +633,8 @@ export default function HomeColaborador() {
               {tiposFeitosHoje.has(TIPOS.SAIDA)
                 ? "Registrado com sucesso"
                 : !temEntradaHoje
-                ? "Aguardando registro de entrada"
-                : "Término do expediente"}
+                  ? "Aguardando registro de entrada"
+                  : "Término do expediente"}
             </CardBatidaSub>
           </CardBatida>
         </PainelEntradaSaida>
@@ -641,10 +645,10 @@ export default function HomeColaborador() {
             !statusExpediente.iniciado
               ? "aguardando"
               : statusExpediente.finalizado
-              ? "finalizado"
-              : statusExpediente.ehHoraExtra
-              ? "verde"
-              : "vermelho"
+                ? "finalizado"
+                : statusExpediente.ehHoraExtra
+                  ? "verde"
+                  : "vermelho"
           }
         >
           {!statusExpediente.iniciado ? (
@@ -824,7 +828,7 @@ export default function HomeColaborador() {
         />
       )}
 
-      <ModalNotificacoes 
+      <ModalNotificacoes
         aberto={modalNotificacoesAberto}
         onFechar={() => setModalNotificacoesAberto(false)}
         notificacoes={notificacoes}
@@ -916,12 +920,13 @@ const BotaoTopo = styled.button`
   border: 1px solid ${({ theme }) => theme.cores.borda};
   background: ${({ theme }) => theme.cores.superficie2};
   color: ${({ theme }) => theme.cores.texto2};
-  height: 34px;
+  height: 40px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 12px;
   font-weight: 800;
   font-size: 12px;
   cursor: pointer;
+
 `;
 
 const BadgePendentes = styled.div`
@@ -1180,20 +1185,20 @@ const PainelEntradaSaida = styled.div`
 const CardBatida = styled.div`
   background: ${({ theme, $feito, $selecionado, $desativado }) =>
     $desativado
-      ? "rgba(255, 255, 255, 0.01)"
+      ? (theme.nome === "dark" ? "rgba(255, 255, 255, 0.01)" : "rgba(0, 0, 0, 0.02)")
       : $feito
-      ? "rgba(46, 204, 113, 0.08)"
-      : $selecionado
-      ? "rgba(79, 172, 254, 0.12)"
-      : "rgba(255, 255, 255, 0.03)"};
+        ? (theme.nome === "dark" ? "rgba(46, 204, 113, 0.08)" : "rgba(22, 163, 74, 0.08)")
+        : $selecionado
+          ? (theme.nome === "dark" ? "rgba(79, 172, 254, 0.12)" : "rgba(47, 129, 247, 0.08)")
+          : theme.cores.superficie};
   border: 2px solid ${({ theme, $feito, $selecionado, $desativado }) =>
     $desativado
-      ? "rgba(255, 255, 255, 0.04)"
+      ? (theme.nome === "dark" ? "rgba(255, 255, 255, 0.04)" : "rgba(0, 0, 0, 0.06)")
       : $feito
-      ? "rgba(46, 204, 113, 0.4)"
-      : $selecionado
-      ? "var(--cor-primaria, #4facfe)"
-      : "rgba(255, 255, 255, 0.08)"};
+        ? "rgba(46, 204, 113, 0.4)"
+        : $selecionado
+          ? "var(--cor-primaria, #4facfe)"
+          : theme.cores.borda};
   border-radius: 18px;
   padding: 16px 14px;
   display: flex;
@@ -1202,13 +1207,13 @@ const CardBatida = styled.div`
   opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
   cursor: ${({ $feito, $desativado }) => ($desativado ? "not-allowed" : $feito ? "default" : "pointer")};
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: none;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 
   &:hover {
     ${({ $feito, $desativado }) =>
-      !$feito &&
-      !$desativado &&
-      `
+    !$feito &&
+    !$desativado &&
+    `
       transform: translateY(-2px);
       border-color: var(--cor-primaria, #4facfe);
       background: rgba(79, 172, 254, 0.08);
@@ -1228,7 +1233,7 @@ const CardBatidaTopo = styled.div`
   .titulo {
     font-size: 13px;
     font-weight: 800;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     letter-spacing: 0.3px;
   }
 `;
@@ -1244,9 +1249,9 @@ const BadgeFeito = styled.span`
 `;
 
 const BadgeBloqueado = styled.span`
-  background: rgba(255, 255, 255, 0.05);
-  color: #8d8d99;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: ${({ theme }) => theme.nome === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)"};
+  color: ${({ theme }) => theme.cores.texto2};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1255,12 +1260,12 @@ const BadgeBloqueado = styled.span`
 `;
 
 const BadgePendente = styled.span`
-  background: ${({ $destaque }) =>
-    $destaque ? "rgba(79, 172, 254, 0.15)" : "rgba(255, 255, 255, 0.05)"};
-  color: ${({ $destaque }) => ($destaque ? "var(--cor-primaria, #4facfe)" : "#8d8d99")};
+  background: ${({ $destaque, theme }) =>
+    $destaque ? "rgba(79, 172, 254, 0.15)" : theme.nome === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)"};
+  color: ${({ $destaque, theme }) => ($destaque ? "var(--cor-primaria, #4facfe)" : theme.cores.texto2)};
   border: 1px solid
-    ${({ $destaque }) =>
-      $destaque ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+    ${({ $destaque, theme }) =>
+    $destaque ? "rgba(79, 172, 254, 0.3)" : theme.cores.borda};
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
@@ -1277,7 +1282,7 @@ const BadgePendente = styled.span`
 const CardBatidaHora = styled.div`
   font-size: 28px;
   font-weight: 900;
-  color: #fff;
+  color: ${({ theme }) => theme.cores.texto};
   letter-spacing: 0.5px;
   margin: 4px 0 2px;
   font-variant-numeric: tabular-nums;
@@ -1285,7 +1290,7 @@ const CardBatidaHora = styled.div`
 
 const CardBatidaSub = styled.div`
   font-size: 11px;
-  color: #8d8d99;
+  color: ${({ theme }) => theme.cores.texto2};
   font-weight: 500;
 `;
 
@@ -1303,19 +1308,19 @@ const Chip = styled.button`
   border-radius: 14px;
   border: 2px solid ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.04)" :
-    $feito ? theme.cores.sucesso + "66" :
-      $selecionado ? theme.cores.azul :
-        theme.cores.borda};
+      $feito ? theme.cores.sucesso + "66" :
+        $selecionado ? theme.cores.azul :
+          theme.cores.borda};
   background: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "rgba(255, 255, 255, 0.01)" :
-    $feito ? theme.cores.sucesso + "15" :
-      $selecionado ? theme.cores.azul + "20" :
-        theme.cores.superficie2};
+      $feito ? theme.cores.sucesso + "15" :
+        $selecionado ? theme.cores.azul + "20" :
+          theme.cores.superficie2};
   color: ${({ theme, $selecionado, $feito, $desativado }) =>
     $desativado ? "#8d8d99" :
-    $feito ? theme.cores.sucesso :
-      $selecionado ? theme.cores.azul :
-        theme.cores.texto2};
+      $feito ? theme.cores.sucesso :
+        $selecionado ? theme.cores.azul :
+          theme.cores.texto2};
   font-weight: 700;
   font-size: 13px;
   opacity: ${({ $desativado }) => ($desativado ? 0.45 : 1)};
@@ -1344,27 +1349,27 @@ const CardMonitorExpediente = styled.div`
   gap: 6px;
   transition: all 0.25s ease;
 
-  ${({ $tipo }) => {
+  ${({ $tipo, theme }) => {
     switch ($tipo) {
       case "vermelho":
         return `
-          background: rgba(239, 68, 68, 0.05);
+          background: rgba(239, 68, 68, 0.08);
           border: 1px solid rgba(239, 68, 68, 0.25);
         `;
       case "verde":
         return `
-          background: rgba(34, 197, 94, 0.06);
+          background: rgba(34, 197, 94, 0.08);
           border: 1px solid rgba(34, 197, 94, 0.3);
         `;
       case "finalizado":
         return `
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.06);
+          background: ${theme.cores.superficie2};
+          border: 1px solid ${theme.cores.borda};
         `;
       default:
         return `
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: ${theme.cores.superficie2};
+          border: 1px solid ${theme.cores.borda};
         `;
     }
   }}
@@ -1396,16 +1401,16 @@ const MonitorTag = styled.div`
     border-radius: 50%;
   }
 
-  ${({ $tipo }) => {
+  ${({ $tipo, theme }) => {
     if ($tipo === "vermelho") {
       return `
-        color: #f87171;
+        color: #ef4444;
         .dot { background: #ef4444; }
       `;
     }
     if ($tipo === "verde") {
       return `
-        color: #4ade80;
+        color: #22c55e;
         .dot {
           background: #22c55e;
           animation: pulseDot 1.5s infinite;
@@ -1413,8 +1418,8 @@ const MonitorTag = styled.div`
       `;
     }
     return `
-      color: #94a3b8;
-      .dot { background: #94a3b8; }
+      color: ${theme.cores.texto2};
+      .dot { background: ${theme.cores.texto2}; }
     `;
   }}
 
@@ -1429,19 +1434,19 @@ const MonitorTempoDestaque = styled.div`
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: ${({ $cor }) => $cor || "#94a3b8"};
+  color: ${({ $cor, theme }) => $cor || theme.cores.texto2};
 `;
 
 const MonitorInfoSecundaria = styled.div`
   font-size: 11px;
-  color: #64748b;
+  color: ${({ theme }) => theme.cores.texto2};
   font-weight: 500;
 `;
 
 const BarraProgressoTrilho = styled.div`
   width: 100%;
   height: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  background: ${({ theme }) => theme.cores.borda};
   border-radius: 999px;
   overflow: hidden;
 `;
@@ -1459,10 +1464,10 @@ const MonitorLinhaSub = styled.div`
   align-items: center;
   justify-content: space-between;
   font-size: 10px;
-  color: #64748b;
+  color: ${({ theme }) => theme.cores.texto2};
 
   strong {
-    color: #94a3b8;
+    color: ${({ theme }) => theme.cores.texto};
     font-weight: 600;
   }
 `;

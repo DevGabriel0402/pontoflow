@@ -650,10 +650,11 @@ const Lista = styled.div`
 `;
 
 const Card = styled.div`
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 16px;
     padding: 18px;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const CardHeader = styled.div`
@@ -685,12 +686,12 @@ const Avatar = styled.div`
 const UserName = styled.div`
     font-weight: 700;
     font-size: 14px;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
 `;
 
 const Enviada = styled.div`
     font-size: 11px;
-    color: #555;
+    color: ${({ theme }) => theme.cores.texto2};
     margin-top: 2px;
 `;
 
@@ -711,14 +712,14 @@ const Detalhe = styled.div`
 `;
 
 const DetalheItem = styled.div`
-    background: rgba(255,255,255,0.05);
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"};
     border-radius: 8px;
     padding: 8px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    span { font-size: 11px; color: #666; }
-    strong { font-size: 13px; color: #fff; font-weight: 600; }
+    span { font-size: 11px; color: ${({ theme }) => theme.cores.texto2}; }
+    strong { font-size: 13px; color: ${({ theme }) => theme.cores.texto}; font-weight: 600; }
 `;
 
 const AvaliadorInfo = styled.div`
@@ -726,20 +727,20 @@ const AvaliadorInfo = styled.div`
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #8d8d99;
-    background: rgba(255,255,255,0.03);
+    color: ${({ theme }) => theme.cores.texto2};
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"};
     padding: 8px 12px;
     border-radius: 8px;
     margin-bottom: 12px;
-    strong { color: #fff; font-weight: 600; }
+    strong { color: ${({ theme }) => theme.cores.texto}; font-weight: 600; }
 `;
 
 const Justificativa = styled.div`
     font-size: 13px;
-    color: #aaa;
+    color: ${({ theme }) => theme.cores.texto};
     line-height: 1.6;
     padding: 12px;
-    background: rgba(255,255,255,0.03);
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)"};
     border-radius: 10px;
     border-left: 3px solid rgba(79,172,254,0.4);
     display: flex;
@@ -805,11 +806,11 @@ const RejeicaoBox = styled.div`
 
 const Textarea = styled.textarea`
     width: 100%;
-    background: rgba(255,255,255,0.05);
-    border: 1.5px solid rgba(255,255,255,0.1);
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1.5px solid ${({ theme }) => theme.cores.inputBorda};
     border-radius: 10px;
     padding: 10px 14px;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     font-size: 13px;
     resize: vertical;
     outline: none;
@@ -828,12 +829,12 @@ const BtnSecundario = styled.button`
     height: 38px;
     padding: 0 16px;
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 8px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     font-size: 13px;
     cursor: pointer;
-    &:hover { color: #fff; }
+    &:hover { color: ${({ theme }) => theme.cores.texto}; }
 `;
 
 const BtnPerigo = styled.button`
@@ -862,9 +863,9 @@ const BtnEditar = styled.button`
     height: 34px;
     padding: 0 14px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 8px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -874,8 +875,8 @@ const BtnEditar = styled.button`
     transition: all 0.2s;
     
     &:hover { 
-        color: #fff; 
-        border-color: rgba(255, 255, 255, 0.3); 
+        color: ${({ theme }) => theme.cores.texto}; 
+        border-color: ${({ theme }) => theme.cores.destaque}; 
     }
     
     &:disabled { 
@@ -899,8 +900,8 @@ const AnexoInfo = styled.div`
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        color: #fff;
-        span { color: #8d8d99; }
+        color: ${({ theme }) => theme.cores.texto};
+        span { color: ${({ theme }) => theme.cores.texto2}; }
         strong { color: #4facfe; }
     }
 `;

@@ -8,7 +8,7 @@ import { FiBell } from "react-icons/fi";
 export default function NotificationBadge({ count, onClick }) {
   return (
     <Container onClick={onClick} title="Notificações">
-      <FiBell size={20} />
+      <FiBell size={18} />
       {count > 0 && (
         <Badge>
           {count > 99 ? "99+" : count}
@@ -49,12 +49,12 @@ const Badge = styled.span`
   right: -4px;
   min-width: 18px;
   height: 18px;
-  padding: 0 4px;
+  padding: 0px 8px;
   background: ${({ theme }) => theme.cores.perigo || "#e74c3c"};
   color: white;
   font-size: 10px;
   font-weight: 800;
-  border-radius: 999px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;

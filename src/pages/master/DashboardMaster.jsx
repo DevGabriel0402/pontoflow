@@ -1,11 +1,16 @@
 import React from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock, FiZap, FiCheckCircle, FiClock, FiFileText } from "react-icons/fi";
+import { 
+    FiGrid, FiSettings, FiArrowLeft, FiPlus, FiBriefcase, FiActivity, 
+    FiDollarSign, FiSearch, FiEdit2, FiLock, FiUnlock, FiZap, 
+    FiCheckCircle, FiClock, FiFileText, FiSave, FiInfo, FiTag, 
+    FiPhone, FiMail, FiChevronDown, FiChevronUp, FiTrash, FiMove, 
+    FiBold, FiType, FiMaximize, FiArchive, FiLogOut 
+} from "react-icons/fi";
 import { db } from "../../services/firebase";
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { FiSave, FiInfo, FiTag, FiPhone, FiMail, FiChevronDown, FiChevronUp, FiTrash, FiMove, FiBold, FiType, FiMaximize, FiArchive, FiLogOut } from "react-icons/fi";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useMasterCompanies } from "../../hooks/useMasterCompanies";
 import { useAuth } from "../../contexts/AuthContexto";
@@ -13,6 +18,7 @@ import ModalNovaEmpresa from "../../components/master/ModalNovaEmpresa";
 import ModalConfirmacao from "../../components/ModalConfirmacao";
 import TabbarMasterMobile from "../../components/master/TabbarMasterMobile";
 import AbaAdminsMaster from "../../components/master/AbaAdminsMaster";
+import BotaoTema from "../../components/BotaoTema";
 import { INITIAL_MANUAL_DATA } from "../../utils/manualTemplate";
 
 /* --- COMPONENTES DO EDITOR VISUAL DO MANUAL --- */
@@ -25,35 +31,50 @@ const EditorContainer = styled.div`
 `;
 
 const SecaoCard = styled.div`
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     overflow: hidden;
 `;
 
 const SecaoHeader = styled.div`
     padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
+    background: ${({ theme }) => theme.cores.superficie2};
+    color: ${({ theme }) => theme.cores.texto};
     display: flex;
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
     transition: background 0.2s;
-    &:hover { background: rgba(255, 255, 255, 0.04); }
+    &:hover { background: ${({ theme }) => theme.cores.destaqueHover}; }
 `;
 
 const ElementoCard = styled.div`
     padding: 12px;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(0, 0, 0, 0.25)" : "rgba(0, 0, 0, 0.02)"};
+    border: 1px dashed ${({ theme }) => theme.cores.borda};
     border-radius: 8px;
     margin-bottom: 12px;
 `;
 
+const SubItemCard = styled.div`
+    padding: 12px;
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)"};
+    border-radius: 8px;
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+`;
+
+const BoxItensCard = styled.div`
+    background: ${({ theme }) => theme.cores.inputFundo};
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+`;
+
 const InputEditor = styled.input`
-    background: #0a0a0c;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1px solid ${({ theme }) => theme.cores.inputBorda};
+    color: ${({ theme }) => theme.cores.texto};
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
@@ -67,9 +88,9 @@ const SeletorWrapper = styled.div`
 `;
 
 const SeletorHeader = styled.div`
-    background: #0a0a0c;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1px solid ${({ theme }) => theme.cores.inputBorda};
+    color: ${({ theme }) => theme.cores.texto};
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
@@ -78,7 +99,7 @@ const SeletorHeader = styled.div`
     justify-content: space-between;
     align-items: center;
     transition: all 0.2s;
-    &:hover { border-color: #2f81f7; background: rgba(255,255,255,0.02); }
+    &:hover { border-color: #2f81f7; background: ${({ theme }) => theme.cores.destaqueHover}; }
 `;
 
 const SeletorLista = styled.div`
@@ -86,14 +107,14 @@ const SeletorLista = styled.div`
     top: 100%;
     left: 0;
     right: 0;
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.superficie};
+    border: 1px solid ${({ theme }) => theme.cores.bordaForte};
     border-radius: 6px;
     margin-top: 4px;
     z-index: 1000;
     max-height: 250px;
     overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     backdrop-filter: blur(10px);
 `;
 
@@ -101,13 +122,13 @@ const SeletorOpcao = styled.div`
     padding: 10px 12px;
     font-size: 13px;
     cursor: pointer;
-    color: ${props => props.$ativo ? '#2f81f7' : '#fff'};
+    color: ${props => props.$ativo ? (props.theme.cores.azul || '#2f81f7') : props.theme.cores.texto};
     background: ${props => props.$ativo ? 'rgba(47, 129, 247, 0.1)' : 'transparent'};
     font-weight: ${props => props.$ativo ? '700' : '400'};
     display: flex;
     align-items: center;
     justify-content: space-between;
-    &:hover { background: rgba(255, 255, 255, 0.05); }
+    &:hover { background: ${({ theme }) => theme.cores.destaqueHover}; }
 `;
 
 const SeletorEditor = ({ value, onChange, opcoes }) => {
@@ -148,9 +169,9 @@ const SeletorEditor = ({ value, onChange, opcoes }) => {
 };
 
 const TextareaEditor = styled.textarea`
-    background: #0a0a0c;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1px solid ${({ theme }) => theme.cores.inputBorda};
+    color: ${({ theme }) => theme.cores.texto};
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 14px;
@@ -159,42 +180,6 @@ const TextareaEditor = styled.textarea`
     min-height: 80px;
     font-family: inherit;
     &:focus { border-color: #2f81f7; outline: none; }
-`;
-
-const Topbar = styled.header`
-    display: none;
-    @media (max-width: 900px) {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 20px;
-        height: 60px;
-        background: #19191b;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        position: sticky;
-        top: 0;
-        z-index: 1001;
-        width: 100%;
-    }
-`;
-
-const TopbarActions = styled.div`
-    display: flex;
-    gap: 12px;
-`;
-
-const BotaoTopo = styled.button`
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    width: 38px;
-    height: 38px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    &:hover { background: rgba(255, 255, 255, 0.1); }
 `;
 
 const EditorElemento = ({ element, onUpdate, onRemove }) => {
@@ -244,10 +229,10 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
                             />
                          </div>
                          <div>
-                            <label style={{ fontSize: '10px', color: '#8d8d99', display: 'block', marginBottom: '4px' }}>Cor do Texto</label>
+                            <label style={{ fontSize: '10px', color: 'inherit', opacity: 0.7, display: 'block', marginBottom: '4px' }}>Cor do Texto</label>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <input type="color" value={element.style?.color} onChange={e => onUpdate(element.id, { style: { ...element.style, color: e.target.value } })} style={{ background: 'none', border: 'none', width: '30px', height: '30px', cursor: 'pointer' }} />
-                                <span style={{ fontSize: '11px', color: '#fff', opacity: '0.6' }}>{element.style?.color}</span>
+                                <span style={{ fontSize: '11px', color: 'inherit', opacity: 0.7 }}>{element.style?.color}</span>
                             </div>
                          </div>
                     </div>
@@ -257,9 +242,9 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
             {element.type === 'grid' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {element.items?.map((item, i) => (
-                        <div key={i} style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <SubItemCard key={i}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#8d8d99' }}>ITEM {i + 1}</span>
+                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'inherit', opacity: 0.75 }}>ITEM {i + 1}</span>
                                 <FiTrash style={{ cursor: 'pointer', color: '#eb4d4b', fontSize: '12px' }} onClick={() => {
                                     const next = element.items.filter((_, idx) => idx !== i);
                                     onUpdate(element.id, { items: next });
@@ -286,7 +271,7 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
                                     style={{ height: '60px' }}
                                 />
                             </div>
-                        </div>
+                        </SubItemCard>
                     ))}
                     <BotaoGhost onClick={() => onUpdate(element.id, { items: [...(element.items || []), { title: 'Novo Item', description: 'Descrição aqui...' }] })}>
                         <FiPlus /> Adicionar Item ao Grid
@@ -297,7 +282,7 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
             {element.type === 'steps' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {element.items?.map((step, i) => (
-                        <div key={i} style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <SubItemCard key={i}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#f1c40f' }}>PASSO {step.number}</span>
                                 <FiTrash style={{ cursor: 'pointer', color: '#eb4d4b', fontSize: '12px' }} onClick={() => {
@@ -338,7 +323,7 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
                                     style={{ height: '60px' }}
                                 />
                             </div>
-                        </div>
+                        </SubItemCard>
                     ))}
                     <BotaoGhost onClick={() => onUpdate(element.id, { items: [...(element.items || []), { number: (element.items?.length + 1).toString(), title: 'Novo Passo', description: 'Descrição...' }] })}>
                         <FiPlus /> Adicionar Passo
@@ -349,7 +334,7 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
             {element.type === 'cards' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {element.items?.map((card, i) => (
-                        <div key={i} style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <SubItemCard key={i}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <InputEditor 
@@ -378,8 +363,8 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
                                     }}
                                     placeholder="Título do card..."
                                 />
-                                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
-                                    <label style={{ fontSize: '10px', color: '#8d8d99', marginBottom: '8px', display: 'block' }}>ITENS DO CARD (UM POR LINHA)</label>
+                                <BoxItensCard>
+                                    <label style={{ fontSize: '10px', color: 'inherit', opacity: 0.7, marginBottom: '8px', display: 'block' }}>ITENS DO CARD (UM POR LINHA)</label>
                                     <TextareaEditor 
                                         value={card.items?.join('\n')} 
                                         onChange={e => {
@@ -390,9 +375,9 @@ const EditorElemento = ({ element, onUpdate, onRemove }) => {
                                         placeholder="Item 1\nItem 2..."
                                         style={{ height: '80px', fontSize: '12px' }}
                                     />
-                                </div>
+                                </BoxItensCard>
                             </div>
-                        </div>
+                        </SubItemCard>
                     ))}
                     <BotaoGhost onClick={() => onUpdate(element.id, { items: [...(element.items || []), { icon: '📦', title: 'Novo Card', items: ['Exemplo 1'] }] })}>
                         <FiPlus /> Adicionar Card
@@ -438,8 +423,8 @@ const EditorSecao = ({ secao, idx, handleUpdateSecao, handleRemoveSecao, setManu
             <SecaoHeader onClick={() => setAberto(!aberto)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     {aberto ? <FiChevronUp /> : <FiChevronDown />}
-                    <span style={{ fontWeight: '700', color: '#fff' }}>{secao.title || "Seção sem título"}</span>
-                    <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '4px', color: '#8d8d99' }}>{secao.type.toUpperCase()}</span>
+                    <span style={{ fontWeight: '700', color: 'inherit' }}>{secao.title || "Seção sem título"}</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(47, 129, 247, 0.1)', padding: '2px 8px', borderRadius: '4px', color: '#2f81f7', fontWeight: 600 }}>{secao.type.toUpperCase()}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <BotaoGhost onClick={(e) => { e.stopPropagation(); handleRemoveSecao(secao.id); }} style={{ color: '#eb4d4b', padding: '4px', border: 'none' }}>
@@ -449,14 +434,14 @@ const EditorSecao = ({ secao, idx, handleUpdateSecao, handleRemoveSecao, setManu
             </SecaoHeader>
 
             {aberto && (
-                <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ padding: '20px', borderTop: '1px solid rgba(125,125,125,0.1)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                         <div>
-                            <label style={{ fontSize: '11px', color: '#8d8d99', display: 'block', marginBottom: '6px' }}>Título da Seção</label>
+                            <label style={{ fontSize: '11px', color: 'inherit', opacity: 0.7, display: 'block', marginBottom: '6px' }}>Título da Seção</label>
                             <InputEditor value={secao.title} onChange={e => handleUpdateSecao(secao.id, { title: e.target.value })} />
                         </div>
                         <div>
-                            <label style={{ fontSize: '11px', color: '#8d8d99', display: 'block', marginBottom: '6px' }}>Estilo de Fundo</label>
+                            <label style={{ fontSize: '11px', color: 'inherit', opacity: 0.7, display: 'block', marginBottom: '6px' }}>Estilo de Fundo</label>
                             <SeletorEditor 
                                 value={secao.type} 
                                 onChange={e => handleUpdateSecao(secao.id, { type: e.target.value })}
@@ -468,7 +453,7 @@ const EditorSecao = ({ secao, idx, handleUpdateSecao, handleRemoveSecao, setManu
                             />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '10px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: '#fff' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'inherit' }}>
                                 <input type="checkbox" checked={secao.pageBreak} onChange={e => handleUpdateSecao(secao.id, { pageBreak: e.target.checked })} />
                                 Quebra de Página antes
                             </label>
@@ -729,6 +714,7 @@ export default function DashboardMaster() {
                     Master
                 </Branding>
                 <TopbarActions>
+                    <BotaoTema compacto={true} />
                     <BotaoTopo onClick={() => setAbaAtiva("CONFIG")} title="Configurações SaaS">
                         <FiSettings size={18} />
                     </BotaoTopo>
@@ -760,8 +746,20 @@ export default function DashboardMaster() {
 
                     <NavSeparador />
 
+                    <div style={{ padding: "4px 8px" }}>
+                        <BotaoTema texto={true} />
+                    </div>
+
+                    <NavSeparador />
+
                     <NavItem onClick={() => navigate("/admin")}>
                         <FiArrowLeft /> <span>Painel Admin</span>
+                    </NavItem>
+
+                    <NavSeparador />
+
+                    <NavItem onClick={logout} style={{ color: '#eb4d4b' }}>
+                        <FiLogOut /> <span>Sair</span>
                     </NavItem>
                 </Nav>
             </Sidebar>
@@ -1088,16 +1086,16 @@ export default function DashboardMaster() {
                             </BotaoPrincipal>
                         </TituloSecaoRow>
 
-                        <div style={{ background: '#19191b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '20px' }}>
+                        <EditorWrapperCard>
                             <Subtitulo><FiEdit2 /> Composição Visual</Subtitulo>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <label style={{ fontSize: '12px', color: '#8d8d99' }}>
+                                <label style={{ fontSize: '12px', color: 'inherit', opacity: 0.7 }}>
                                     Adicione seções, ajuste pesos de fonte e cores. O layout premium é gerado em tempo real no PDF.
                                 </label>
                             </div>
                             
                             <VisualEditor manual={manualEditavel} setManual={setManualEditavel} />
-                        </div>
+                        </EditorWrapperCard>
                     </ConfigContainer>
                 )}
             </Conteudo>
@@ -1129,21 +1127,68 @@ export default function DashboardMaster() {
 
 /* Styled Components */
 
+const EditorWrapperCard = styled.div`
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
+`;
+
 const Layout = styled.div`
     display: flex;
     min-height: 100vh;
-    background: #121214;
-    color: #e1e1e6;
+    background: ${({ theme }) => theme.cores.fundo};
+    color: ${({ theme }) => theme.cores.texto};
 
     @media (max-width: 900px) {
         flex-direction: column;
     }
 `;
 
+const Topbar = styled.header`
+    display: none;
+    height: 60px;
+    padding: 0 16px;
+    background: ${({ theme }) => theme.cores.sidebar};
+    border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
+    align-items: center;
+    justify-content: space-between;
+
+    @media (max-width: 900px) {
+        display: flex;
+    }
+`;
+
+const TopbarActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
+const BotaoTopo = styled.button`
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    background: ${({ theme }) => theme.cores.superficie2};
+    color: ${({ theme }) => theme.cores.texto2};
+    height: 34px;
+    width: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        color: ${({ theme }) => theme.cores.texto};
+        background: ${({ theme }) => theme.cores.destaqueHover};
+    }
+`;
+
 const Sidebar = styled.aside`
     width: 260px;
-    background: #19191b;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background: ${({ theme }) => theme.cores.sidebar};
+    border-right: 1px solid ${({ theme }) => theme.cores.borda};
     display: flex;
     flex-direction: column;
     padding: 24px;
@@ -1166,6 +1211,7 @@ const Branding = styled.div`
     font-weight: 700;
     font-size: 18px;
     margin-bottom: 40px;
+    color: ${({ theme }) => theme.cores.texto};
 `;
 
 const Logo = styled.img`
@@ -1189,18 +1235,19 @@ const NavItem = styled.div`
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    color: ${props => props.$ativo ? "#fff" : "#8d8d99"};
-    background: ${props => props.$ativo ? "rgba(255, 255, 255, 0.05)" : "transparent"};
+    color: ${props => props.$ativo ? ({ theme }) => theme.cores.azul : ({ theme }) => theme.cores.texto2};
+    background: ${props => props.$ativo ? ({ theme }) => theme.cores.azul + "15" : "transparent"};
+    border: 1px solid ${props => props.$ativo ? ({ theme }) => theme.cores.azul + "30" : "transparent"};
 
     &:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fff;
+        background: ${({ theme }) => theme.cores.destaqueHover};
+        color: ${({ theme }) => theme.cores.texto};
     }
 `;
 
 const NavSeparador = styled.div`
     height: 1px;
-    background: rgba(255, 255, 255, 0.05);
+    background: ${({ theme }) => theme.cores.borda};
     margin: 16px 0;
 `;
 
@@ -1225,6 +1272,7 @@ const TituloSecao = styled.h2`
     font-size: 24px;
     font-weight: 700;
     margin: 0;
+    color: ${({ theme }) => theme.cores.texto};
 `;
 
 const AcoesBar = styled.div`
@@ -1243,13 +1291,14 @@ const GridCards = styled.div`
 `;
 
 const Card = styled.div`
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     padding: 24px;
     display: flex;
     align-items: center;
     gap: 20px;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const IconCircle = styled.div`
@@ -1266,13 +1315,14 @@ const IconCircle = styled.div`
 
 const LabelCard = styled.div`
     font-size: 13px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     margin-bottom: 4px;
 `;
 
 const ValorCard = styled.div`
     font-size: 24px;
     font-weight: 700;
+    color: ${({ theme }) => theme.cores.texto};
 `;
 
 const TopoAcoes = styled.div`
@@ -1285,8 +1335,8 @@ const TopoAcoes = styled.div`
 const BuscaWrapper = styled.div`
     flex: 1;
     max-width: 400px;
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.superficie};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 8px;
     padding: 0 16px;
     display: flex;
@@ -1296,7 +1346,7 @@ const BuscaWrapper = styled.div`
     input {
         background: transparent;
         border: 0;
-        color: #fff;
+        color: ${({ theme }) => theme.cores.texto};
         height: 44px;
         width: 100%;
         outline: none;
@@ -1318,10 +1368,11 @@ const BotaoPrincipal = styled.button`
 `;
 
 const TabelaContainer = styled.div`
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.superficie};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     overflow-x: auto;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const Tabela = styled.table`
@@ -1331,7 +1382,8 @@ const Tabela = styled.table`
 
     th, td {
         padding: 16px 24px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
+        color: ${({ theme }) => theme.cores.texto};
 
         @media (max-width: 600px) {
             padding: 12px 16px;
@@ -1339,8 +1391,8 @@ const Tabela = styled.table`
     }
 
     th {
-        background: rgba(255, 255, 255, 0.02);
-        color: #8d8d99;
+        background: ${({ theme }) => theme.cores.tabelaHeader};
+        color: ${({ theme }) => theme.cores.texto2};
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -1477,25 +1529,26 @@ const GridConfig = styled.div`
 `;
 
 const SecaoConfig = styled.div`
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const Subtitulo = styled.h3`
     font-size: 16px;
     font-weight: 700;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     display: flex;
     align-items: center;
     gap: 10px;
     margin: 0;
     padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
 
     svg { color: #2f81f7; }
 `;
@@ -1505,15 +1558,15 @@ const InputGroup = styled.div`
     flex-direction: column;
     gap: 8px;
 
-    label { font-size: 12px; font-weight: 600; color: #8d8d99; }
+    label { font-size: 12px; font-weight: 600; color: ${({ theme }) => theme.cores.texto2}; }
 
     input {
-        background: #121214;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: ${({ theme }) => theme.cores.inputFundo};
+        border: 1px solid ${({ theme }) => theme.cores.inputBorda};
         border-radius: 8px;
         height: 44px;
         padding: 0 16px;
-        color: #fff;
+        color: ${({ theme }) => theme.cores.texto};
         font-size: 14px;
         outline: none;
         transition: border-color 0.2s;
@@ -1533,16 +1586,17 @@ const ToggleWrapper = styled.div`
         gap: 14px;
         font-weight: 600;
         cursor: pointer;
+        color: ${({ theme }) => theme.cores.texto};
     }
 
-    small { color: #8d8d99; font-size: 12px; line-height: 1.5; }
+    small { color: ${({ theme }) => theme.cores.texto2}; font-size: 12px; line-height: 1.5; }
 `;
 
 const ToggleSwitch = styled.div`
     width: 44px;
     height: 24px;
     border-radius: 12px;
-    background: ${props => props.$ativo ? "#2f81f7" : "rgba(255,255,255,0.1)"};
+    background: ${props => props.$ativo ? "#2f81f7" : ({ theme }) => theme.cores.bordaForte};
     position: relative;
     cursor: pointer;
     transition: background 0.25s;
@@ -1569,18 +1623,19 @@ const FooterAcoes = styled.div`
 
 const SecaoDivisor = styled.hr`
     border: none;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid ${({ theme }) => theme.cores.borda};
     margin: 8px 0;
 `;
 
 const SecaoChangelog = styled.div`
-    background: #19191b;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: ${({ theme }) => theme.cores.card};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     padding: 28px;
     display: flex;
     flex-direction: column;
     gap: 0;
+    box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
 const GridChangelog = styled.div`
@@ -1592,11 +1647,11 @@ const GridChangelog = styled.div`
 `;
 
 const TextareaNotas = styled.textarea`
-    background: #121214;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: ${({ theme }) => theme.cores.inputFundo};
+    border: 1px solid ${({ theme }) => theme.cores.inputBorda};
     border-radius: 8px;
     padding: 12px 16px;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
     font-size: 14px;
     font-family: inherit;
     resize: vertical;
@@ -1605,7 +1660,7 @@ const TextareaNotas = styled.textarea`
     transition: border-color 0.2s;
 
     &:focus { border-color: #2f81f7; }
-    &::placeholder { color: #8d8d9966; }
+    &::placeholder { color: ${({ theme }) => theme.cores.texto2}66; }
 `;
 
 const BotaoPublicar = styled.button`
@@ -1636,8 +1691,8 @@ const BotaoGhost = styled.button`
     padding: 0 16px;
     height: 38px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #8d8d99;
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    color: ${({ theme }) => theme.cores.texto2};
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
@@ -1645,26 +1700,26 @@ const BotaoGhost = styled.button`
     transition: all 0.2s;
 
     &:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: ${({ theme }) => theme.cores.destaqueHover};
         border-color: #2f81f7;
-        color: #fff;
+        color: ${({ theme }) => theme.cores.texto};
     }
 `;
 
 const HistoricoChangelog = styled.div`
     margin-top: 28px;
     padding-top: 24px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid ${({ theme }) => theme.cores.borda};
     display: flex;
     flex-direction: column;
     gap: 16px;
 
-    h4 { font-size: 13px; font-weight: 600; color: #8d8d99; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+    h4 { font-size: 13px; font-weight: 600; color: ${({ theme }) => theme.cores.texto2}; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.8px; }
 `;
 
 const EntryChangelog = styled.div`
-    background: #121214;
-    border: 1px solid rgba(255,255,255,0.06);
+    background: ${({ theme }) => theme.cores.superficie2};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 10px;
     padding: 16px 20px;
     display: flex;
@@ -1691,18 +1746,18 @@ const VersionBadge = styled.span`
 const EntryTitulo = styled.span`
     font-size: 14px;
     font-weight: 600;
-    color: #e1e1e6;
+    color: ${({ theme }) => theme.cores.texto};
     flex: 1;
 `;
 
 const EntryData = styled.span`
     font-size: 12px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
 `;
 
 const EntryNotas = styled.pre`
     font-size: 13px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     line-height: 1.7;
     margin: 0;
     white-space: pre-wrap;

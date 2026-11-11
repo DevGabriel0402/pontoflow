@@ -32,6 +32,7 @@ import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import PainelCadastro from "../../components/admin/PainelCadastro";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalCompartilharSistema from "../../components/admin/ModalCompartilharSistema";
+import BotaoTema from "../../components/BotaoTema";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
 import { MOTIVOS_JUSTIFICATIVA } from "../../components/colaborador/ModalJustificativa";
@@ -165,12 +166,12 @@ export default function DashboardAdmin() {
   // Estados para Calendário e Ausências
   const [listaFeriados, setListaFeriados] = React.useState([]);
   const [listaAusencias, setListaAusencias] = React.useState([]);
-  const [novaAusencia, setNovaAusencia] = React.useState({ 
-    userId: "", 
-    dataInicio: format(new Date(), "yyyy-MM-dd"), 
-    dataFim: format(new Date(), "yyyy-MM-dd"), 
-    tipo: "FERIADO", 
-    motivo: "" 
+  const [novaAusencia, setNovaAusencia] = React.useState({
+    userId: "",
+    dataInicio: format(new Date(), "yyyy-MM-dd"),
+    dataFim: format(new Date(), "yyyy-MM-dd"),
+    tipo: "FERIADO",
+    motivo: ""
   });
 
   // Validar local ao abrir o painel
@@ -290,43 +291,43 @@ export default function DashboardAdmin() {
     setMostrarToast(true);
   };
 
-    const handleGerarResumoPdf = () => {
-        const periodo =
-            dataInicio || dataFim
-                ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
-                : "Todos os períodos";
+  const handleGerarResumoPdf = () => {
+    const periodo =
+      dataInicio || dataFim
+        ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
+        : "Todos os períodos";
 
-        exportarResumoPdf(resumoJornada, {
-            empresa: nomePainel,
-            periodo,
-            totalGeral: totalHorasPeriodo,
-            pontosAtivos: config?.regras?.pontosAtivos
-        });
+    exportarResumoPdf(resumoJornada, {
+      empresa: nomePainel,
+      periodo,
+      totalGeral: totalHorasPeriodo,
+      pontosAtivos: config?.regras?.pontosAtivos
+    });
 
-        setMostrarToast(true);
-    };
+    setMostrarToast(true);
+  };
 
-    const handleGerarMensalPdf = () => {
-        const periodo =
-            dataInicio || dataFim
-                ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
-                : "Todos os períodos";
+  const handleGerarMensalPdf = () => {
+    const periodo =
+      dataInicio || dataFim
+        ? `${dataInicio ? format(new Date(`${dataInicio}T12:00:00`), "dd/MM/yyyy") : "…"} até ${dataFim ? format(new Date(`${dataFim}T12:00:00`), "dd/MM/yyyy") : "…"} `
+        : "Todos os períodos";
 
-        exportarMensalPdf(resumoJornada, {
-            empresa: nomePainel,
-            periodo,
-            pontosAtivos: config?.regras?.pontosAtivos
-        });
+    exportarMensalPdf(resumoJornada, {
+      empresa: nomePainel,
+      periodo,
+      pontosAtivos: config?.regras?.pontosAtivos
+    });
 
-        setMostrarToast(true);
-    };
+    setMostrarToast(true);
+  };
 
   const handleBaixarManual = async () => {
     try {
       const snap = await getDoc(doc(db, "settings", "manual"));
       const conteudo = snap.exists() ? snap.data().template : INITIAL_MANUAL_DATA;
       const htmlFinal = gerarManualHtml(conteudo);
-      
+
       const win = window.open("", "_blank");
       win.document.write(htmlFinal);
       win.document.close();
@@ -438,106 +439,106 @@ export default function DashboardAdmin() {
 
     const todosResumos = [];
 
-      // 2. Calcular para cada um
-      funcsProcessar.forEach(func => {
-        const pontosUser = itens.filter(p => p.userId === func.id);
-        const feriados = config?.feriados || [];
+    // 2. Calcular para cada um
+    funcsProcessar.forEach(func => {
+      const pontosUser = itens.filter(p => p.userId === func.id);
+      const feriados = config?.feriados || [];
 
-        const dZerado = func.bancoHorasZeradoEm?.toDate
-          ? func.bancoHorasZeradoEm.toDate()
-          : (func.bancoHorasZeradoEm ? new Date(func.bancoHorasZeradoEm) : null);
+      const dZerado = func.bancoHorasZeradoEm?.toDate
+        ? func.bancoHorasZeradoEm.toDate()
+        : (func.bancoHorasZeradoEm ? new Date(func.bancoHorasZeradoEm) : null);
 
-        const dataCriacao = dZerado || (func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null));
+      const dataCriacao = dZerado || (func.criadoEm?.toDate ? func.criadoEm.toDate() : (func.criadoEm ? new Date(func.criadoEm) : null));
 
-        // Filtrar apenas lançamentos feitos após a data de zeramento
-        const lancamentosValidos = (bancoHoras || []).filter((l) => {
-          if (l.userId !== func.id) return false;
-          if (!dZerado) return true;
-          let dLanc = l.criadoEm?.toDate ? l.criadoEm.toDate() : (l.dataReferencia ? new Date(`${l.dataReferencia}T12:00:00`) : null);
-          if (dLanc && dLanc < dZerado) return false;
-          return true;
-        });
+      // Filtrar apenas lançamentos feitos após a data de zeramento
+      const lancamentosValidos = (bancoHoras || []).filter((l) => {
+        if (l.userId !== func.id) return false;
+        if (!dZerado) return true;
+        let dLanc = l.criadoEm?.toDate ? l.criadoEm.toDate() : (l.dataReferencia ? new Date(`${l.dataReferencia}T12:00:00`) : null);
+        if (dLanc && dLanc < dZerado) return false;
+        return true;
+      });
 
-        // Extrair abonos (justificativas aprovadas ou abonos manuais) para este funcionário
-        const abonosFunc = {};
-        lancamentosValidos
-          .filter(l => (
-            (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
-            (l.origem === "ABONO_MANUAL")
-          ))
-          .forEach(l => {
-            let dataKey = null;
-            if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
-              dataKey = l.dataReferencia;
-            } else {
-              const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-              if (match) {
-                dataKey = `${match[3]}-${match[2]}-${match[1]}`;
-              }
+      // Extrair abonos (justificativas aprovadas ou abonos manuais) para este funcionário
+      const abonosFunc = {};
+      lancamentosValidos
+        .filter(l => (
+          (l.origem === "JUSTIFICATIVA_APROVADA" && l.minutos === 0 && l.descricao?.includes("Abono de Falta")) ||
+          (l.origem === "ABONO_MANUAL")
+        ))
+        .forEach(l => {
+          let dataKey = null;
+          if (l.origem === "ABONO_MANUAL" && l.dataReferencia) {
+            dataKey = l.dataReferencia;
+          } else {
+            const match = l.descricao?.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            if (match) {
+              dataKey = `${match[3]}-${match[2]}-${match[1]}`;
             }
-            if (dataKey) {
-              abonosFunc[dataKey] = l.motivo ? getMotivoLabel(l.motivo) : "Justificado";
-            }
-          });
-
-        // Injetar Ausências/Férias/Recessos configurados na empresa
-        (config?.ausencias || []).forEach(aus => {
-          if (aus.userId === func.id || !aus.userId) {
-            try {
-              let d = new Date(`${aus.dataInicio}T12:00:00`);
-              const f = new Date(`${aus.dataFim}T12:00:00`);
-              while (d <= f) {
-                const key = format(d, "yyyy-MM-dd");
-                abonosFunc[key] = aus.motivo || (aus.tipo === "FERIAS" ? "Férias" : (aus.tipo === "RECESSO" ? "Recesso" : (aus.tipo === "FERIADO" ? "Feriado" : "Abonado")));
-                d.setDate(d.getDate() + 1);
-              }
-            } catch (e) { console.error("Erro ao processar ausência:", e); }
+          }
+          if (dataKey) {
+            abonosFunc[dataKey] = l.motivo ? getMotivoLabel(l.motivo) : "Justificado";
           }
         });
 
-        const dataCriacaoTotal = dataCriacao || new Date();
-        
-        // Calcular resumo HISTÓRICO TOTAL (para o Saldo Total)
-        const resumoHistorico = calcularResumoDiario(
-          pontosUser,
-          func.jornadas || func.jornada,
-          abonosFunc, // Incluindo abonos aqui
-          func.cargaHorariaSemanal,
-          format(dataCriacaoTotal, "yyyy-MM-dd"),
-          format(new Date(), "yyyy-MM-dd"),
-          feriados,
-          dataCriacaoTotal
-        );
+      // Injetar Ausências/Férias/Recessos configurados na empresa
+      (config?.ausencias || []).forEach(aus => {
+        if (aus.userId === func.id || !aus.userId) {
+          try {
+            let d = new Date(`${aus.dataInicio}T12:00:00`);
+            const f = new Date(`${aus.dataFim}T12:00:00`);
+            while (d <= f) {
+              const key = format(d, "yyyy-MM-dd");
+              abonosFunc[key] = aus.motivo || (aus.tipo === "FERIAS" ? "Férias" : (aus.tipo === "RECESSO" ? "Recesso" : (aus.tipo === "FERIADO" ? "Feriado" : "Abonado")));
+              d.setDate(d.getDate() + 1);
+            }
+          } catch (e) { console.error("Erro ao processar ausência:", e); }
+        }
+      });
 
-        const somaAuto = resumoHistorico.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
-        const somaManual = lancamentosValidos
-          .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
-        
-        const saldoTotal = somaAuto + somaManual;
+      const dataCriacaoTotal = dataCriacao || new Date();
 
-        // Calcular resumo do PERÍODO SELECIONADO (para a tabela do PDF)
-        const resumosUser = calcularResumoDiario(
-          pontosUser,
-          func.jornadas || func.jornada,
-          abonosFunc, // Incluindo abonos aqui também
-          func.cargaHorariaSemanal,
-          dataInicio,
-          dataFim,
-          feriados,
-          dataCriacao
-        );
+      // Calcular resumo HISTÓRICO TOTAL (para o Saldo Total)
+      const resumoHistorico = calcularResumoDiario(
+        pontosUser,
+        func.jornadas || func.jornada,
+        abonosFunc, // Incluindo abonos aqui
+        func.cargaHorariaSemanal,
+        format(dataCriacaoTotal, "yyyy-MM-dd"),
+        format(new Date(), "yyyy-MM-dd"),
+        feriados,
+        dataCriacaoTotal
+      );
 
-        resumosUser.forEach(r => {
-          todosResumos.push({
-            ...r,
-            userId: func.id,
-            userName: func.nome,
-            totalMinutos: r.minutosTrabalhados,
-            totalFormatado: formatarDuracao(r.minutosTrabalhados),
-            saldo: saldoTotal
-          });
+      const somaAuto = resumoHistorico.reduce((acc, d) => acc + (d.diferenca ?? 0), 0);
+      const somaManual = lancamentosValidos
+        .reduce((acc, l) => acc + (l.tipo === "CREDITO" ? l.minutos : -l.minutos), 0);
+
+      const saldoTotal = somaAuto + somaManual;
+
+      // Calcular resumo do PERÍODO SELECIONADO (para a tabela do PDF)
+      const resumosUser = calcularResumoDiario(
+        pontosUser,
+        func.jornadas || func.jornada,
+        abonosFunc, // Incluindo abonos aqui também
+        func.cargaHorariaSemanal,
+        dataInicio,
+        dataFim,
+        feriados,
+        dataCriacao
+      );
+
+      resumosUser.forEach(r => {
+        todosResumos.push({
+          ...r,
+          userId: func.id,
+          userName: func.nome,
+          totalMinutos: r.minutosTrabalhados,
+          totalFormatado: formatarDuracao(r.minutosTrabalhados),
+          saldo: saldoTotal
         });
       });
+    });
 
     // 3. Ordenar por data decrescente (mais recente primeiro)
     return todosResumos.sort((a, b) => b.data - a.data);
@@ -608,7 +609,7 @@ export default function DashboardAdmin() {
 
       // Mapeamento de pendências
       const pendencias = [];
-      
+
       // Verifica o que falta baseado nos pontos ativos e no que foi batido
       if (temPonto('entrada') && !j.check.entrada) pendencias.push({ label: "entrada", tipo: "ENTRADA" });
       if (temPonto('saida') && !j.check.saida) pendencias.push({ label: "saída", tipo: "SAIDA" });
@@ -695,6 +696,12 @@ export default function DashboardAdmin() {
 
           <NavSeparador />
 
+          <div style={{ padding: "4px 8px" }}>
+            <BotaoTema texto={true} />
+          </div>
+
+          <NavSeparador />
+
           <NavItem onClick={logout} style={{ color: '#eb4d4b' }}>
             <FiLogOut /> <span>Sair</span>
           </NavItem>
@@ -726,10 +733,13 @@ export default function DashboardAdmin() {
             <span>{validacao.ok ? 'Na Sede' : 'Fora da Sede'}</span>
             {validacao.distance !== null && <strong>{Math.round(validacao.distance)}m</strong>}
           </div>
-          <button className="logout-btn" onClick={logout}>
-            <FiLogOut />
-            Sair
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <BotaoTema compacto={true} />
+            <button className="logout-btn" onClick={logout}>
+              <FiLogOut />
+              Sair
+            </button>
+          </div>
         </StatusLocalMobile>
 
         {carregando && <LoadingGlobal />}
@@ -823,7 +833,7 @@ export default function DashboardAdmin() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {format(j.data, 'dd/MM/yyyy')}
                                 {j.status !== "Ok" && j.status !== "Futuro" && j.status !== "Hoje" && (
-                                  <BtnNotificar 
+                                  <BtnNotificar
                                     onClick={() => handleNotificar(j)}
                                     title="Notificar colaborador sobre este dia"
                                   >
@@ -845,21 +855,21 @@ export default function DashboardAdmin() {
                               </td>
                             )}
                             <td>{j.totalFormatado}</td>
-                             <td>
-                               <StatusBadge 
-                                 $ativo={j.status === "Ok"}
-                                 $justificado={j.status !== "Ok" && j.status !== "Incompleto" && j.status !== "Falta"}
-                               >
-                                 {j.status === "Ok" ? (
-                                   <FiCheckCircle />
-                                 ) : (j.status !== "Incompleto" && j.status !== "Falta") ? (
-                                   <FiAlertTriangle />
-                                 ) : (
-                                   <FiAlertCircle />
-                                 )}
-                                 {j.status}
-                               </StatusBadge>
-                             </td>
+                            <td>
+                              <StatusBadge
+                                $ativo={j.status === "Ok"}
+                                $justificado={j.status !== "Ok" && j.status !== "Incompleto" && j.status !== "Falta"}
+                              >
+                                {j.status === "Ok" ? (
+                                  <FiCheckCircle />
+                                ) : (j.status !== "Incompleto" && j.status !== "Falta") ? (
+                                  <FiAlertTriangle />
+                                ) : (
+                                  <FiAlertCircle />
+                                )}
+                                {j.status}
+                              </StatusBadge>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -940,22 +950,22 @@ export default function DashboardAdmin() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {f.nome}
                                 {f.status === 'novo' && (
-                                  <span style={{ 
-                                    background: 'var(--cor-primaria)', 
-                                    color: '#fff', 
-                                    fontSize: '10px', 
-                                    padding: '2px 6px', 
+                                  <span style={{
+                                    background: 'var(--cor-primaria)',
+                                    color: '#fff',
+                                    fontSize: '10px',
+                                    padding: '2px 6px',
                                     borderRadius: '4px',
                                     fontWeight: '900',
                                     textTransform: 'uppercase'
                                   }}>Novo</span>
                                 )}
                                 {f.exigirGeo === false && (
-                                  <span title="Geofencing desativado para este colaborador" style={{ 
-                                    background: '#f39c12', 
-                                    color: '#000', 
-                                    fontSize: '10px', 
-                                    padding: '2px 6px', 
+                                  <span title="Geofencing desativado para este colaborador" style={{
+                                    background: '#f39c12',
+                                    color: '#000',
+                                    fontSize: '10px',
+                                    padding: '2px 6px',
                                     borderRadius: '4px',
                                     fontWeight: '700'
                                   }}>GPS Livre</span>
@@ -1043,36 +1053,24 @@ export default function DashboardAdmin() {
 
                     {secoesAbertasConfig.regime && (
                       <AccordionBody>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'inherit', opacity: 0.85 }}>
                           Defina a forma como os colaboradores registrarão as batidas diárias na instituição.
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                          <div
+                          <CardOpcaoRegime
+                            $ativo={configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')}
                             onClick={() => setConfigPontosAtivos(['entrada', 'saida'])}
-                            style={{
-                              padding: '16px',
-                              borderRadius: '14px',
-                              cursor: 'pointer',
-                              border: '2px solid',
-                              borderColor: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
-                                ? 'var(--cor-primaria, #2f81f7)'
-                                : 'rgba(255,255,255,0.06)',
-                              background: (configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida'))
-                                ? 'rgba(47, 129, 247, 0.08)'
-                                : 'rgba(255,255,255,0.02)',
-                              transition: 'all 0.2s'
-                            }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                              <strong style={{ color: '#fff', fontSize: '14px' }}>Somente Entrada e Saída (2 batidas)</strong>
+                              <strong>Somente Entrada e Saída (2 batidas)</strong>
                               {(configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')) && (
-                                <span style={{ fontSize: '10px', background: 'var(--cor-primaria, #2f81f7)', color: '#fff', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>Ativo</span>
+                                <span className="badge-ativo">Ativo</span>
                               )}
                             </div>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#8d8d99', lineHeight: 1.4 }}>
+                            <p>
                               Fluxo suave e sem atrito. O colaborador registra a Entrada ao chegar e a Saída ao encerrar. Ideal para simplificar a rotina.
                             </p>
-                          </div>
+                          </CardOpcaoRegime>
                         </div>
                       </AccordionBody>
                     )}
@@ -1198,7 +1196,7 @@ export default function DashboardAdmin() {
                                   { value: "FERIAS", label: "Férias", icon: <FiUserPlus size={12} /> },
                                   { value: "OUTRO", label: "Abono", icon: <FiCheckSquare size={12} /> }
                                 ].map(opt => (
-                                  <div 
+                                  <div
                                     key={opt.value}
                                     onClick={() => setNovaAusencia({ ...novaAusencia, tipo: opt.value, userId: opt.value === "FERIAS" ? novaAusencia.userId : "" })}
                                     style={{
@@ -1229,17 +1227,17 @@ export default function DashboardAdmin() {
                             <div className="input-grid">
                               <div className="input-group">
                                 <label>Data Início</label>
-                                <input 
-                                  type="date" 
-                                  value={novaAusencia.dataInicio} 
+                                <input
+                                  type="date"
+                                  value={novaAusencia.dataInicio}
                                   onChange={(e) => setNovaAusencia({ ...novaAusencia, dataInicio: e.target.value, dataFim: e.target.value > novaAusencia.dataFim ? e.target.value : novaAusencia.dataFim })}
                                 />
                               </div>
                               <div className="input-group">
                                 <label>Data Fim (opcional)</label>
-                                <input 
-                                  type="date" 
-                                  value={novaAusencia.dataFim} 
+                                <input
+                                  type="date"
+                                  value={novaAusencia.dataFim}
                                   onChange={(e) => setNovaAusencia({ ...novaAusencia, dataFim: e.target.value })}
                                 />
                               </div>
@@ -1247,30 +1245,30 @@ export default function DashboardAdmin() {
 
                             <div className="input-group">
                               <label>Descrição / Motivo</label>
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 placeholder="Ex: Férias Anuais, Feriado Municipal..."
                                 value={novaAusencia.motivo}
                                 onChange={(e) => setNovaAusencia({ ...novaAusencia, motivo: e.target.value })}
                               />
                             </div>
 
-                            <BotaoGhost 
+                            <BotaoGhost
                               onClick={() => {
                                 if (!novaAusencia.dataInicio) return toast.error("Selecione a data.");
                                 if (novaAusencia.tipo === "FERIAS" && !novaAusencia.userId) return toast.error("Selecione o colaborador.");
-                                
+
                                 if (novaAusencia.tipo === "FERIADO" && novaAusencia.dataInicio === novaAusencia.dataFim) {
-                                   if (listaFeriados.includes(novaAusencia.dataInicio)) {
-                                     toast.error("Este feriado já está cadastrado.");
-                                     return;
-                                   }
-                                   setListaFeriados([...listaFeriados, novaAusencia.dataInicio].sort());
+                                  if (listaFeriados.includes(novaAusencia.dataInicio)) {
+                                    toast.error("Este feriado já está cadastrado.");
+                                    return;
+                                  }
+                                  setListaFeriados([...listaFeriados, novaAusencia.dataInicio].sort());
                                 } else {
-                                   const id = Math.random().toString(36).substr(2, 9);
-                                   setListaAusencias([...listaAusencias, { ...novaAusencia, id }].sort((a,b) => a.dataInicio.localeCompare(b.dataInicio)));
+                                  const id = Math.random().toString(36).substr(2, 9);
+                                  setListaAusencias([...listaAusencias, { ...novaAusencia, id }].sort((a, b) => a.dataInicio.localeCompare(b.dataInicio)));
                                 }
-                                
+
                                 toast.success("Adicionado à lista!", { icon: '📅' });
                                 setNovaAusencia({ ...novaAusencia, motivo: "" });
                               }}
@@ -1285,20 +1283,20 @@ export default function DashboardAdmin() {
                               <h5 style={{ color: '#8d8d99', fontSize: '11px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' }}>Datas Confirmadas</h5>
                               <span style={{ fontSize: '10px', color: '#666' }}>{listaFeriados.length + listaAusencias.length} registros</span>
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
                               {listaFeriados.map(f => (
                                 <div key={f} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(241, 196, 15, 0.03)', border: '1px solid rgba(241, 196, 15, 0.1)', borderRadius: '12px', transition: 'all 0.2s' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(241, 196, 15, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                      <FiCalendar size={16} color="#f1c40f" />
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(241, 196, 15, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <FiCalendar size={16} color="#d97706" />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>{format(new Date(`${f}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}</span>
-                                      <span style={{ fontSize: '11px', color: '#8d8d99' }}>Feriado Nacional • {format(new Date(`${f}T12:00:00`), "yyyy")}</span>
+                                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'inherit' }}>{format(new Date(`${f}T12:00:00`), "dd 'de' MMMM", { locale: ptBR })}</span>
+                                      <span style={{ fontSize: '11px', opacity: 0.75 }}>Feriado Nacional • {format(new Date(`${f}T12:00:00`), "yyyy")}</span>
                                     </div>
                                   </div>
-                                  <button 
+                                  <button
                                     onClick={() => setListaFeriados(listaFeriados.filter(x => x !== f))}
                                     style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
                                     className="hover-danger"
@@ -1308,35 +1306,35 @@ export default function DashboardAdmin() {
                                 </div>
                               ))}
                               {listaAusencias.map(aus => (
-                                <div key={aus.id} style={{ 
-                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', 
-                                  background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.03)' : 'rgba(47, 129, 247, 0.03)', 
+                                <div key={aus.id} style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px',
+                                  background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.05)' : 'rgba(47, 129, 247, 0.05)',
                                   border: '1px solid',
-                                  borderColor: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)',
-                                  borderRadius: '12px' 
+                                  borderColor: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.15)' : 'rgba(47, 129, 247, 0.15)',
+                                  borderRadius: '12px'
                                 }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ 
-                                      width: '36px', height: '36px', borderRadius: '10px', 
-                                      background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(47, 129, 247, 0.1)', 
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                                    <div style={{
+                                      width: '36px', height: '36px', borderRadius: '10px',
+                                      background: aus.tipo === 'FERIAS' ? 'rgba(46, 204, 113, 0.12)' : 'rgba(47, 129, 247, 0.12)',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
-                                      {aus.tipo === 'FERIAS' ? <FiUserCheck size={16} color="#2ecc71" /> : <FiClock size={16} color="#2f81f7" />}
+                                      {aus.tipo === 'FERIAS' ? <FiUserCheck size={16} color="#16a34a" /> : <FiClock size={16} color="#2f81f7" />}
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#eee' }}>
+                                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'inherit' }}>
                                         {format(new Date(`${aus.dataInicio}T12:00:00`), "dd/MM")}
                                         {aus.dataFim !== aus.dataInicio && ` — ${format(new Date(`${aus.dataFim}T12:00:00`), "dd/MM")}`}
                                       </span>
-                                      <span style={{ fontSize: '11px', color: '#8d8d99' }}>
-                                        {aus.tipo === 'FERIAS' 
-                                          ? `Férias: ${funcionarios.find(f => f.id === aus.userId)?.nome}` 
+                                      <span style={{ fontSize: '11px', opacity: 0.75 }}>
+                                        {aus.tipo === 'FERIAS'
+                                          ? `Férias: ${funcionarios.find(f => f.id === aus.userId)?.nome}`
                                           : (aus.tipo === 'FERIADO' ? 'Feriado' : aus.tipo === 'RECESSO' ? 'Recesso Corporativo' : 'Outra Ausência')}
                                         {aus.motivo && ` • ${aus.motivo}`}
                                       </span>
                                     </div>
                                   </div>
-                                  <button 
+                                  <button
                                     onClick={() => setListaAusencias(listaAusencias.filter(x => x.id !== aus.id))}
                                     style={{ background: 'transparent', border: 0, padding: '8px', color: '#eb4d4b', cursor: 'pointer', borderRadius: '8px' }}
                                   >
@@ -1513,7 +1511,7 @@ export default function DashboardAdmin() {
             {abaAtiva === "JUSTIFICATIVAS" && (
               <>
                 <Topo>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>Justificativas de Ponto</h2>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Justificativas de Ponto</h2>
                 </Topo>
                 <PainelJustificativas funcionarios={funcionarios} />
               </>
@@ -1592,96 +1590,97 @@ color: ${({ theme }) => theme.cores.texto};
 const LayoutAdmin = styled.div`
   display: flex;
   min-height: 100vh;
-  background: #121214;
-  color: #e1e1e6;
+  background: ${({ theme }) => theme.cores.fundo};
+  color: ${({ theme }) => theme.cores.texto};
   width: 100%;
   overflow-x: hidden; /* Garante que nada escape do layout principal */
 `;
 
 const Sidebar = styled.aside`
-width: 260px;
-flex-shrink: 0;
-background: #19191b;
-border-right: 1px solid rgba(255, 255, 255, 0.05);
-display: flex;
-flex-direction: column;
-padding: 24px;
-position: fixed;
-top: 0;
-left: 0;
-bottom: 0;
-z-index: 100;
-overflow-y: auto;
+  width: 260px;
+  flex-shrink: 0;
+  background: ${({ theme }) => theme.cores.sidebar};
+  border-right: 1px solid ${({ theme }) => theme.cores.borda};
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  overflow-y: auto;
 
-@media (max-width: 900px) {
-  display: none;
-}
+  @media (max-width: 900px) {
+    display: none;
+  }
 `;
 
 const Branding = styled.div`
-display: flex;
-align-items: center;
-gap: 12px;
-font-weight: 700;
-font-size: 20px;
-margin-bottom: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 48px;
+  color: ${({ theme }) => theme.cores.texto};
 `;
 
 const Logo = styled.img`
-width: 32px;
-height: 32px;
-border-radius: 8px;
-object-fit: contain;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
 `;
 
 const Nav = styled.nav`
-display: flex;
-flex-direction: column;
-gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 `;
 
 const NavItem = styled.div`
-display: flex;
-align-items: center;
-gap: 12px;
-padding: 12px 16px;
-border-radius: 8px;
-font-size: 14px;
-font-weight: 600;
-cursor: pointer;
-transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 
-color: ${({ $ativo }) => ($ativo ? "#fff" : "#8d8d99")};
-background: ${({ $ativo }) => ($ativo ? "rgba(255, 255, 255, 0.05)" : "transparent")};
-border: 1px solid ${({ $ativo }) => ($ativo ? "rgba(255, 255, 255, 0.1)" : "transparent")};
+  color: ${({ $ativo, theme }) => ($ativo ? theme.cores.azul : theme.cores.texto2)};
+  background: ${({ $ativo, theme }) => ($ativo ? theme.cores.azul + "15" : "transparent")};
+  border: 1px solid ${({ $ativo, theme }) => ($ativo ? theme.cores.azul + "30" : "transparent")};
 
   &:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
+    color: ${({ theme }) => theme.cores.texto};
+    background: ${({ theme }) => theme.cores.destaqueHover};
+  }
 
   svg {
-  font-size: 18px;
-}
+    font-size: 18px;
+  }
 `;
 
 const NavSeparador = styled.div`
-height: 1px;
-background: rgba(255, 255, 255, 0.05);
-margin: 16px 0;
+  height: 1px;
+  background: ${({ theme }) => theme.cores.borda};
+  margin: 16px 0;
 `;
 
 const StatusLocal = styled.div`
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: ${({ theme }) => theme.cores.superficie2};
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   margin-top: auto;
 
   .label {
     font-size: 10px;
     font-weight: 800;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     text-transform: uppercase;
     margin-bottom: 8px;
     letter-spacing: 1px;
@@ -1702,7 +1701,7 @@ const StatusLocal = styled.div`
 
   .distancia {
     font-size: 11px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     margin-top: 4px;
     font-weight: 600;
   }
@@ -1729,6 +1728,7 @@ const Topo = styled.header`
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 24px;
+  color: ${({ theme }) => theme.cores.texto};
 
   @media (max-width: 900px) {
     gap: 12px;
@@ -1843,7 +1843,7 @@ const FiltroDataWrapper = styled.div`
     flex: 1;
 
     &::-webkit-calendar-picker-indicator {
-      filter: invert(1);
+      filter: ${({ theme }) => theme.nome === "dark" ? "invert(1)" : "none"};
       cursor: pointer;
     }
   }
@@ -1873,18 +1873,18 @@ const ResumoHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
 
   .resumo-info {
     h3 {
       font-size: 16px;
       font-weight: 700;
-      color: #fff;
+      color: ${({ theme }) => theme.cores.texto};
       margin: 0 0 4px;
     }
     p {
       font-size: 13px;
-      color: #8d8d99;
+      color: ${({ theme }) => theme.cores.texto2};
       strong { color: var(--cor-primaria, #2f81f7); }
     }
   }
@@ -1910,11 +1910,12 @@ const ResumoCards = styled.div`
 `;
 
 const Card = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 180px;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 
   @media (max-width: 600px) {
     min-width: 0;
@@ -1923,30 +1924,31 @@ const Card = styled.div`
 `;
 
 const LabelCard = styled.div`
-font-size: 13px;
-color: #8d8d99;
-font-weight: 600;
-margin-bottom: 8px;
+  font-size: 13px;
+  color: ${({ theme }) => theme.cores.texto2};
+  font-weight: 600;
+  margin-bottom: 8px;
 `;
 
 const ValorCard = styled.div`
-font-size: 24px;
-font-weight: 700;
-color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.cores.texto};
 `;
 
 const TabelaContainer = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${({ theme }) => theme.cores.superficie};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: 12px;
   overflow-x: auto;
   width: 100%; /* Garante que a div não estoure o pai */
+  box-shadow: ${({ theme }) => theme.sombra.suave};
   
   &::-webkit-scrollbar {
     height: 6px;
   }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.borda};
     border-radius: 10px;
   }
 `;
@@ -1960,12 +1962,13 @@ const TabelaStyled = styled.table`
   th, td {
     padding: 14px 16px;
     font-size: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
+    color: ${({ theme }) => theme.cores.texto};
   }
 
   th {
-    background: #1c1c1e;
-    color: #8d8d99;
+    background: ${({ theme }) => theme.cores.tabelaHeader};
+    color: ${({ theme }) => theme.cores.texto2};
     font-weight: 600;
     text-transform: uppercase;
     font-size: 11px;
@@ -2014,30 +2017,36 @@ transition: filter 0.2s;
 `;
 
 const BotaoGhost = styled.button`
-height: 44px;
-padding: 0 20px;
-background: transparent;
-color: #fff;
-border: 1px solid rgba(255, 255, 255, 0.1);
-border-radius: 8px;
-font-weight: 600;
-display: flex;
-align-items: center;
-gap: 10px;
-cursor: pointer;
-transition: all 0.2s;
+  height: 44px;
+  padding: 0 20px;
+  background: transparent;
+  color: ${({ theme }) => theme.cores.texto};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
 
   &:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border - color: var(--cor-primaria, #2f81f7);
-}
+    background: ${({ theme }) => theme.cores.destaqueHover};
+    border-color: var(--cor-primaria, #2f81f7);
+    color: ${({ theme }) => theme.cores.texto};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const TituloSecao = styled.h2`
 font-size: 20px;
 font-weight: 700;
 margin: 0;
-color: #fff;
+color: ${({ theme }) => theme.cores.texto};
 `;
 
 const PainelConfig = styled.div`
@@ -2056,10 +2065,11 @@ const PainelConfig = styled.div`
 `;
 
 const ConfigBox = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: 12px;
   padding: 24px;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 
   @media (max-width: 600px) {
     padding: 20px 16px;
@@ -2068,12 +2078,12 @@ const ConfigBox = styled.div`
   h4 {
     margin: 0 0 8px;
     font-size: 16px;
-    color: #fff;
+    color: ${({ theme }) => theme.cores.texto};
   }
 
   p {
     font-size: 13px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
     margin: 0 0 20px;
   }
 
@@ -2093,19 +2103,19 @@ const ConfigBox = styled.div`
     }
 
     input {
-    background: #121214;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    height: 44px;
-    padding: 0 16px;
-    color: #fff;
-    outline: none;
-    flex: 1;
+      background: ${({ theme }) => theme.cores.inputFundo};
+      border: 1px solid ${({ theme }) => theme.cores.inputBorda};
+      border-radius: 8px;
+      height: 44px;
+      padding: 0 16px;
+      color: ${({ theme }) => theme.cores.texto};
+      outline: none;
+      flex: 1;
       
       &:focus {
-      border-color: var(--cor-primaria, #2f81f7);
+        border-color: var(--cor-primaria, #2f81f7);
+      }
     }
-  }
 
     span {
       color: ${({ theme }) => theme.cores.texto2};
@@ -2124,17 +2134,17 @@ const ConfigBox = styled.div`
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      color: #8d8d99;
+      color: ${({ theme }) => theme.cores.texto2};
       margin-bottom: 0;
     }
 
     input, textarea {
-      background: #121214;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: ${({ theme }) => theme.cores.inputFundo};
+      border: 1px solid ${({ theme }) => theme.cores.inputBorda};
       border-radius: 8px;
       height: 44px;
       padding: 0 16px;
-      color: #fff;
+      color: ${({ theme }) => theme.cores.texto};
       outline: none;
       width: 100%;
       transition: all 0.2s;
@@ -2202,18 +2212,18 @@ const StatusBadge = styled.div`
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  background: ${({ $ativo, $justificado }) => 
-    $ativo ? "rgba(46, 204, 113, 0.1)" : 
-    $justificado ? "rgba(241, 196, 15, 0.15)" : 
-    "rgba(235, 77, 75, 0.1)"};
-  color: ${({ $ativo, $justificado }) => 
-    $ativo ? "#2ecc71" : 
-    $justificado ? "#f1c40f" : 
-    "#eb4d4b"};
-  border: 1px solid ${({ $ativo, $justificado }) => 
-    $ativo ? "rgba(46, 204, 113, 0.2)" : 
-    $justificado ? "rgba(241, 196, 15, 0.2)" : 
-    "rgba(235, 77, 75, 0.2)"};
+  background: ${({ $ativo, $justificado }) =>
+    $ativo ? "rgba(46, 204, 113, 0.1)" :
+      $justificado ? "rgba(241, 196, 15, 0.15)" :
+        "rgba(235, 77, 75, 0.1)"};
+  color: ${({ $ativo, $justificado }) =>
+    $ativo ? "#2ecc71" :
+      $justificado ? "#f1c40f" :
+        "#eb4d4b"};
+  border: 1px solid ${({ $ativo, $justificado }) =>
+    $ativo ? "rgba(46, 204, 113, 0.2)" :
+      $justificado ? "rgba(241, 196, 15, 0.2)" :
+        "rgba(235, 77, 75, 0.2)"};
 
   svg {
     font-size: 14px;
@@ -2279,10 +2289,10 @@ const AtalhosMobile = styled.div`
 const AtalhoBtn = styled.button`
   flex: 1;
   height: 48px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   border-radius: 12px;
-  color: #fff;
+  color: ${({ theme }) => theme.cores.texto};
   font-size: 13px;
   font-weight: 600;
   display: flex;
@@ -2294,7 +2304,7 @@ const AtalhoBtn = styled.button`
 
   &:active {
     transform: scale(0.98);
-    background: rgba(255, 255, 255, 0.05);
+    background: ${({ theme }) => theme.cores.destaqueHover};
   }
 
   svg {
@@ -2308,8 +2318,8 @@ const StatusLocalMobile = styled.div`
   justify-content: space-between;
   padding: 10px 16px;
   border-radius: 12px;
-  background: #19191b;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: ${({ theme }) => theme.cores.superficie};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   font-size: 13px;
   font-weight: 700;
   margin-bottom: 8px;
@@ -2419,15 +2429,15 @@ const AccordionContainer = styled.div`
 `;
 
 const AccordionCard = styled.div`
-  background: #18191c;
-  border: 1px solid ${p => p.$aberto ? "rgba(79, 172, 254, 0.3)" : "rgba(255, 255, 255, 0.08)"};
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme, $aberto }) => ($aberto ? "rgba(79, 172, 254, 0.4)" : theme.cores.borda)};
   border-radius: 18px;
   overflow: hidden;
   transition: all 0.25s ease;
-  box-shadow: ${p => p.$aberto ? "0 8px 30px rgba(0, 0, 0, 0.4)" : "0 4px 16px rgba(0, 0, 0, 0.2)"};
+  box-shadow: ${({ theme, $aberto }) => ($aberto ? theme.sombra.forte : theme.sombra.suave)};
 
   &:hover {
-    border-color: ${p => p.$aberto ? "rgba(79, 172, 254, 0.4)" : "rgba(255, 255, 255, 0.16)"};
+    border-color: ${({ theme, $aberto }) => ($aberto ? "rgba(79, 172, 254, 0.5)" : theme.cores.bordaForte)};
   }
 `;
 
@@ -2438,11 +2448,11 @@ const AccordionHeader = styled.div`
   padding: 18px 24px;
   cursor: pointer;
   user-select: none;
-  background: ${p => p.$aberto ? "rgba(255, 255, 255, 0.03)" : "transparent"};
+  background: ${({ theme, $aberto }) => ($aberto ? theme.cores.destaqueHover : "transparent")};
   transition: background 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: ${({ theme }) => theme.cores.destaqueHover};
   }
 `;
 
@@ -2467,12 +2477,12 @@ const AccordionTitulos = styled.div`
     margin: 0;
     font-size: 15px;
     font-weight: 700;
-    color: #ffffff;
+    color: ${({ theme }) => theme.cores.texto};
   }
   p {
     margin: 3px 0 0;
     font-size: 12.5px;
-    color: #8d8d99;
+    color: ${({ theme }) => theme.cores.texto2};
   }
 `;
 
@@ -2480,19 +2490,56 @@ const AccordionChevron = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8d8d99;
+  color: ${({ theme }) => theme.cores.texto2};
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   transform: rotate(${p => p.$aberto ? "180deg" : "0deg"});
 `;
 
 const AccordionBody = styled.div`
   padding: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid ${({ theme }) => theme.cores.borda};
+  background: ${({ theme }) => theme.cores.superficie};
+  color: ${({ theme }) => theme.cores.texto};
   animation: fadeIn 0.25s ease-out;
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-6px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const CardOpcaoRegime = styled.div`
+  padding: 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  border: 2px solid ${({ theme, $ativo }) => ($ativo ? "var(--cor-primaria, #2f81f7)" : theme.cores.borda)};
+  background: ${({ theme, $ativo }) => ($ativo ? (theme.nome === "dark" ? "rgba(47, 129, 247, 0.12)" : "rgba(47, 129, 247, 0.06)") : theme.cores.superficie2)};
+  transition: all 0.2s ease;
+
+  strong {
+    color: ${({ theme }) => theme.cores.texto};
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: ${({ theme }) => theme.cores.texto2};
+    line-height: 1.45;
+  }
+
+  .badge-ativo {
+    font-size: 10px;
+    background: var(--cor-primaria, #2f81f7);
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 800;
+  }
+
+  &:hover {
+    border-color: var(--cor-primaria, #2f81f7);
+    transform: translateY(-1px);
   }
 `;

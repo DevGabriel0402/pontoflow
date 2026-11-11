@@ -397,7 +397,7 @@ const Campo = styled.div`
     outline: none;
 
     &::-webkit-calendar-picker-indicator {
-      filter: invert(1);
+      filter: ${({ theme }) => theme.nome === "dark" ? "invert(1)" : "none"};
     }
   }
 `;
@@ -524,13 +524,13 @@ const InputSlim = styled.input`
   padding: 0 8px;
   border-radius: 8px;
   border: 1px solid ${({ theme }) => theme.cores.borda};
-  background: rgba(255,255,255,0.03);
+  background: ${({ theme }) => theme.cores.inputFundo};
   color: ${({ theme }) => theme.cores.texto};
   font-size: 13px;
   outline: none;
 
   &::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+    filter: ${({ theme }) => theme.nome === "dark" ? "invert(1)" : "none"};
   }
   &:focus {
     border-color: ${({ theme }) => theme.cores.azul};

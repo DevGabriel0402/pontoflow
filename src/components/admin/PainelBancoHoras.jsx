@@ -11,11 +11,11 @@ import { useAuth } from "../../contexts/AuthContexto";
 import { useConfig } from "../../contexts/ConfigContexto";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWeekend, startOfToday, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter, 
-  FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiAlertCircle, 
-  FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2, 
-  FiRefreshCw, FiFile 
+import {
+  FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter,
+  FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiAlertCircle,
+  FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2,
+  FiRefreshCw, FiFile
 } from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
@@ -700,26 +700,26 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                 {dias.map((dia) => (
                                   <tr key={dia.dataKey}>
                                     <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
-                                  {temPonto('entrada') && (
-                                    <td>
-                                      {dia.ponto_indices.entrada ? (
-                                        <TimeWrapper>
-                                          {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
-                                          {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                        </TimeWrapper>
-                                      ) : "—"}
-                                    </td>
-                                  )}
-                                  {temPonto('saida') && (
-                                    <td>
-                                      {dia.ponto_indices.saida ? (
-                                        <TimeWrapper>
-                                          {safeFormat(dia.ponto_indices.saida.time, "HH:mm")}
-                                          {dia.ponto_indices.saida.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                        </TimeWrapper>
-                                      ) : "—"}
-                                    </td>
-                                  )}
+                                    {temPonto('entrada') && (
+                                      <td>
+                                        {dia.ponto_indices.entrada ? (
+                                          <TimeWrapper>
+                                            {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
+                                            {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                          </TimeWrapper>
+                                        ) : "—"}
+                                      </td>
+                                    )}
+                                    {temPonto('saida') && (
+                                      <td>
+                                        {dia.ponto_indices.saida ? (
+                                          <TimeWrapper>
+                                            {safeFormat(dia.ponto_indices.saida.time, "HH:mm")}
+                                            {dia.ponto_indices.saida.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                          </TimeWrapper>
+                                        ) : "—"}
+                                      </td>
+                                    )}
                                     <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
                                     <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
                                     <td>
@@ -729,8 +729,8 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                       }
                                     </td>
                                     <td>
-                                      <StatusBadge 
-                                        $ok={dia.status === "Ok"} 
+                                      <StatusBadge
+                                        $ok={dia.status === "Ok"}
                                         $justificado={dia.status !== "Ok" && dia.status !== "Incompleto" && dia.status !== "Falta"}
                                       >
                                         {dia.status === "Ok" ? (
@@ -1022,7 +1022,7 @@ const TituloBloco = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  h2 { margin: 0; font-size: 22px; font-weight: 700; color: #fff; }
+  h2 { margin: 0; font-size: 22px; font-weight: 700; color: ${({ theme }) => theme.cores.texto};}
   svg { color: ${({ theme }) => theme.cores.azul}; flex-shrink: 0; }
 `;
 
@@ -1060,9 +1060,9 @@ const BotaoAjuste = styled.button`
   height: 38px;
   background: ${({ theme, $sincronizar, $danger, $purple }) =>
     $danger ? "#e74c3c" :
-    $purple ? "#8e44ad" :
-    $sincronizar ? theme.cores.sucesso :
-    theme.cores.azul};
+      $purple ? "#8e44ad" :
+        $sincronizar ? theme.cores.sucesso :
+          theme.cores.azul};
   color: #fff;
   font-weight: 700;
   border: 0;
@@ -1314,14 +1314,14 @@ const StatusBadge = styled.span`
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-  background: ${({ $ok, $justificado }) => 
-    $ok ? "rgba(46,204,113,0.1)" : 
-    $justificado ? "rgba(241, 196, 15, 0.15)" : 
-    "rgba(231,76,60,0.1)"};
-  color: ${({ $ok, $justificado }) => 
-    $ok ? "#2ecc71" : 
-    $justificado ? "#f1c40f" : 
-    "#e74c3c"};
+  background: ${({ $ok, $justificado }) =>
+    $ok ? "rgba(46,204,113,0.1)" :
+      $justificado ? "rgba(241, 196, 15, 0.15)" :
+        "rgba(231,76,60,0.1)"};
+  color: ${({ $ok, $justificado }) =>
+    $ok ? "#2ecc71" :
+      $justificado ? "#f1c40f" :
+        "#e74c3c"};
 `;
 
 const TimeWrapper = styled.div`
@@ -1378,7 +1378,7 @@ const ModalTitulo = styled.div`
 const ModalInfo = styled.p`
   margin: 0 16px 4px;
   font-size: 12px;
-  color: #666;
+  color: ${({ theme }) => theme.cores.texto2};
   line-height: 1.5;
 `;
 
@@ -1501,9 +1501,9 @@ const BtnIconeTabela = styled.button`
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid ${({ theme }) => theme.cores.borda};
   background: transparent;
-  color: ${({ $danger }) => $danger ? '#eb4d4b' : '#2f81f7'};
+  color: ${({ $danger, theme }) => $danger ? (theme.cores.perigo || '#eb4d4b') : (theme.cores.azul || '#2f81f7')};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1511,13 +1511,13 @@ const BtnIconeTabela = styled.button`
   transition: all 0.2s;
   &:hover {
     background: ${({ $danger }) => $danger ? 'rgba(235,77,75,0.15)' : 'rgba(47,129,247,0.15)'};
-    border-color: ${({ $danger }) => $danger ? '#eb4d4b' : '#2f81f7'};
+    border-color: ${({ $danger, theme }) => $danger ? (theme.cores.perigo || '#eb4d4b') : (theme.cores.azul || '#2f81f7')};
   }
 `;
 
 const ModalHeader = styled.div`
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1526,10 +1526,10 @@ const ModalHeader = styled.div`
 const BtnFecharModal = styled.button`
   background: transparent;
   border: 0;
-  color: #8d8d99;
+  color: ${({ theme }) => theme.cores.texto2};
   cursor: pointer;
   display: flex;
-  &:hover { color: #fff; }
+  &:hover { color: ${({ theme }) => theme.cores.texto}; }
 `;
 
 const BtnAbonar = styled.button`

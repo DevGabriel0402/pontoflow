@@ -223,8 +223,8 @@ const TopoAcoes = styled.div`
 const BuscaWrapper = styled.div`
     flex: 1;
     max-width: 400px;
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.superficie2};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 8px;
     padding: 0 16px;
     display: flex;
@@ -234,7 +234,7 @@ const BuscaWrapper = styled.div`
     input {
         background: transparent;
         border: 0;
-        color: #fff;
+        color: ${({ theme }) => theme.cores.texto};
         height: 44px;
         width: 100%;
         outline: none;
@@ -265,8 +265,8 @@ const BotaoAtualizar = styled.button`
 `;
 
 const TabelaContainer = styled.div`
-    background: #19191b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: ${({ theme }) => theme.cores.superficie};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 12px;
     overflow-x: auto;
 `;
@@ -279,12 +279,12 @@ const Tabela = styled.table`
 
     th, td {
         padding: 16px 24px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
     }
 
     th {
-        background: rgba(255, 255, 255, 0.02);
-        color: #8d8d99;
+        background: ${({ theme }) => theme.cores.tabelaHeader};
+        color: ${({ theme }) => theme.cores.texto2};
         font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -292,29 +292,32 @@ const Tabela = styled.table`
 `;
 
 const InfoUser = styled.div`
-    .nome { font-weight: 600; color: #fff; }
-    .id { font-size: 11px; color: #8d8d99; margin-top: 2px; }
+    .nome { font-weight: 600;  color: ${({ theme }) => theme.cores.texto}; }
+    .id { font-size: 11px;  color: ${({ theme }) => theme.cores.texto2}; margin-top: 2px; }
 `;
 
 const ContatoInfo = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #c4c4cc;
+    color: ${({ theme }) => theme.cores.texto2};
     font-size: 13px;
 `;
 
 const EmpresaBadge = styled.span`
-    background: rgba(255, 255, 255, 0.05);
-    color: #c4c4cc;
-    padding: 4px 8px;
-    border-radius: 4px;
+    background: ${({ theme }) => theme.nome === "dark" ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.04)"};
+    color: ${({ theme }) => theme.cores.texto};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    padding: 4px 10px;
+    border-radius: 6px;
     font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
 `;
 
 const StatusBadge = styled.span`
-    background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.1)" : "rgba(235, 77, 75, 0.1)"};
-    color: ${props => props.$ativo ? "#2ecc71" : "#eb4d4b"};
+    background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.12)" : "rgba(235, 77, 75, 0.12)"};
+    color: ${props => props.$ativo ? (props.theme.nome === "dark" ? "#2ecc71" : "#16a34a") : (props.theme.nome === "dark" ? "#eb4d4b" : "#dc2626")};
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
@@ -330,8 +333,8 @@ const BotaoIcone = styled.button`
     width: 32px;
     height: 32px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: ${props => props.$danger ? "#eb4d4b" : "#8d8d99"};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    color: ${props => props.$danger ? (props.theme.cores.perigo || "#eb4d4b") : props.theme.cores.texto2};
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -340,16 +343,16 @@ const BotaoIcone = styled.button`
     transition: all 0.2s;
 
     &:hover {
-        background: ${props => props.$danger ? "rgba(235, 77, 75, 0.1)" : "rgba(255, 255, 255, 0.05)"};
-        border-color: ${props => props.$danger ? "#eb4d4b" : "#2f81f7"};
-        color: ${props => props.$danger ? "#eb4d4b" : "#fff"};
+        background: ${props => props.$danger ? "rgba(235, 77, 75, 0.12)" : props.theme.cores.destaqueHover};
+        border-color: ${props => props.$danger ? (props.theme.cores.perigo || "#eb4d4b") : (props.theme.cores.azul || "#2f81f7")};
+        color: ${props => props.$danger ? (props.theme.cores.perigo || "#eb4d4b") : props.theme.cores.texto};
     }
 `;
 
 const ToggleBtn = styled.button`
     background: transparent;
     border: 0;
-    color: ${props => props.$ativo ? "#2ecc71" : "#8d8d99"};
+    color: ${props => props.$ativo ? (props.theme.nome === "dark" ? "#2ecc71" : "#16a34a") : props.theme.cores.textoMuted};
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -358,6 +361,6 @@ const ToggleBtn = styled.button`
     transition: all 0.2s;
 
     &:hover {
-        background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.1)" : "rgba(255, 255, 255, 0.05)"};
+        background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.1)" : props.theme.cores.destaqueHover};
     }
 `;

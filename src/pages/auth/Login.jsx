@@ -7,6 +7,7 @@ import { useConfig } from "../../contexts/ConfigContexto";
 import { FiLogIn, FiEye, FiEyeOff } from "react-icons/fi";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import BotaoTema from "../../components/BotaoTema";
 
 export default function Login() {
   const { login, usuario, perfil } = useAuth();
@@ -74,6 +75,9 @@ export default function Login() {
 
   return (
     <Tela>
+      <PosicaoTema>
+        <BotaoTema compacto={true} />
+      </PosicaoTema>
       <Card>
         <Topo>
           <Logo src="/icons/pwa-512x512.png" alt={nomePainel || "PontoFlow"} />
@@ -129,6 +133,14 @@ const Tela = styled.div`
   justify-content: center;
   padding: 20px;
   background: ${({ theme }) => theme.cores.fundo};
+  position: relative;
+`;
+
+const PosicaoTema = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
 `;
 
 const Card = styled.div`
