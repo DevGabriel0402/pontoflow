@@ -57,8 +57,9 @@ service cloud.firestore {
                     (hasRole('admin') && belongsTo(resource.data.companyId));
       
       // Colaborador pode criar o próprio ponto (companyId deve bater com o perfil).
-      // SuperAdmin pode criar ponto em qualquer empresa (para testes e correções).
+      // SuperAdmin e Admin da empresa podem criar ponto (justificativas aprovadas, correções).
       allow create: if isSuperAdmin() ||
+                      (hasRole('admin') && belongsTo(request.resource.data.companyId)) ||
                       (isAuthenticated() && 
                        request.resource.data.userId == request.auth.uid &&
                        (request.resource.data.companyId == getUserData().companyId ||

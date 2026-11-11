@@ -53,6 +53,12 @@ const getMotivoLabel = (motivoValue) => {
 
 export default function PainelBancoHoras({ funcionarios, pontos }) {
   const { perfil, usuario, isSuperAdmin } = useAuth();
+  const podeAjustar = isSuperAdmin || perfil?.podeAjustarBancoHoras !== false;
+  const podeEditarDia = isSuperAdmin || !!perfil?.podeEditarDia;
+  const podeZerar = isSuperAdmin || !!perfil?.podeZerarBancoHoras;
+  const podeExcluir = isSuperAdmin || !!perfil?.podeExcluirPontos;
+  const podeIntervalo = isSuperAdmin || !!perfil?.podeAjustarIntervalo || !!perfil?.podeEditarDia;
+
   const { config } = useConfig();
   const feriados = config?.feriados || [];
   const temPonto = (id) => {
@@ -552,20 +558,27 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
               onChange={(val) => setAnoSelecionado(Number(val))}
             />
           </SeletorWrapper>
-          <BotaoAjuste onClick={() => setModalAberto(true)}>
+          <BotaoAjuste
+            onClick={() => {
+              if (!podeAjustar) return toast.error("Você não possui permissão para lançar ajustes manuais no Banco de Horas.");
+              setModalAberto(true);
+            }}
+            style={!podeAjustar ? { opacity: 0.5 } : {}}
+            title={!podeAjustar ? "Sem permissão para ajuste manual" : "Lançar ajuste manual"}
+          >
             <FiPlus size={15} />
             Ajuste Manual
           </BotaoAjuste>
 
-          {isSuperAdmin && (
-            <BotaoAjuste onClick={() => setModalIntervaloAberto(true)} $purple>
+          {podeIntervalo && (
+            <BotaoAjuste onClick={() => setModalIntervaloAberto(true)} $purple title="Ajuste em lote por intervalo">
               <FiCalendar size={15} />
               Ajustar por Intervalo
             </BotaoAjuste>
           )}
 
-          {isSuperAdmin && (
-            <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger>
+          {podeZerar && (
+            <BotaoAjuste onClick={() => setConfirmarZerar(true)} disabled={zerandoHoras} $danger title="Zerar saldo de horas de todos">
               <FiTrash2 size={15} />
               Zerar Horas de Todos
             </BotaoAjuste>
@@ -659,11 +672,19 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                        <BtnAjusteLinha onClick={(e) => { e.stopPropagation(); abrirModal(func.id); }}>
+                        <BtnAjusteLinha
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!podeAjustar) return toast.error("Sem permissão para lançar ajustes.");
+                            abrirModal(func.id);
+                          }}
+                          style={!podeAjustar ? { opacity: 0.5 } : {}}
+                          title={!podeAjustar ? "Sem permissão para ajuste" : "Lançar ajuste manual"}
+                        >
                           <FiPlus size={12} /> Ajuste
                         </BtnAjusteLinha>
-                        {isSuperAdmin && (
-                          <BtnAjusteLinha $danger onClick={(e) => { e.stopPropagation(); setConfirmarZerarFunc({ aberto: true, funcId: func.id, funcNome: func.nome }); }}>
+                        {podeZerar && (
+                          <BtnAjusteLinha $danger onClick={(e) => { e.stopPropagation(); setConfirmarZerarFunc({ aberto: true, funcId: func.id, funcNome: func.nome }); }} title="Zerar saldo acumulado">
                             <FiTrash2 size={12} /> Zerar
                           </BtnAjusteLinha>
                         )}
@@ -745,7 +766,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                     </td>
                                     <td style={{ width: 80 }}>
                                       <div style={{ display: 'flex', gap: '4px' }}>
-                                        {(isSuperAdmin || perfil?.podeEditarDia) && (
+                                        {podeEditarDia && (
                                           <BtnIconeTabela
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -764,7 +785,7 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                             <FiEdit2 size={14} />
                                           </BtnIconeTabela>
                                         )}
-                                        {isSuperAdmin && (
+                                        {podeExcluir && (
                                           <BtnIconeTabela
                                             $danger
                                             onClick={(e) => {

@@ -1132,6 +1132,8 @@ const EditorWrapperCard = styled.div`
     border: 1px solid ${({ theme }) => theme.cores.borda};
     border-radius: 14px;
     padding: 24px;
+    width: 100%;
+    box-sizing: border-box;
     box-shadow: ${({ theme }) => theme.sombra.suave};
 `;
 
@@ -1253,17 +1255,18 @@ const NavSeparador = styled.div`
 
 const Conteudo = styled.main`
     flex: 1;
-    padding: 40px;
+    padding: 36px 40px;
     display: flex;
     flex-direction: column;
     gap: 32px;
-    max-width: 1200px;
-    margin: 0 auto 0 260px;
     width: calc(100% - 260px);
+    margin-left: 260px;
+    min-width: 0;
+    box-sizing: border-box;
 
     @media (max-width: 900px) {
         padding: 24px 16px;
-        margin: 0 auto;
+        margin-left: 0;
         width: 100%;
     }
 `;
@@ -1465,6 +1468,8 @@ const ConfigContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 32px;
+    width: 100%;
+    box-sizing: border-box;
     animation: fadeIn 0.3s ease-out;
 
     @keyframes fadeIn {

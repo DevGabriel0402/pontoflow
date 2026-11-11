@@ -48,7 +48,8 @@ function formatarTs(ts) {
 }
 
 export default function PainelJustificativas({ funcionarios = [] }) {
-    const { perfil, usuario } = useAuth();
+    const { perfil, usuario, isSuperAdmin } = useAuth();
+    const podeAprovar = isSuperAdmin || perfil?.isSuperAdmin === true || perfil?.podeAprovarJustificativas !== false;
     const [itens, setItens] = React.useState([]);
     const [aba, setAba] = React.useState("pendente");
     const [rejeitandoId, setRejeitandoId] = React.useState(null);
@@ -113,6 +114,9 @@ export default function PainelJustificativas({ funcionarios = [] }) {
     const filtrados = itensFiltradosLocal.filter(i => i.status === aba);
 
     const handleAprovar = async (item) => {
+        if (!podeAprovar) {
+            return toast.error("Você não possui permissão para aprovar justificativas. Solicite ao Master.");
+        }
         setProcessando(item.id);
         try {
             const dateSolicitada = item.dataHoraSolicitada.substring(0, 10); // "YYYY-MM-DD"
@@ -311,6 +315,9 @@ export default function PainelJustificativas({ funcionarios = [] }) {
     };
 
     const handleRejeitar = async (item) => {
+        if (!podeAprovar) {
+            return toast.error("Você não possui permissão para rejeitar justificativas. Solicite ao Master.");
+        }
         setProcessando(item.id);
         try {
             await updateDoc(doc(db, "justificativas", item.id), {
@@ -332,6 +339,9 @@ export default function PainelJustificativas({ funcionarios = [] }) {
     };
 
     const handleVoltarPendente = async () => {
+        if (!podeAprovar) {
+            return toast.error("Você não possui permissão para reverter status de justificativas.");
+        }
         const item = confirmarVoltarPendente.item;
         if (!item) return;
 
@@ -502,12 +512,22 @@ export default function PainelJustificativas({ funcionarios = [] }) {
                                             <Acoes>
                                                 <BtnAprovar
                                                     onClick={() => handleAprovar(item)}
-                                                    disabled={processando === item.id}
+                                                    disabled={processando === item.id || !podeAprovar}
+                                                    title={!podeAprovar ? "Sem permissão para aprovar justificativas" : "Aprovar justificativa"}
+                                                    style={!podeAprovar ? { opacity: 0.5, cursor: "not-allowed" } : {}}
                                                 >
                                                     <FiCheck size={15} />
                                                     {processando === item.id ? "Aprovando..." : "Aprovar"}
                                                 </BtnAprovar>
-                                                <BtnRejeitar onClick={() => setRejeitandoId(item.id)}>
+                                                <BtnRejeitar
+                                                    onClick={() => {
+                                                        if (!podeAprovar) return toast.error("Sem permissão para rejeitar.");
+                                                        setRejeitandoId(item.id);
+                                                    }}
+                                                    disabled={!podeAprovar}
+                                                    title={!podeAprovar ? "Sem permissão para rejeitar justificativas" : "Rejeitar justificativa"}
+                                                    style={!podeAprovar ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                                                >
                                                     <FiX size={15} />
                                                     Rejeitar
                                                 </BtnRejeitar>
@@ -519,8 +539,12 @@ export default function PainelJustificativas({ funcionarios = [] }) {
                                     <AcoesSecundarias>
                                         <BtnAcao
                                             $remover
-                                            onClick={() => setConfirmarVoltarPendente({ aberto: true, item })}
-                                            title="Voltar para Pendente"
+                                            onClick={() => {
+                                                if (!podeAprovar) return toast.error("Sem permissão para reverter status.");
+                                                setConfirmarVoltarPendente({ aberto: true, item });
+                                            }}
+                                            title={!podeAprovar ? "Sem permissão para analisar" : "Voltar para Pendente"}
+                                            style={!podeAprovar ? { opacity: 0.5, cursor: "not-allowed" } : {}}
                                         >
                                             <FiEdit size={16} />
                                             <span>Analisar</span>

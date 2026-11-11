@@ -54,8 +54,8 @@ const Overlay = styled.div`
 `;
 
 const ModalBox = styled.div`
-  background: #19191b;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: ${({ theme }) => theme?.cores?.card || "#19191b"};
+  border: 1px solid ${({ theme }) => theme?.cores?.borda || "rgba(255,255,255,0.1)"};
   border-radius: 20px;
   width: 100%;
   max-width: 400px;
@@ -94,7 +94,7 @@ const Titulo = styled.h3`
   margin: 0;
   font-size: 20px;
   font-weight: 800;
-  color: #fff;
+  color: ${({ theme }) => theme?.cores?.texto || "#fff"};
 `;
 
 const FecharBtn = styled.button`
@@ -103,13 +103,13 @@ const FecharBtn = styled.button`
   right: 16px;
   background: transparent;
   border: 0;
-  color: #666;
+  color: ${({ theme }) => theme?.cores?.texto2 || "#666"};
   cursor: pointer;
   padding: 4px;
   border-radius: 8px;
   display: flex;
   transition: all 0.2s;
-  &:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  &:hover { background: ${({ theme }) => theme?.cores?.destaqueHover || "rgba(255,255,255,0.05)"}; color: ${({ theme }) => theme?.cores?.texto || "#fff"}; }
 `;
 
 const Corpo = styled.div`
@@ -120,7 +120,7 @@ const Corpo = styled.div`
 const Mensagem = styled.p`
   margin: 0;
   font-size: 15px;
-  color: #aaa;
+  color: ${({ theme }) => theme?.cores?.texto2 || "#aaa"};
   line-height: 1.6;
 `;
 
@@ -129,7 +129,7 @@ const Rodape = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  background: rgba(0,0,0,0.2);
+  background: ${({ theme }) => theme?.cores?.superficie2 || "rgba(0,0,0,0.2)"};
 `;
 
 const BtnBase = styled.button`
@@ -147,9 +147,9 @@ const BtnBase = styled.button`
 
 const BtnCancelar = styled(BtnBase)`
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #8d8d99;
-  &:hover { background: rgba(255,255,255,0.05); color: #fff; }
+  border: 1px solid ${({ theme }) => theme?.cores?.borda || "rgba(255,255,255,0.1)"};
+  color: ${({ theme }) => theme?.cores?.texto2 || "#8d8d99"};
+  &:hover { background: ${({ theme }) => theme?.cores?.destaqueHover || "rgba(255,255,255,0.05)"}; color: ${({ theme }) => theme?.cores?.texto || "#fff"}; }
 `;
 
 const BtnConfirmar = styled(BtnBase)`

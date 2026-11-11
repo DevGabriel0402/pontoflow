@@ -1028,28 +1028,57 @@ export default function DashboardAdmin() {
             )}
 
             {abaAtiva === "CONFIG" && (
-              <>
-                <Topo>
-                  <TituloSecao>Configurações do Sistema</TituloSecao>
-                </Topo>
+              <ConfigContainer>
+                <ConfigHeaderWrapper>
+                  <div className="info">
+                    <span className="tag-secao">
+                      <FiSettings size={12} /> Painel de Ajustes • Governança
+                    </span>
+                    <h2>Configurações do Sistema</h2>
+                    <p>Gerencie parâmetros operacionais, geofencing, segurança e personalização da instituição.</p>
+                  </div>
+                  <div className="status-empresa-box">
+                    <div className="dot" />
+                    <div className="empresa-info">
+                      <span className="label-empresa">INSTITUIÇÃO ATIVA</span>
+                      <strong>{tempNomePainel || nomePainel || "PontoFlow Admin"}</strong>
+                    </div>
+                  </div>
+                </ConfigHeaderWrapper>
 
-                <AccordionContainer>
-                  {/* 1. Regime de Registro de Ponto */}
-                  <AccordionCard $aberto={secoesAbertasConfig.regime}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.regime} onClick={() => toggleSecaoConfig('regime')}>
-                      <AccordionLeft>
-                        <IconeBox style={{ color: 'var(--cor-primaria, #4facfe)', background: 'rgba(79, 172, 254, 0.12)' }}>
-                          <FiClock size={20} />
-                        </IconeBox>
-                        <AccordionTitulos>
-                          <h4>Regime de Registro de Ponto</h4>
-                          <p>Formato de batidas diárias para os colaboradores</p>
-                        </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.regime}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                {/* GRUPO 1: Jornada & Regras de Batida */}
+                <ConfigGrupo>
+                  <ConfigGrupoHeader>
+                    <div className="grupo-titulo">
+                      <FiClock size={14} color="var(--cor-primaria, #2f81f7)" />
+                      <span>Jornada & Regras de Batida</span>
+                    </div>
+                  </ConfigGrupoHeader>
+
+                  <ConfigGrupoCard>
+                    {/* 1. Regime de Registro de Ponto */}
+                    <ConfigItemLinha>
+                      <ConfigItemHeader $aberto={secoesAbertasConfig.regime} onClick={() => toggleSecaoConfig('regime')}>
+                        <ConfigItemLeft>
+                          <IconeBox style={{ color: 'var(--cor-primaria, #4facfe)', background: 'rgba(79, 172, 254, 0.12)' }}>
+                            <FiClock size={20} />
+                          </IconeBox>
+                          <AccordionTitulos>
+                            <h4>Regime de Registro de Ponto</h4>
+                            <p>Formato de batidas diárias para os colaboradores</p>
+                          </AccordionTitulos>
+                        </ConfigItemLeft>
+                        <ConfigItemRight>
+                          <PillValorAtual>
+                            {configPontosAtivos.length === 2 && configPontosAtivos.includes('entrada') && configPontosAtivos.includes('saida')
+                              ? "Entrada e Saída (2 batidas)"
+                              : "Personalizado"}
+                          </PillValorAtual>
+                          <AccordionChevron $aberto={secoesAbertasConfig.regime}>
+                            <FiChevronDown size={20} />
+                          </AccordionChevron>
+                        </ConfigItemRight>
+                      </ConfigItemHeader>
 
                     {secoesAbertasConfig.regime && (
                       <AccordionBody>
@@ -1074,12 +1103,12 @@ export default function DashboardAdmin() {
                         </div>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
+                  </ConfigItemLinha>
 
                   {/* 2. Geofencing (Raio de Ponto) */}
-                  <AccordionCard $aberto={secoesAbertasConfig.geo}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.geo} onClick={() => toggleSecaoConfig('geo')}>
-                      <AccordionLeft>
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.geo} onClick={() => toggleSecaoConfig('geo')}>
+                      <ConfigItemLeft>
                         <IconeBox style={{ color: '#2ecc71', background: 'rgba(46, 204, 113, 0.12)' }}>
                           <FiMapPin size={20} />
                         </IconeBox>
@@ -1087,11 +1116,16 @@ export default function DashboardAdmin() {
                           <h4>Geofencing & Localização da Sede</h4>
                           <p>Raio de tolerância GPS e coordenadas da sede no mapa</p>
                         </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.geo}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual>
+                          {configRaio ? `${configRaio}m • GPS Ativo` : "Não configurado"}
+                        </PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.geo}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
 
                     {secoesAbertasConfig.geo && (
                       <AccordionBody>
@@ -1162,12 +1196,12 @@ export default function DashboardAdmin() {
                         </ConfigBox>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
+                  </ConfigItemLinha>
 
                   {/* 3. Calendário e Ausências */}
-                  <AccordionCard $aberto={secoesAbertasConfig.calendario}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.calendario} onClick={() => toggleSecaoConfig('calendario')}>
-                      <AccordionLeft>
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.calendario} onClick={() => toggleSecaoConfig('calendario')}>
+                      <ConfigItemLeft>
                         <IconeBox style={{ color: '#f1c40f', background: 'rgba(241, 196, 15, 0.12)' }}>
                           <FiCalendar size={20} />
                         </IconeBox>
@@ -1175,11 +1209,16 @@ export default function DashboardAdmin() {
                           <h4>Calendário Corporativo & Ausências</h4>
                           <p>Gerencie feriados, recessos, férias e abonos</p>
                         </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.calendario}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual>
+                          {listaFeriados.length + listaAusencias.length} datas cadastradas
+                        </PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.calendario}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
 
                     {secoesAbertasConfig.calendario && (
                       <AccordionBody>
@@ -1361,45 +1400,24 @@ export default function DashboardAdmin() {
                         </ConfigBox>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
+                  </ConfigItemLinha>
+                </ConfigGrupoCard>
+              </ConfigGrupo>
 
-                  {/* 4. Backup dos Dados */}
-                  <AccordionCard $aberto={secoesAbertasConfig.backup}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.backup} onClick={() => toggleSecaoConfig('backup')}>
-                      <AccordionLeft>
-                        <IconeBox style={{ color: '#9b59b6', background: 'rgba(155, 89, 182, 0.12)' }}>
-                          <FiDatabase size={20} />
-                        </IconeBox>
-                        <AccordionTitulos>
-                          <h4>Backup & Restauração de Dados</h4>
-                          <p>Baixe cópias de segurança ou restaure dados do sistema</p>
-                        </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.backup}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+              {/* GRUPO 2: Instituição & Dados */}
+              <ConfigGrupo>
+                <ConfigGrupoHeader>
+                  <div className="grupo-titulo">
+                    <FiSettings size={14} color="#e67e22" />
+                    <span>Instituição & Dados</span>
+                  </div>
+                </ConfigGrupoHeader>
 
-                    {secoesAbertasConfig.backup && (
-                      <AccordionBody>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>Baixe os dados da instituição ou restaure um arquivo salvo anteriormente.</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                          <BotaoGhost onClick={handleBaixarBackup} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
-                            <FiDownload size={16} /> Baixar Backup
-                          </BotaoGhost>
-                          <BotaoGhost onClick={() => backupInputRef.current?.click()} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
-                            <FiUpload size={16} /> Restaurar Backup
-                          </BotaoGhost>
-                          <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleRestaurarBackup} hidden />
-                        </div>
-                      </AccordionBody>
-                    )}
-                  </AccordionCard>
-
-                  {/* 5. Identidade do Painel */}
-                  <AccordionCard $aberto={secoesAbertasConfig.identidade}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.identidade} onClick={() => toggleSecaoConfig('identidade')}>
-                      <AccordionLeft>
+                <ConfigGrupoCard>
+                  {/* 4. Identidade do Painel */}
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.identidade} onClick={() => toggleSecaoConfig('identidade')}>
+                      <ConfigItemLeft>
                         <IconeBox style={{ color: '#e67e22', background: 'rgba(230, 126, 34, 0.12)' }}>
                           <FiSettings size={20} />
                         </IconeBox>
@@ -1407,11 +1425,16 @@ export default function DashboardAdmin() {
                           <h4>Identidade do Painel</h4>
                           <p>Personalize o nome da empresa/instituição no sistema</p>
                         </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.identidade}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual>
+                          {tempNomePainel || nomePainel || "Padrão"}
+                        </PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.identidade}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
 
                     {secoesAbertasConfig.identidade && (
                       <AccordionBody>
@@ -1439,12 +1462,62 @@ export default function DashboardAdmin() {
                         </ConfigBox>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
+                  </ConfigItemLinha>
 
+                  {/* 5. Backup & Restauração dos Dados */}
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.backup} onClick={() => toggleSecaoConfig('backup')}>
+                      <ConfigItemLeft>
+                        <IconeBox style={{ color: '#9b59b6', background: 'rgba(155, 89, 182, 0.12)' }}>
+                          <FiDatabase size={20} />
+                        </IconeBox>
+                        <AccordionTitulos>
+                          <h4>Backup & Restauração de Dados</h4>
+                          <p>Baixe cópias de segurança ou restaure dados do sistema</p>
+                        </AccordionTitulos>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual>JSON • Local</PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.backup}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
+
+                    {secoesAbertasConfig.backup && (
+                      <AccordionBody>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#8d8d99' }}>
+                          Baixe os dados da instituição em formato JSON ou restaure um arquivo salvo anteriormente.
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <BotaoGhost onClick={handleBaixarBackup} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiDownload size={16} /> Baixar Backup
+                          </BotaoGhost>
+                          <BotaoGhost onClick={() => backupInputRef.current?.click()} disabled={processandoBackup} style={{ width: '100%', justifyContent: 'center' }}>
+                            <FiUpload size={16} /> Restaurar Backup
+                          </BotaoGhost>
+                          <input ref={backupInputRef} type="file" accept="application/json,.json" onChange={handleRestaurarBackup} hidden />
+                        </div>
+                      </AccordionBody>
+                    )}
+                  </ConfigItemLinha>
+                </ConfigGrupoCard>
+              </ConfigGrupo>
+
+              {/* GRUPO 3: Conta & Segurança */}
+              <ConfigGrupo>
+                <ConfigGrupoHeader>
+                  <div className="grupo-titulo">
+                    <FiShield size={14} color="#1abc9c" />
+                    <span>Conta & Segurança</span>
+                  </div>
+                </ConfigGrupoHeader>
+
+                <ConfigGrupoCard>
                   {/* 6. Segurança e Gestão de Acessos */}
-                  <AccordionCard $aberto={secoesAbertasConfig.acessos}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.acessos} onClick={() => toggleSecaoConfig('acessos')}>
-                      <AccordionLeft>
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.acessos} onClick={() => toggleSecaoConfig('acessos')}>
+                      <ConfigItemLeft>
                         <IconeBox style={{ color: '#1abc9c', background: 'rgba(26, 188, 156, 0.12)' }}>
                           <FiShield size={20} />
                         </IconeBox>
@@ -1452,11 +1525,14 @@ export default function DashboardAdmin() {
                           <h4>Segurança & Gestão de Acessos</h4>
                           <p>Troca de senha e cadastramento de novos usuários</p>
                         </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.acessos}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual>Acesso Administrativo</PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.acessos}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
 
                     {secoesAbertasConfig.acessos && (
                       <AccordionBody>
@@ -1470,12 +1546,12 @@ export default function DashboardAdmin() {
                         </div>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
+                  </ConfigItemLinha>
 
                   {/* 7. Sessão */}
-                  <AccordionCard $aberto={secoesAbertasConfig.sessao}>
-                    <AccordionHeader $aberto={secoesAbertasConfig.sessao} onClick={() => toggleSecaoConfig('sessao')}>
-                      <AccordionLeft>
+                  <ConfigItemLinha>
+                    <ConfigItemHeader $aberto={secoesAbertasConfig.sessao} onClick={() => toggleSecaoConfig('sessao')}>
+                      <ConfigItemLeft>
                         <IconeBox style={{ color: '#eb4d4b', background: 'rgba(235, 77, 75, 0.12)' }}>
                           <FiLogOut size={20} />
                         </IconeBox>
@@ -1483,11 +1559,14 @@ export default function DashboardAdmin() {
                           <h4 style={{ color: '#eb4d4b' }}>Sessão do Usuário</h4>
                           <p>Encerrar sessão atual neste dispositivo</p>
                         </AccordionTitulos>
-                      </AccordionLeft>
-                      <AccordionChevron $aberto={secoesAbertasConfig.sessao}>
-                        <FiChevronDown size={20} />
-                      </AccordionChevron>
-                    </AccordionHeader>
+                      </ConfigItemLeft>
+                      <ConfigItemRight>
+                        <PillValorAtual style={{ borderColor: 'rgba(235, 77, 75, 0.2)', color: '#eb4d4b' }}>Conectado</PillValorAtual>
+                        <AccordionChevron $aberto={secoesAbertasConfig.sessao}>
+                          <FiChevronDown size={20} />
+                        </AccordionChevron>
+                      </ConfigItemRight>
+                    </ConfigItemHeader>
 
                     {secoesAbertasConfig.sessao && (
                       <AccordionBody>
@@ -1499,10 +1578,11 @@ export default function DashboardAdmin() {
                         </BotaoGhost>
                       </AccordionBody>
                     )}
-                  </AccordionCard>
-                </AccordionContainer>
-              </>
-            )}
+                  </ConfigItemLinha>
+                </ConfigGrupoCard>
+              </ConfigGrupo>
+            </ConfigContainer>
+          )}
 
             {abaAtiva === "BANCO_HORAS" && (
               <PainelBancoHoras funcionarios={funcionarios} pontos={itens} />
@@ -2418,48 +2498,198 @@ const BtnNotificar = styled.button`
   }
 `;
 
-const AccordionContainer = styled.div`
+const ConfigContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-width: 1000px;
+  gap: 24px;
+  max-width: 960px;
   width: 100%;
   margin: 0 auto;
-  padding-bottom: 40px;
+  padding-bottom: 50px;
 `;
 
-const AccordionCard = styled.div`
+const ConfigHeaderWrapper = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
   background: ${({ theme }) => theme.cores.card};
-  border: 1px solid ${({ theme, $aberto }) => ($aberto ? "rgba(79, 172, 254, 0.4)" : theme.cores.borda)};
-  border-radius: 18px;
-  overflow: hidden;
-  transition: all 0.25s ease;
-  box-shadow: ${({ theme, $aberto }) => ($aberto ? theme.sombra.forte : theme.sombra.suave)};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: 20px;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
 
-  &:hover {
-    border-color: ${({ theme, $aberto }) => ($aberto ? "rgba(79, 172, 254, 0.5)" : theme.cores.bordaForte)};
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .tag-secao {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--cor-primaria, #2f81f7);
+      background: rgba(47, 129, 247, 0.1);
+      padding: 4px 12px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+
+    h2 {
+      margin: 2px 0 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: ${({ theme }) => theme.cores.texto};
+    }
+
+    p {
+      margin: 0;
+      font-size: 13px;
+      color: ${({ theme }) => theme.cores.texto2};
+      line-height: 1.45;
+    }
+  }
+
+  .status-empresa-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: ${({ theme }) => theme.cores.superficie2};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    padding: 10px 16px;
+    border-radius: 14px;
+    flex-shrink: 0;
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #2ecc71;
+      box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    }
+
+    .empresa-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .label-empresa {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        color: ${({ theme }) => theme.cores.texto2};
+      }
+
+      strong {
+        font-size: 13px;
+        font-weight: 700;
+        color: ${({ theme }) => theme.cores.texto};
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    .status-empresa-box { width: 100%; }
   }
 `;
 
-const AccordionHeader = styled.div`
+const ConfigGrupo = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const ConfigGrupoHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
+  padding: 0 6px;
+
+  .grupo-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: ${({ theme }) => theme.cores.texto2};
+  }
+`;
+
+const ConfigGrupoCard = styled.div`
+  background: ${({ theme }) => theme.cores.card};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: ${({ theme }) => theme.sombra.suave};
+  display: flex;
+  flex-direction: column;
+`;
+
+const ConfigItemLinha = styled.div`
+  border-bottom: 1px solid ${({ theme }) => theme.cores.borda};
+  transition: all 0.2s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ConfigItemHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
   cursor: pointer;
   user-select: none;
   background: ${({ theme, $aberto }) => ($aberto ? theme.cores.destaqueHover : "transparent")};
-  transition: background 0.2s ease;
+  transition: background 0.15s ease;
 
   &:hover {
     background: ${({ theme }) => theme.cores.destaqueHover};
   }
+
+  @media (max-width: 600px) {
+    padding: 14px 16px;
+  }
 `;
 
-const AccordionLeft = styled.div`
+const ConfigItemLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+`;
+
+const ConfigItemRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: 12px;
+`;
+
+const PillValorAtual = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.cores.superficie2};
+  border: 1px solid ${({ theme }) => theme.cores.borda};
+  color: ${({ theme }) => theme.cores.texto};
+  white-space: nowrap;
+
+  @media (max-width: 680px) {
+    display: none;
+  }
 `;
 
 const IconeBox = styled.div`
@@ -2475,13 +2705,13 @@ const IconeBox = styled.div`
 const AccordionTitulos = styled.div`
   h4 {
     margin: 0;
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 700;
     color: ${({ theme }) => theme.cores.texto};
   }
   p {
     margin: 3px 0 0;
-    font-size: 12.5px;
+    font-size: 12px;
     color: ${({ theme }) => theme.cores.texto2};
   }
 `;

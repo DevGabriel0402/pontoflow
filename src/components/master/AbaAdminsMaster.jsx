@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { toast } from "react-hot-toast";
-import { FiSearch, FiEdit2, FiLock, FiUnlock, FiMail, FiRefreshCw, FiToggleLeft, FiToggleRight } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiLock, FiUnlock, FiMail, FiRefreshCw, FiToggleLeft, FiToggleRight, FiTrash2, FiShield } from "react-icons/fi";
 import { db, auth } from "../../services/firebase";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 import LoadingGlobal from "../LoadingGlobal";
 import { useMasterCompanies } from "../../hooks/useMasterCompanies";
 import ModalEditarAdmin from "./ModalEditarAdmin";
+import ModalPermissoesAdmin from "./ModalPermissoesAdmin";
+import ModalConfirmacao from "../ModalConfirmacao";
 
 export default function AbaAdminsMaster() {
     const { companies } = useMasterCompanies();
@@ -17,6 +19,10 @@ export default function AbaAdminsMaster() {
 
     const [modalAberto, setModalAberto] = useState(false);
     const [adminEditando, setAdminEditando] = useState(null);
+    const [adminExcluir, setAdminExcluir] = useState(null);
+    const [excluindoAdmin, setExcluindoAdmin] = useState(false);
+    const [adminPermissoes, setAdminPermissoes] = useState(null);
+    const [modalPermissoesAberto, setModalPermissoesAberto] = useState(false);
 
     const carregarAdmins = async () => {
         setCarregando(true);
@@ -72,6 +78,22 @@ export default function AbaAdminsMaster() {
         }
     };
 
+    const handleExcluirAdmin = async () => {
+        if (!adminExcluir) return;
+        setExcluindoAdmin(true);
+        try {
+            await deleteDoc(doc(db, "users", adminExcluir.id));
+            setAdmins(prev => prev.filter(a => a.id !== adminExcluir.id));
+            toast.success(`Administrador "${adminExcluir.nome}" excluído com sucesso!`);
+            setAdminExcluir(null);
+        } catch (e) {
+            console.error("Erro ao excluir administrador:", e);
+            toast.error("Erro ao excluir administrador.");
+        } finally {
+            setExcluindoAdmin(false);
+        }
+    };
+
     const filtrados = React.useMemo(() => {
         return admins.filter(a =>
             a.nome?.toLowerCase().includes(busca.toLowerCase()) ||
@@ -110,7 +132,7 @@ export default function AbaAdminsMaster() {
                             <th>Administrador</th>
                             <th>Contato</th>
                             <th>Empresa</th>
-                            <th>Editar Dia</th>
+                            <th>Permissões & Privilégios</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -138,13 +160,32 @@ export default function AbaAdminsMaster() {
                                         <EmpresaBadge>{getNomeEmpresa(admin.companyId)}</EmpresaBadge>
                                     </td>
                                     <td>
-                                        <ToggleBtn
-                                            onClick={() => handleToggleEditarDia(admin)}
-                                            $ativo={!!admin.podeEditarDia}
-                                            title={admin.podeEditarDia ? "Desativar edição de dia" : "Ativar edição de dia"}
-                                        >
-                                            {admin.podeEditarDia ? <FiToggleRight size={22} /> : <FiToggleLeft size={22} />}
-                                        </ToggleBtn>
+                                        <PermissoesCell>
+                                            <BadgesPermissoes>
+                                                {admin.podeAprovarJustificativas !== false && (
+                                                    <PillPermissao $cor="#2ecc71">Justificativas</PillPermissao>
+                                                )}
+                                                {admin.podeEditarDia && (
+                                                    <PillPermissao $cor="#2f81f7">Editar Ponto</PillPermissao>
+                                                )}
+                                                {admin.podeAjustarBancoHoras !== false && (
+                                                    <PillPermissao $cor="#f1c40f">Banco Horas</PillPermissao>
+                                                )}
+                                                {admin.podeZerarBancoHoras && (
+                                                    <PillPermissao $cor="#e74c3c">Zerar Saldo</PillPermissao>
+                                                )}
+                                                {admin.podeAjustarIntervalo && (
+                                                    <PillPermissao $cor="#9b59b6">Intervalo</PillPermissao>
+                                                )}
+                                            </BadgesPermissoes>
+                                            <BtnConfigPermissoes
+                                                onClick={() => { setAdminPermissoes(admin); setModalPermissoesAberto(true); }}
+                                                title="Configurar permissões deste administrador"
+                                            >
+                                                <FiShield size={13} />
+                                                <span>Gerenciar</span>
+                                            </BtnConfigPermissoes>
+                                        </PermissoesCell>
                                     </td>
                                     <td>
                                         <StatusBadge $ativo={admin.ativo !== false}>
@@ -153,6 +194,12 @@ export default function AbaAdminsMaster() {
                                     </td>
                                     <td>
                                         <GroupAcoes>
+                                            <BotaoIcone
+                                                onClick={() => { setAdminPermissoes(admin); setModalPermissoesAberto(true); }}
+                                                title="Configurar Permissões"
+                                            >
+                                                <FiShield size={14} />
+                                            </BotaoIcone>
                                             <BotaoIcone
                                                 onClick={() => { setAdminEditando(admin); setModalAberto(true); }}
                                                 title="Editar Informações"
@@ -171,6 +218,13 @@ export default function AbaAdminsMaster() {
                                                 title={admin.ativo !== false ? "Bloquear Acesso" : "Liberar Acesso"}
                                             >
                                                 {admin.ativo !== false ? <FiLock size={14} /> : <FiUnlock size={14} />}
+                                            </BotaoIcone>
+                                            <BotaoIcone
+                                                onClick={() => setAdminExcluir(admin)}
+                                                $danger={true}
+                                                title="Excluir Administrador"
+                                            >
+                                                <FiTrash2 size={14} />
                                             </BotaoIcone>
                                         </GroupAcoes>
                                     </td>
@@ -191,6 +245,28 @@ export default function AbaAdminsMaster() {
                 companies={companies}
                 onAtualizado={carregarAdmins}
             />
+
+            <ModalPermissoesAdmin
+                aberto={modalPermissoesAberto}
+                onFechar={() => {
+                    setModalPermissoesAberto(false);
+                    setAdminPermissoes(null);
+                }}
+                admin={adminPermissoes}
+                nomeEmpresa={adminPermissoes ? getNomeEmpresa(adminPermissoes.companyId) : ""}
+                onAtualizado={carregarAdmins}
+            />
+
+            <ModalConfirmacao
+                aberto={!!adminExcluir}
+                onFechar={() => setAdminExcluir(null)}
+                onConfirmar={handleExcluirAdmin}
+                titulo="Excluir Administrador"
+                mensagem={`Tem certeza de que deseja excluir permanentemente o administrador "${adminExcluir?.nome}" (${adminExcluir?.email})? O acesso desta conta ao sistema será cancelado imediatamente.`}
+                textoConfirmar={excluindoAdmin ? "Excluindo..." : "Excluir Administrador"}
+                textoCancelar="Cancelar"
+                perigoso={true}
+            />
         </Container>
     );
 }
@@ -200,6 +276,8 @@ const Container = styled.div`
     display: flex;
     flex-direction: column;
     gap: 24px;
+    width: 100%;
+    box-sizing: border-box;
     animation: fadeIn 0.3s ease-out;
 
     @keyframes fadeIn {
@@ -362,5 +440,53 @@ const ToggleBtn = styled.button`
 
     &:hover {
         background: ${props => props.$ativo ? "rgba(46, 204, 113, 0.1)" : props.theme.cores.destaqueHover};
+    }
+`;
+
+const PermissoesCell = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+`;
+
+const BadgesPermissoes = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    max-width: 280px;
+`;
+
+const PillPermissao = styled.span`
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: ${props => props.$cor ? `${props.$cor}18` : "rgba(255,255,255,0.06)"};
+    color: ${props => props.$cor || props.theme.cores.texto};
+    border: 1px solid ${props => props.$cor ? `${props.$cor}33` : props.theme.cores.borda};
+    white-space: nowrap;
+`;
+
+const BtnConfigPermissoes = styled.button`
+    background: ${({ theme }) => theme.cores.superficie2};
+    border: 1px solid ${({ theme }) => theme.cores.borda};
+    color: ${({ theme }) => theme.cores.texto};
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+
+    &:hover {
+        background: ${({ theme }) => theme.cores.destaqueHover};
+        border-color: ${({ theme }) => theme.cores.azul || "#2f81f7"};
+        color: ${({ theme }) => theme.cores.azul || "#2f81f7"};
     }
 `;
