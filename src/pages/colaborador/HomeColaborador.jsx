@@ -19,6 +19,7 @@ import ModalPontosSemSaida from "../../components/colaborador/ModalPontosSemSaid
 import ModalJustificativa from "../../components/colaborador/ModalJustificativa";
 import ModalConfirmarPonto from "../../components/colaborador/ModalConfirmarPonto";
 import ModalNovaAtualizacao from "../../components/ModalNovaAtualizacao";
+import ModalAvisoColaborador from "../../components/colaborador/ModalAvisoColaborador";
 import LoadingGlobal from "../../components/LoadingGlobal";
 import { useSaldoBancoHoras } from "../../hooks/useSaldoBancoHoras";
 import { useJustificativas } from "../../hooks/useJustificativas";
@@ -91,6 +92,17 @@ export default function HomeColaborador() {
   const [modalJustificativaAberto, setModalJustificativaAberto] = React.useState(false);
   const [justificativaPreenchida, setJustificativaPreenchida] = React.useState(null);
   const [popupAutoDisparado, setPopupAutoDisparado] = React.useState(false);
+  const [avisoModalManual, setAvisoModalManual] = React.useState(null);
+  const [dispensadoAvisoId, setDispensadoAvisoId] = React.useState(null);
+
+  // Notificação urgente ou comunicado administrativo direto para abrir em modal
+  const notificacaoModalAuto = React.useMemo(() => {
+    return (notificacoes || []).find(
+      (n) => !n.lida && n.id !== dispensadoAvisoId && (n.abrirComoModal === true || n.tipo === "comunicado_admin")
+    );
+  }, [notificacoes, dispensadoAvisoId]);
+
+  const notificacaoModalAtiva = avisoModalManual || notificacaoModalAuto;
 
   // Identifica dias anteriores em que o colaborador bateu a entrada mas não registrou saída
   const diasSemSaida = React.useMemo(() => {
@@ -835,6 +847,21 @@ export default function HomeColaborador() {
         onMarcarLida={marcarComoLida}
         onMarcarTodasLidas={marcarTodasComoLidas}
         onExcluir={excluirNotificacao}
+        onAbrirNotificacao={(item) => setAvisoModalManual(item)}
+      />
+
+      <ModalAvisoColaborador
+        notificacao={notificacaoModalAtiva}
+        onConfirmarLeitura={(id) => {
+          marcarComoLida(id);
+          setAvisoModalManual(null);
+        }}
+        onFechar={() => {
+          if (notificacaoModalAtiva?.id) {
+            setDispensadoAvisoId(notificacaoModalAtiva.id);
+          }
+          setAvisoModalManual(null);
+        }}
       />
 
       <ModalPontosSemSaida

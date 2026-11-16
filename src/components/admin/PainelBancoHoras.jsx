@@ -15,7 +15,7 @@ import {
   FiChevronRight, FiChevronDown, FiCalendar, FiPlus, FiMinus, FiPrinter,
   FiDownload, FiSearch, FiCheckCircle, FiAlertTriangle, FiAlertCircle,
   FiTrendingUp, FiTrendingDown, FiClock, FiTrash2, FiX, FiEdit2,
-  FiRefreshCw, FiFile
+  FiRefreshCw, FiFile, FiMapPin
 } from "react-icons/fi";
 import { exportarParaCsv } from "../../utils/exportarCsv";
 import {
@@ -30,6 +30,7 @@ import SeletorAcordeao from "../SeletorAcordeao";
 import ModalConfirmacao from "../ModalConfirmacao";
 import ModalEditarPonto from "./ModalEditarPonto";
 import ModalAjusteIntervalo from "./ModalAjusteIntervalo";
+import ModalMapaDiaPonto from "./ModalMapaDiaPonto";
 import { MOTIVOS_JUSTIFICATIVA } from "../colaborador/ModalJustificativa";
 
 // Wrapper seguro contra "Invalid Date"
@@ -102,6 +103,9 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
   const [confirmarZerar, setConfirmarZerar] = useState(false);
   const [confirmarZerarFunc, setConfirmarZerarFunc] = useState({ aberto: false, funcId: null, funcNome: null });
   const [zerandoHoras, setZerandoHoras] = useState(false);
+
+  // Modal Mapa das Batidas do Dia
+  const [modalMapaDia, setModalMapaDia] = useState({ aberto: false, dia: null, func: null });
 
   // Busca lançamentos manuais do Firestore
   useEffect(() => {
@@ -718,94 +722,134 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
                                 </tr>
                               </thead>
                               <tbody>
-                                {dias.map((dia) => (
-                                  <tr key={dia.dataKey}>
-                                    <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
-                                    {temPonto('entrada') && (
+                                {dias.map((dia) => {
+                                  const temGeoEntrada = !!dia.ponto_indices?.entrada?.geolocation?.lat;
+                                  const temGeoSaida = !!dia.ponto_indices?.saida?.geolocation?.lat;
+                                  const temGeoNoDia = temGeoEntrada || temGeoSaida || !!dia.pontosOriginal?.some(p => p.geolocation?.lat);
+
+                                  return (
+                                    <tr key={dia.dataKey}>
+                                      <td>{safeFormat(dia.data, "dd/MM/yyyy")}</td>
+                                      {temPonto('entrada') && (
+                                        <td>
+                                          {dia.ponto_indices.entrada ? (
+                                            <TimeWrapper>
+                                              {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
+                                              {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                              {temGeoEntrada && (
+                                                <IconePinGeo
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setModalMapaDia({ aberto: true, dia, func });
+                                                  }}
+                                                  title="Ver localização GPS da entrada"
+                                                >
+                                                  <FiMapPin size={11} />
+                                                </IconePinGeo>
+                                              )}
+                                            </TimeWrapper>
+                                          ) : "—"}
+                                        </td>
+                                      )}
+                                      {temPonto('saida') && (
+                                        <td>
+                                          {dia.ponto_indices.saida ? (
+                                            <TimeWrapper>
+                                              {safeFormat(dia.ponto_indices.saida.time, "HH:mm")}
+                                              {dia.ponto_indices.saida.foiJustificado && <IconJustificado title="Horário Justificado" />}
+                                              {temGeoSaida && (
+                                                <IconePinGeo
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setModalMapaDia({ aberto: true, dia, func });
+                                                  }}
+                                                  title="Ver localização GPS da saída"
+                                                >
+                                                  <FiMapPin size={11} />
+                                                </IconePinGeo>
+                                              )}
+                                            </TimeWrapper>
+                                          ) : "—"}
+                                        </td>
+                                      )}
+                                      <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
+                                      <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
                                       <td>
-                                        {dia.ponto_indices.entrada ? (
-                                          <TimeWrapper>
-                                            {safeFormat(dia.ponto_indices.entrada.time, "HH:mm")}
-                                            {dia.ponto_indices.entrada.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                          </TimeWrapper>
-                                        ) : "—"}
+                                        {dia.diferenca !== null
+                                          ? <DifBadge $positivo={dia.diferenca >= 0}>{formatarSaldo(dia.diferenca)}</DifBadge>
+                                          : <SemDados>—</SemDados>
+                                        }
                                       </td>
-                                    )}
-                                    {temPonto('saida') && (
                                       <td>
-                                        {dia.ponto_indices.saida ? (
-                                          <TimeWrapper>
-                                            {safeFormat(dia.ponto_indices.saida.time, "HH:mm")}
-                                            {dia.ponto_indices.saida.foiJustificado && <IconJustificado title="Horário Justificado" />}
-                                          </TimeWrapper>
-                                        ) : "—"}
+                                        <StatusBadge
+                                          $ok={dia.status === "Ok"}
+                                          $justificado={dia.status !== "Ok" && dia.status !== "Incompleto" && dia.status !== "Falta"}
+                                        >
+                                          {dia.status === "Ok" ? (
+                                            <FiCheckCircle size={12} />
+                                          ) : (dia.status !== "Incompleto" && dia.status !== "Falta") ? (
+                                            <FiAlertTriangle size={12} />
+                                          ) : (
+                                            <FiAlertCircle size={12} />
+                                          )}
+                                          {dia.status}
+                                        </StatusBadge>
                                       </td>
-                                    )}
-                                    <td>{formatarDuracao(dia.minutosTrabalhados)}</td>
-                                    <td>{dia.minutosEsperados !== null ? formatarDuracao(dia.minutosEsperados) : "—"}</td>
-                                    <td>
-                                      {dia.diferenca !== null
-                                        ? <DifBadge $positivo={dia.diferenca >= 0}>{formatarSaldo(dia.diferenca)}</DifBadge>
-                                        : <SemDados>—</SemDados>
-                                      }
-                                    </td>
-                                    <td>
-                                      <StatusBadge
-                                        $ok={dia.status === "Ok"}
-                                        $justificado={dia.status !== "Ok" && dia.status !== "Incompleto" && dia.status !== "Falta"}
-                                      >
-                                        {dia.status === "Ok" ? (
-                                          <FiCheckCircle size={12} />
-                                        ) : (dia.status !== "Incompleto" && dia.status !== "Falta") ? (
-                                          <FiAlertTriangle size={12} />
-                                        ) : (
-                                          <FiAlertCircle size={12} />
-                                        )}
-                                        {dia.status}
-                                      </StatusBadge>
-                                    </td>
-                                    <td style={{ width: 80 }}>
-                                      <div style={{ display: 'flex', gap: '4px' }}>
-                                        {podeEditarDia && (
-                                          <BtnIconeTabela
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setDadosEditPonto({
-                                                userId: func.id,
-                                                userName: func.nome,
-                                                data: dia.data,
-                                                dataKey: dia.dataKey,
-                                                ponto_indices: dia.ponto_indices || {},
-                                                pontos: dia.pontosOriginal || []
-                                              });
-                                              setModalEditPontoAberto(true);
-                                            }}
-                                            title="Editar batidas do dia"
-                                          >
-                                            <FiEdit2 size={14} />
-                                          </BtnIconeTabela>
-                                        )}
-                                        {podeExcluir && (
-                                          <BtnIconeTabela
-                                            $danger
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setConfirmarExclusaoDia({
-                                                aberto: true,
-                                                userId: func.id,
-                                                dataKey: dia.dataKey,
-                                                userName: func.nome
-                                              });
-                                            }}
-                                            title="Excluir todos os registros do dia"
-                                          >
-                                            <FiTrash2 size={14} />
-                                          </BtnIconeTabela>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
+                                      <td style={{ width: 100 }}>
+                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                          {temGeoNoDia && (
+                                            <BtnIconeTabela
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setModalMapaDia({ aberto: true, dia, func });
+                                              }}
+                                              title="Ver localização das batidas no mapa (GPS)"
+                                              style={{ color: '#2f81f7', borderColor: 'rgba(47, 129, 247, 0.3)', background: 'rgba(47, 129, 247, 0.08)' }}
+                                            >
+                                              <FiMapPin size={14} />
+                                            </BtnIconeTabela>
+                                          )}
+                                          {podeEditarDia && (
+                                            <BtnIconeTabela
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDadosEditPonto({
+                                                  userId: func.id,
+                                                  userName: func.nome,
+                                                  data: dia.data,
+                                                  dataKey: dia.dataKey,
+                                                  ponto_indices: dia.ponto_indices || {},
+                                                  pontos: dia.pontosOriginal || []
+                                                });
+                                                setModalEditPontoAberto(true);
+                                              }}
+                                              title="Editar batidas do dia"
+                                            >
+                                              <FiEdit2 size={14} />
+                                            </BtnIconeTabela>
+                                          )}
+                                          {podeExcluir && (
+                                            <BtnIconeTabela
+                                              $danger
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setConfirmarExclusaoDia({
+                                                  aberto: true,
+                                                  userId: func.id,
+                                                  dataKey: dia.dataKey,
+                                                  userName: func.nome
+                                                });
+                                              }}
+                                              title="Excluir todos os registros do dia"
+                                            >
+                                              <FiTrash2 size={14} />
+                                            </BtnIconeTabela>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </TabelaDetalhe>
                           )}
@@ -1024,11 +1068,41 @@ export default function PainelBancoHoras({ funcionarios, pontos }) {
           </ModalBox>
         </Overlay>
       )}
+
+      {/* ── Modal Mapa das Batidas do Dia (GPS) ── */}
+      <ModalMapaDiaPonto
+        aberto={modalMapaDia.aberto}
+        onFechar={() => setModalMapaDia({ aberto: false, dia: null, func: null })}
+        dia={modalMapaDia.dia}
+        funcionario={modalMapaDia.func}
+      />
     </>
   );
 }
 
 /* ─── STYLED COMPONENTS ──────────────────────────────────────────────────────── */
+
+const IconePinGeo = styled.button`
+  background: rgba(47, 129, 247, 0.12);
+  border: 1px solid rgba(47, 129, 247, 0.3);
+  color: #2f81f7;
+  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 5px;
+  padding: 0;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #2f81f7;
+    color: #fff;
+    transform: scale(1.15);
+  }
+`;
 
 const Topo = styled.div`
   display: flex;

@@ -32,6 +32,7 @@ import PainelBancoHoras from "../../components/admin/PainelBancoHoras";
 import PainelCadastro from "../../components/admin/PainelCadastro";
 import ModalTrocaSenha from "../../components/colaborador/ModalTrocaSenha";
 import ModalCompartilharSistema from "../../components/admin/ModalCompartilharSistema";
+import ModalEnviarNotificacao from "../../components/admin/ModalEnviarNotificacao";
 import BotaoTema from "../../components/BotaoTema";
 import { usePonto } from "../../hooks/usePonto";
 import { calcularResumoDiario, formatarDuracao } from "../../utils/pontoUtils";
@@ -113,6 +114,8 @@ export default function DashboardAdmin() {
     setSecoesAbertasConfig(prev => ({ ...prev, [chave]: !prev[chave] }));
   };
   const [funcEditando, setFuncEditando] = React.useState(null);
+  const [notificandoFunc, setNotificandoFunc] = React.useState(null);
+  const [modalNotificarTodosAberto, setModalNotificarTodosAberto] = React.useState(false);
   const [confirmarExclusao, setConfirmarExclusao] = React.useState({ aberto: false, func: null });
   const [confirmarResetSenha, setConfirmarResetSenha] = React.useState({ aberto: false, func: null });
   const [resetandoSenha, setResetandoSenha] = React.useState(false);
@@ -916,6 +919,20 @@ export default function DashboardAdmin() {
                       <FiUserPlus size={16} />
                       Novo Func.
                     </Botao>
+
+                    <Botao
+                      onClick={() => setModalNotificarTodosAberto(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #2f81f7, #1f6feb)',
+                        color: '#fff',
+                        boxShadow: '0 4px 14px rgba(47, 129, 247, 0.25)',
+                        border: 0
+                      }}
+                      title="Enviar notificação ou comunicado para todos os colaboradores"
+                    >
+                      <FiBell size={16} />
+                      <span>Notificar Todos</span>
+                    </Botao>
                   </div>
                 </Topo>
 
@@ -990,6 +1007,14 @@ export default function DashboardAdmin() {
                             </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
+                                <BotaoAcao
+                                  onClick={() => setNotificandoFunc(f)}
+                                  title="Enviar Notificação / Aviso para este Colaborador"
+                                  style={{ color: '#2f81f7', borderColor: 'rgba(47, 129, 247, 0.3)', background: 'rgba(47, 129, 247, 0.08)' }}
+                                >
+                                  <FiBell size={16} />
+                                </BotaoAcao>
+
                                 <BotaoAcao onClick={() => setFuncEditando(f)} title="Editar Funcionário">
                                   <FiEdit2 size={16} />
                                 </BotaoAcao>
@@ -1654,6 +1679,21 @@ export default function DashboardAdmin() {
         perigoso={true}
         textoConfirmar="Resetar Senha"
         carregando={resetandoSenha}
+      />
+
+      <ModalEnviarNotificacao
+        aberto={!!notificandoFunc}
+        onFechar={() => setNotificandoFunc(null)}
+        funcionario={notificandoFunc}
+        perfilAdmin={perfil}
+      />
+
+      <ModalEnviarNotificacao
+        aberto={modalNotificarTodosAberto}
+        onFechar={() => setModalNotificarTodosAberto(false)}
+        todosFuncionarios={true}
+        listaFuncionarios={funcionarios}
+        perfilAdmin={perfil}
       />
     </LayoutAdmin>
   );

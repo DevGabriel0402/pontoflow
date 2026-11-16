@@ -13,12 +13,41 @@ export default function ModalNotificacoes({
   notificacoes, 
   onMarcarLida, 
   onMarcarTodasLidas,
-  onExcluir
+  onExcluir,
+  onAbrirNotificacao
 }) {
   if (!aberto) return null;
 
+  const formatarData = (val) => {
+    if (!val) return "";
+    try {
+      let d = null;
+      if (typeof val.toDate === "function") d = val.toDate();
+      else if (val.seconds) d = new Date(val.seconds * 1000);
+      else if (val instanceof Date) d = val;
+      else d = new Date(val);
+
+      if (d && !isNaN(d.getTime())) {
+        return format(d, "dd 'de' MMMM 'às' HH:mm", { locale: ptBR });
+      }
+    } catch (e) {
+      console.warn("Erro ao formatar data:", e);
+    }
+    return "";
+  };
+
+  const handleClickItem = (item) => {
+    if (!item.lida && onMarcarLida) {
+      onMarcarLida(item.id);
+    }
+    if (onAbrirNotificacao) {
+      onAbrirNotificacao(item);
+      onFechar();
+    }
+  };
+
   return (
-    <Overlay>
+    <Overlay onClick={onFechar}>
       <Container onClick={(e) => e.stopPropagation()}>
         <Header>
             <HeaderTitle>
@@ -41,14 +70,19 @@ export default function ModalNotificacoes({
           {notificacoes.length > 0 ? (
             <Lista>
               {notificacoes.map((item) => (
-                <Item key={item.id} $lida={item.lida} onClick={() => !item.lida && onMarcarLida(item.id)}>
+                <Item key={item.id} $lida={item.lida} onClick={() => handleClickItem(item)}>
                   <IconeWrapper $lida={item.lida} $tipo={item.tipo}>
                     {item.tipo === "ponto_faltante" ? <FiClock /> : <FiInfo />}
                   </IconeWrapper>
                   <Info>
+                    {item.titulo && (
+                      <strong style={{ display: 'block', fontSize: 13, marginBottom: 2, color: item.lida ? '#888' : 'inherit' }}>
+                        {item.titulo}
+                      </strong>
+                    )}
                     <Mensagem $lida={item.lida}>{item.mensagem}</Mensagem>
                     <Data>
-                        {format(item.data, "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                        {formatarData(item.data)}
                     </Data>
                   </Info>
                   <AcoesItem onClick={(e) => e.stopPropagation()}>

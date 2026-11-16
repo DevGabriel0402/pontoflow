@@ -111,7 +111,11 @@ export function calcularResumoDiario(pontos, jornadas, diasAbonados = [], cargaH
             if (!p) return null;
             return {
                 time: p.dateObj,
-                foiJustificado: p.origem === "JUSTIFICATIVA_APROVADA"
+                foiJustificado: p.origem === "JUSTIFICATIVA_APROVADA",
+                geolocation: p.geolocation,
+                distanciaRelativa: p.distanciaRelativa,
+                dentroDoRaio: p.dentroDoRaio,
+                ponto: p
             };
         };
 
